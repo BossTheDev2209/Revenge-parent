@@ -62,4 +62,44 @@ function Formulas.moneyGain(followers: number, phase: number): number
 	return math.floor(followers * Config.MoneyRatePerFollower[phase])
 end
 
+-- เช็คเงื่อนไขฝั่ง VidQ % ของ ending หนึ่งตัว (เงื่อนไขไหนไม่ระบุใน Config = ไม่เช็ค)
+local function vidqPass(c, v): boolean
+	if not c then return false end
+	if c.cMin and v.C < c.cMin then return false end
+	if c.cMax and v.C > c.cMax then return false end
+	if c.bMax and v.B > c.bMax then return false end
+	if c.aMin and v.A < c.aMin then return false end
+	if c.sMax and v.S > c.sMax then return false end
+	return true
+end
+
+-- เช็คเงื่อนไขฝั่ง choice % (pos + neu + neg = 100)
+local function choicePass(c, ch): boolean
+	if not c then return false end
+	if c.spreadMax then return math.abs(ch.neg - ch.pos) + ch.neu < c.spreadMax end
+	if c.posMin and ch.pos < c.posMin then return false end
+	if c.negMin and ch.neg < c.negMin then return false end
+	if c.negMax and ch.neg > c.negMax then return false end
+	if c.neuMin and ch.neu < c.neuMin then return false end
+	if c.neuMax and ch.neu > c.neuMax then return false end
+	return true
+end
+
+-- design doc §5: stats = { vidq = {C,B,A,S}, choice = {pos,neu,neg} } หน่วย % (0–100)
+-- ไล่ตาม Config.EndingPriority คืนตัวแรกที่เข้าเงื่อนไข
+-- Bad1 (เงิน) / Bad2 (mental) ไม่มี threshold ในตาราง — trigger สดกลางเกม ข้ามในลูปนี้
+function Formulas.resolveEnding(stats): string
+	for _, name in Config.EndingPriority do
+		local e = Config.EndingThresholds[name]
+		if e then
+			local v = vidqPass(e.vidq, stats.vidq)
+			local c = choicePass(e.choice, stats.choice)
+			-- Good1 ต้องผ่านทั้งสองฝั่ง (AND) — ที่เหลือฝั่งเดียวพอ (OR) ตาม design doc §5
+			local hit = if name == "Good1" then (v and c) else (v or c)
+			if hit then return name end
+		end
+	end
+	return "Neutral2" -- ถึง 1M แต่ไม่เข้าเงื่อนไขไหน — ending กลางสุดคือตาข่ายสุดท้าย
+end
+
 return Formulas

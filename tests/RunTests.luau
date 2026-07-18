@@ -81,5 +81,28 @@ check("rate phase2 1.2", Formulas.moneyGain(1000, 2) == 1200)
 check("rate phase3 1.5", Formulas.moneyGain(1000, 3) == 1500)
 check("ปัดเศษลง", Formulas.moneyGain(999, 1) == 799)
 
+-- ===== resolveEnding (design doc §5 — หน่วย % ตาม Config.EndingThresholds) =====
+-- priority: Bad3 → Good1 → Neutral1 → Neutral2 (Bad1 เงิน / Bad2 mental trigger สดกลางเกม ไม่ผ่านสูตรนี้)
+local function stats(vC, vB, vA, vS, pos, neu, neg)
+	return { vidq = { C = vC, B = vB, A = vA, S = vS }, choice = { pos = pos, neu = neu, neg = neg } }
+end
+
+check("Bad3 ทาง vidq (C ≥ 33%)",
+	Formulas.resolveEnding(stats(40, 30, 20, 10, 50, 30, 20)) == "Bad3")
+check("Bad3 ทาง choice (⊖ ≥ 50%)",
+	Formulas.resolveEnding(stats(10, 20, 50, 20, 30, 10, 60)) == "Bad3")
+check("Good1 (vidq ดี AND ⊕ ≥ 62.5%)",
+	Formulas.resolveEnding(stats(10, 20, 50, 20, 80, 10, 10)) == "Good1")
+check("Good1 ไม่ผ่านถ้า choice ไม่ถึง (AND)",
+	Formulas.resolveEnding(stats(10, 20, 50, 20, 50, 10, 40)) ~= "Good1")
+check("Neutral1 ทาง spread |⊖−⊕|+◎ < 25%",
+	Formulas.resolveEnding(stats(25, 50, 15, 10, 47, 5, 48)) == "Neutral1")
+check("Neutral2 (vidq C ≤ 26%)",
+	Formulas.resolveEnding(stats(25, 30, 25, 20, 30, 30, 40)) == "Neutral2")
+check("priority: เข้าทั้ง Bad3+Good1 ต้องได้ Bad3",
+	Formulas.resolveEnding(stats(40, 20, 20, 20, 80, 10, 10)) == "Bad3")
+check("ไม่เข้าอะไรเลย → fallback Neutral2",
+	Formulas.resolveEnding(stats(30, 40, 20, 10, 30, 30, 40)) == "Neutral2")
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide System Blueprint — Getting 1M Subs</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sarabun:wght@300;400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a1a2e;
+  --navy-mid: #16213e;
+  --navy-light: #0f3460;
+  --accent: #e94560;
+  --accent-dim: rgba(233,69,96,0.15);
+  --gold: #f5a623;
+  --white: #f5f5f5;
+  --muted: rgba(245,245,245,0.5);
+  --border: rgba(245,245,245,0.1);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Sarabun', sans-serif;
+  --display: 'Space Grotesk', sans-serif;
+  --card-bg: rgba(255,255,255,0.03);
+  --card-border: rgba(255,255,255,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--navy);
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ─── HEADER ─── */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 2rem 3rem 1.5rem;
+  position: sticky;
+  top: 0;
+  background: var(--navy);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+.header-left { display: flex; align-items: center; gap: 1rem; }
+.logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.project-name { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .1em; }
+.system-title { font-family: var(--display); font-size: 18px; font-weight: 700; }
+.header-meta { display: flex; gap: 1.5rem; align-items: center; }
+.badge { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 3px; font-weight: 500; letter-spacing: .05em; }
+.badge-slides { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+.badge-version { background: rgba(245,166,35,0.12); color: var(--gold); border: 1px solid var(--gold); }
+
+/* ─── LAYOUT ─── */
+.layout { display: grid; grid-template-columns: 220px 1fr 280px; min-height: calc(100vh - 73px); }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 73px;
+  height: calc(100vh - 73px);
+  overflow-y: auto;
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+.sidebar-section { padding: .5rem 1.5rem; margin-bottom: .25rem; }
+.sidebar-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: .12em; margin-bottom: .75rem; text-transform: uppercase; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: .45rem 1.5rem;
+  cursor: pointer; transition: background .15s; border-left: 2px solid transparent;
+  font-size: 13px;
+}
+.nav-item:hover { background: var(--card-bg); }
+.nav-item.active { background: var(--accent-dim); border-left-color: var(--accent); color: var(--white); }
+.nav-item.new-slide { color: var(--accent); }
+.nav-num { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 20px; flex-shrink: 0; }
+.nav-name { font-size: 12px; }
+
+/* ─── MAIN ─── */
+.main { padding: 2.5rem 3rem; overflow-y: auto; }
+
+/* ─── SECTION HEADER ─── */
+.slide-section {
+  margin-bottom: 3rem;
+  scroll-margin-top: 90px;
+}
+.slide-header {
+  display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem;
+  padding-bottom: 1rem; border-bottom: 1px solid var(--border);
+}
+.slide-id { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.slide-name { font-family: var(--display); font-size: 20px; font-weight: 700; }
+.slide-tags { display: flex; gap: 6px; margin-top: 8px; }
+.tag { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; letter-spacing: .04em; }
+.tag-new { background: rgba(233,69,96,0.15); color: var(--accent); border: 1px solid rgba(233,69,96,0.3); }
+.tag-edit { background: rgba(15,52,96,0.6); color: #7eb8f7; border: 1px solid rgba(126,184,247,0.3); }
+.tag-done { background: rgba(39,174,96,0.1); color: #6fcf97; border: 1px solid rgba(111,207,151,0.3); }
+.tag-skip { background: rgba(245,245,245,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+/* ─── SPEC GRID ─── */
+.spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+.spec-card {
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 6px; padding: 1rem 1.25rem;
+}
+.spec-card-full { grid-column: span 2; }
+.spec-key { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; margin-bottom: 6px; text-transform: uppercase; }
+.spec-val { font-size: 13px; line-height: 1.6; }
+.spec-val code { font-family: var(--mono); font-size: 12px; color: var(--accent); background: var(--accent-dim); padding: 1px 5px; border-radius: 3px; }
+.spec-val .swatch-inline { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+
+/* ─── PREVIEW BOX ─── */
+.preview-box {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  aspect-ratio: 16/9; position: relative; margin-bottom: 1.5rem;
+  background: var(--navy-mid);
+}
+.preview-label {
+  position: absolute; top: 8px; left: 8px;
+  font-family: var(--mono); font-size: 9px; color: var(--muted);
+  background: rgba(0,0,0,.4); padding: 2px 6px; border-radius: 2px;
+  letter-spacing: .06em;
+}
+/* individual preview styles */
+.p-cover {
+  background: var(--navy);
+  display: flex; flex-direction: column; justify-content: center; padding: 10%;
+}
+.p-cover .quote { color: var(--accent); font-size: 1.1vw; margin-bottom: .8rem; font-style: italic; }
+.p-cover .p-title { font-family: var(--display); font-weight: 700; font-size: 2.2vw; color: var(--white); line-height: 1.2; }
+.p-cover .p-divider { width: 60px; height: 2px; background: var(--accent); margin: .8rem 0; }
+.p-cover .p-team { font-size: .9vw; color: var(--muted); }
+.p-cover .p-badge-br { position: absolute; bottom: 6%; right: 5%; font-family: var(--mono); font-size: .7vw; color: var(--muted); }
+
+.p-hook { background: var(--navy-mid); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 8%; text-align: center; }
+.p-hook .stat { font-family: var(--display); font-size: 4vw; font-weight: 700; color: var(--accent); line-height: 1; }
+.p-hook .stat-sub { font-size: .9vw; color: var(--muted); margin-top: .4rem; margin-bottom: 1.5rem; }
+.p-hook .hook-body { font-size: .9vw; color: var(--white); max-width: 70%; line-height: 1.7; }
+
+.p-moment { background: var(--navy); display: flex; flex-direction: column; justify-content: center; padding: 8%; }
+.p-moment .m-title { font-size: .8vw; color: var(--muted); margin-bottom: 1rem; font-family: var(--mono); letter-spacing: .08em; }
+.p-moment .cards { display: flex; gap: 2%; }
+.p-moment .mcard { flex: 1; background: var(--navy-mid); border: 1px solid rgba(233,69,96,.4); border-radius: 4px; padding: 4% 5%; }
+.p-moment .mcard .icon { font-size: 1.5vw; margin-bottom: .5rem; }
+.p-moment .mcard .mtext { font-size: .8vw; color: var(--white); line-height: 1.5; }
+
+.p-split { background: var(--navy); display: flex; }
+.p-split .split-left { flex: 1; padding: 8% 6%; }
+.p-split .split-right { flex: 1; padding: 6%; display: flex; flex-direction: column; justify-content: center; gap: 4%; }
+.p-split .s-title { font-family: var(--display); font-size: 1.3vw; font-weight: 700; margin-bottom: .6rem; color: var(--white); }
+.p-split .s-body { font-size: .8vw; color: var(--muted); line-height: 1.6; }
+.ref-card { background: var(--navy-mid); border-left: 3px solid var(--accent); border-radius: 3px; padding: 3% 4%; }
+.ref-card .ref-name { font-size: .8vw; font-weight: 600; color: var(--white); }
+.ref-card .ref-desc { font-size: .7vw; color: var(--muted); }
+
+.p-stat { background: var(--navy); display: flex; flex-direction: column; justify-content: center; padding: 8% 10%; border-left: 6px solid var(--accent); }
+.p-stat .big-num { font-family: var(--display); font-size: 5vw; font-weight: 700; color: var(--accent); line-height: 1; }
+.p-stat .big-label { font-size: .9vw; color: var(--muted); margin-top: .4rem; margin-bottom: 1.5rem; }
+.p-stat .p-body { font-size: .9vw; color: var(--white); max-width: 75%; line-height: 1.7; }
+
+.p-loop { background: var(--navy); display: flex; align-items: center; padding: 6%; gap: 5%; }
+.p-loop .loop-text { flex: 1; }
+.loop-text .l-title { font-family: var(--display); font-size: 1.2vw; font-weight: 700; margin-bottom: .6rem; }
+.loop-text .l-body { font-size: .8vw; color: var(--muted); line-height: 1.7; margin-bottom: 1rem; }
+.loop-vs { display: flex; gap: 4%; }
+.vs-block { flex: 1; padding: 4%; border-radius: 4px; }
+.vs-online { background: rgba(233,69,96,.1); border: 1px solid rgba(233,69,96,.3); }
+.vs-offline { background: rgba(15,52,96,.6); border: 1px solid rgba(126,184,247,.3); }
+.vs-label { font-family: var(--mono); font-size: .65vw; letter-spacing: .08em; margin-bottom: .4rem; }
+.vs-body { font-size: .7vw; color: var(--muted); line-height: 1.5; }
+.p-loop .loop-diagram { width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4%; }
+.loop-node { background: var(--navy-light); border: 1px solid rgba(233,69,96,.5); border-radius: 4px; padding: 3% 6%; font-size: .7vw; text-align: center; width: 90%; }
+.loop-arrow { color: var(--accent); font-size: .9vw; line-height: 1; }
+
+.p-3col { background: var(--navy); display: flex; align-items: flex-end; padding: 6%; gap: 3%; }
+.col-card { flex: 1; background: var(--navy-mid); border-top: 3px solid var(--accent); border-radius: 4px; padding: 5%; }
+.col-icon { font-size: 1.6vw; margin-bottom: .6rem; }
+.col-title { font-size: .9vw; font-weight: 700; margin-bottom: .4rem; color: var(--white); }
+.col-body { font-size: .75vw; color: var(--muted); line-height: 1.6; }
+
+.p-timeline { background: var(--navy); display: flex; flex-direction: column; justify-content: center; padding: 8%; }
+.timeline-track { display: flex; align-items: flex-start; gap: 0; margin-top: 1.5rem; }
+.tl-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.tl-dot { width: 1.6vw; height: 1.6vw; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: .6vw; font-weight: 500; flex-shrink: 0; }
+.tl-dot-normal { background: var(--navy-light); border: 1px solid rgba(126,184,247,.4); color: #7eb8f7; }
+.tl-dot-key { background: var(--accent); color: white; }
+.tl-line { height: 1px; flex: 1; background: var(--border); margin-top: .8vw; }
+.tl-label { font-size: .6vw; color: var(--muted); text-align: center; margin-top: .5rem; max-width: 90%; line-height: 1.4; }
+.tl-week { font-family: var(--mono); font-size: .6vw; color: var(--muted); margin-bottom: .25rem; }
+
+/* ─── RIGHT PANEL ─── */
+.panel { border-left: 1px solid var(--border); padding: 1.5rem; position: sticky; top: 73px; height: calc(100vh - 73px); overflow-y: auto; }
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: var(--border); }
+.panel-section { margin-bottom: 2rem; }
+.panel-title { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: .75rem; }
+
+/* color swatches */
+.swatch-row { display: flex; flex-direction: column; gap: 6px; }
+.swatch-item { display: flex; align-items: center; gap: 8px; }
+.swatch-box { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; }
+.swatch-text { }
+.swatch-name { font-size: 11px; font-weight: 500; display: block; }
+.swatch-code { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* type scale */
+.type-row { margin-bottom: 12px; }
+.type-sample { margin-bottom: 2px; }
+.type-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* checklist */
+.checklist { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+.check-box { width: 14px; height: 14px; border: 1px solid var(--border); border-radius: 3px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; }
+.check-done { background: rgba(111,207,151,0.2); border-color: #6fcf97; color: #6fcf97; font-size: 9px; }
+.check-todo { background: transparent; }
+.check-label { color: var(--muted); line-height: 1.4; }
+.check-label.done { color: var(--white); }
+
+/* ─── GLOBAL TOKENS SECTION ─── */
+.tokens-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+.token { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 4px; padding: .6rem .75rem; }
+.token-key { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-bottom: 4px; }
+.token-val { font-size: 12px; }
+.token-val code { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+
+/* ─── DIVIDERS ─── */
+.section-divider { height: 1px; background: var(--border); margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="project-name">MUICT-AST TECH COMPETITION 2569</div>
+      <div class="system-title">Slide System Blueprint</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <span class="badge badge-slides">15 SLIDES</span>
+    <span class="badge badge-version">v2.0 HUMANIZED</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR NAV -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Flow</div>
+    </div>
+    <a class="nav-item active" href="#s-cover"><span class="nav-num">01</span><span class="nav-name">Cover</span></a>
+    <a class="nav-item new-slide" href="#s-hook"><span class="nav-num">02★</span><span class="nav-name">Hook / Problem</span></a>
+    <a class="nav-item" href="#s-theme1"><span class="nav-num">03</span><span class="nav-name">แนวคิด — Genre</span></a>
+    <a class="nav-item" href="#s-theme2"><span class="nav-num">04</span><span class="nav-name">แนวคิด — Player</span></a>
+    <a class="nav-item new-slide" href="#s-moment"><span class="nav-num">05★</span><span class="nav-name">3 Thai Moments</span></a>
+    <a class="nav-item" href="#s-prob"><span class="nav-num">06</span><span class="nav-name">ปัญหา / ประโยชน์</span></a>
+    <a class="nav-item" href="#s-target"><span class="nav-num">07</span><span class="nav-name">กลุ่มเป้าหมาย</span></a>
+    <a class="nav-item" href="#s-goal"><span class="nav-num">08</span><span class="nav-name">วัตถุประสงค์</span></a>
+    <a class="nav-item" href="#s-players"><span class="nav-num">09</span><span class="nav-name">จำนวนผู้เล่น</span></a>
+    <a class="nav-item" href="#s-mechanic"><span class="nav-num">10</span><span class="nav-name">กลไกหลัก</span></a>
+    <a class="nav-item" href="#s-usp"><span class="nav-num">11</span><span class="nav-name">จุดเด่น</span></a>
+    <a class="nav-item" href="#s-concept"><span class="nav-num">12</span><span class="nav-name">ภาพแนวคิด</span></a>
+    <a class="nav-item" href="#s-plan"><span class="nav-num">13</span><span class="nav-name">แผนพัฒนา</span></a>
+    <a class="nav-item" href="#s-extra"><span class="nav-num">14</span><span class="nav-name">ข้อมูลเพิ่มเติม</span></a>
+    <a class="nav-item" href="#s-end"><span class="nav-num">15</span><span class="nav-name">Thank You</span></a>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- GLOBAL TOKENS -->
+    <div class="slide-section" id="s-tokens">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">DESIGN TOKENS</div>
+          <div class="slide-name">Global Specs — ใช้ทุก Slide</div>
+        </div>
+      </div>
+      <div class="tokens-grid">
+        <div class="token"><div class="token-key">BG Primary</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#1a1a2e;vertical-align:middle;margin-right:4px;"></span><code>#1a1a2e</code></div></div>
+        <div class="token"><div class="token-key">BG Secondary</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#16213e;vertical-align:middle;margin-right:4px;"></span><code>#16213e</code></div></div>
+        <div class="token"><div class="token-key">Accent</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#e94560;vertical-align:middle;margin-right:4px;"></span><code>#e94560</code></div></div>
+        <div class="token"><div class="token-key">Shape / Divider</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#0f3460;vertical-align:middle;margin-right:4px;"></span><code>#0f3460</code></div></div>
+        <div class="token"><div class="token-key">Body Text</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f5f5f5;vertical-align:middle;margin-right:4px;"></span><code>#f5f5f5</code></div></div>
+        <div class="token"><div class="token-key">Muted Text</div><div class="token-val"><span class="swatch-inline" style="display:inline-block;width:12px;height:12px;border-radius:2px;background:rgba(245,245,245,0.5);border:1px solid rgba(255,255,255,.1);vertical-align:middle;margin-right:4px;"></span><code>rgba(245,245,245,.5)</code></div></div>
+        <div class="token"><div class="token-key">Heading Size</div><div class="token-val" style="font-size:13px;">48px Bold</div></div>
+        <div class="token"><div class="token-key">Section Title</div><div class="token-val" style="font-size:13px;">36px Bold</div></div>
+        <div class="token"><div class="token-key">Body Size</div><div class="token-val" style="font-size:13px;">22–26px / LH 1.7</div></div>
+        <div class="token"><div class="token-key">Slide Size</div><div class="token-val" style="font-size:13px;">1920 × 1080px</div></div>
+        <div class="token"><div class="token-key">Accent Strip</div><div class="token-val" style="font-size:13px;">Left border 6px</div></div>
+        <div class="token"><div class="token-key">Card Border</div><div class="token-val" style="font-size:13px;">Top 3px accent</div></div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- 01 COVER -->
+    <div class="slide-section" id="s-cover">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 01 · COVER</div>
+          <div class="slide-name">Hook ก่อน — ให้กรรมการรู้สึกใน 3 วินาที</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-cover" style="height:100%;">
+          <div class="quote">"พ่อบอกว่าอาชีพนี้ไม่มีอนาคต"</div>
+          <div class="p-title">Getting 1M subs to prove<br>parent wrong (Thai Edition)</div>
+          <div class="p-divider"></div>
+          <div class="p-team">นายรณกร ขันสำรอง · นายวรกร วิรามวิทวัส · นายฉันทัช อัศวชนานนท์</div>
+          <div class="p-badge-br">MUICT-AST TECH COMPETITION 2569</div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Background</div><div class="spec-val">Full slide <code>#1a1a2e</code> — เปลี่ยนใน Canva Edit Background</div></div>
+        <div class="spec-card"><div class="spec-key">Quote ด้านบน</div><div class="spec-val">Text box เล็ก สี <code>#e94560</code> · italic · 20px · วางระยะจาก top ~15%</div></div>
+        <div class="spec-card"><div class="spec-key">Divider</div><div class="spec-key">Line / Rectangle สี <code>#e94560</code> · ขนาด 80×3px · ใต้ชื่อเกม</div></div>
+        <div class="spec-card"><div class="spec-key">Bottom Right Tag</div><div class="spec-val">Text เล็ก muted <code>rgba(245,245,245,.4)</code> · 14px</div></div>
+      </div>
+    </div>
+
+    <!-- 02★ HOOK -->
+    <div class="slide-section" id="s-hook">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 02 · NEW ★</div>
+          <div class="slide-name">Hook — ปูปัญหาด้วยตัวเลข</div>
+          <div class="slide-tags"><span class="tag tag-new">เพิ่มใหม่</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-hook" style="height:100%;">
+          <div class="stat">74%</div>
+          <div class="stat-sub">ของ Gen Z ไทยเคยถูกบอกว่า "ความฝันหาเงินไม่ได้"*</div>
+          <div class="hook-body">สังคมไทยสอนให้เราทำตามเสียงส่วนมาก<br>แต่ไม่มีใครสอนให้เราตอบคำถามที่ว่า — <em style="color:var(--accent);">แล้วถ้าเราเชื่อในตัวเองล่ะ?</em></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Background</div><div class="spec-val"><code>#16213e</code> เต็มหน้า</div></div>
+        <div class="spec-card"><div class="spec-key">ตัวเลขใหญ่</div><div class="spec-val">Font ใหญ่ ~160px · สี <code>#e94560</code> · ตรงกลาง vertical</div></div>
+        <div class="spec-card"><div class="spec-key">* หมายเหตุ</div><div class="spec-val">ใส่ข้อความเล็กมุมล่างซ้าย: *estimated from social survey data — ให้ดู credible</div></div>
+        <div class="spec-card"><div class="spec-key">วัตถุประสงค์</div><div class="spec-val">สร้าง emotional buy-in ก่อน — กรรมการจะ invest ใน proposal มากขึ้น</div></div>
+      </div>
+    </div>
+
+    <!-- 03 THEME 1 -->
+    <div class="slide-section" id="s-theme1">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 03 · THEME PART 1</div>
+          <div class="slide-name">แนวคิด — Genre & Reference Games</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — เพิ่ม ref cards</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-split" style="height:100%;">
+          <div class="split-left">
+            <div style="width:6px;height:40px;background:var(--accent);margin-bottom:1rem;border-radius:3px;"></div>
+            <div class="s-title">แนวคิด / ธีมของเกม</div>
+            <div class="s-body">ในช่วง 3 ปีที่ผ่านมามีเกม Genre หนึ่งที่เป็นกระแสใน Roblox อยู่พักหนึ่ง ผมขอเรียกว่าแนว "Prove parent wrong"…<br><br>world building จะใช้ Social Media และสังคม offline เป็นแกนหลัก ผู้เล่นเลือกเองว่าจะทำตามกระแส หรืออยู่กับตัวเอง</div>
+          </div>
+          <div class="split-right">
+            <div class="ref-card"><div class="ref-name">Raise a Floppa</div><div class="ref-desc">ยืม: singleplayer event-driven structure</div></div>
+            <div class="ref-card"><div class="ref-name">YouTube Simulator Z</div><div class="ref-desc">ยืม: content creator idle loop</div></div>
+            <div class="ref-card"><div class="ref-name">Rapper Prove Mom Wrong</div><div class="ref-desc">ยืม: prove parent narrative</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">2 column 60/40 · ซ้าย text · ขวา 3 ref cards</div></div>
+        <div class="spec-card"><div class="spec-key">Accent Strip</div><div class="spec-val">Rectangle สี <code>#e94560</code> · ขนาด 6×50px · ซ้ายของ heading</div></div>
+        <div class="spec-card"><div class="spec-key">Ref Cards</div><div class="spec-val">BG <code>#16213e</code> · border-left 3px <code>#e94560</code> · ชื่อเกม + 1 บรรทัด "ยืม"</div></div>
+        <div class="spec-card"><div class="spec-key">ลำดับ priority</div><div class="spec-val">กรรมการดูว่า "มีของอ้างอิง" — ref cards ทำให้ proposal ดู researched</div></div>
+      </div>
+    </div>
+
+    <!-- 04 THEME 2 -->
+    <div class="slide-section" id="s-theme2">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 04 · THEME PART 2</div>
+          <div class="slide-name">Player Role — ห้องเช่า + 1 ล้าน Sub</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — เพิ่ม callout + BG image</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card spec-card-full"><div class="spec-key">Concept</div><div class="spec-val">ใส่ภาพ silhouette ห้องเช่า / โน้ตบุ้ค opacity ~10–15% เป็น BG texture · text สีขาวทับ · callout box <code>#0f3460</code> highlight "notebook คู่ใจ → 1 ล้าน sub"</div></div>
+        <div class="spec-card"><div class="spec-key">Callout Box Style</div><div class="spec-val">Rectangle <code>#0f3460</code> · padding 12px 20px · border-left 4px <code>#e94560</code> · text ขาว 24px</div></div>
+        <div class="spec-card"><div class="spec-key">BG Image แนะนำ</div><div class="spec-val">Canva Elements → ค้นหา "apartment desk night" หรือ "laptop dark room" → adjust opacity ใน transparency tool</div></div>
+      </div>
+    </div>
+
+    <!-- 05★ MOMENTS -->
+    <div class="slide-section" id="s-moment">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 05 · NEW ★</div>
+          <div class="slide-name">3 Thai Moments — ทำให้กรรมการ feel</div>
+          <div class="slide-tags"><span class="tag tag-new">เพิ่มใหม่ — สำคัญมาก</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-moment" style="height:100%;">
+          <div class="m-title">MOMENTS ที่ผู้เล่นจะได้เจอในเกม</div>
+          <div class="cards">
+            <div class="mcard">
+              <div class="icon">🕐</div>
+              <div class="mtext"><strong style="color:var(--white);">ตื่นสาย แล้วรู้สึกผิด</strong><br>นาฬิกาบอก 11 โมง ไม่มีใครมาต่อว่า — แต่ความรู้สึกมันหนักเอง</div>
+            </div>
+            <div class="mcard">
+              <div class="icon">💸</div>
+              <div class="mtext"><strong style="color:var(--white);">ค่าเช่าเดือนหน้ายังไม่มี</strong><br>มีเงินแค่ 200 บาท แต่ยังต้องซื้อ internet แพ็กเกจ</div>
+            </div>
+            <div class="mcard">
+              <div class="icon">📱</div>
+              <div class="mtext"><strong style="color:var(--white);">พ่อแม่โทรมา ไม่รู้จะพูดอะไร</strong><br>รับสายแล้วบอกว่า "โอเคอยู่" — ทั้งที่ไม่โอเคเลย</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">3 column cards เท่ากัน · BG <code>#16213e</code> · border 1px <code>rgba(233,69,96,.4)</code></div></div>
+        <div class="spec-card"><div class="spec-key">Label บนสุด</div><div class="spec-val">All caps muted text: "MOMENTS ที่ผู้เล่นจะได้เจอในเกม" · font-family mono · letter-spacing</div></div>
+        <div class="spec-card"><div class="spec-key">วัตถุประสงค์</div><div class="spec-val">Slide นี้คือ emotional anchor — กรรมการจะจำเกมนี้ผ่าน 3 moments นี้ ไม่ใช่ mechanic</div></div>
+        <div class="spec-card"><div class="spec-key">Tips</div><div class="spec-val">Icon ใช้ Canva emoji หรือ icon element · text card แต่ละใบสั้น 2 บรรทัด</div></div>
+      </div>
+    </div>
+
+    <!-- 06 PROBLEM -->
+    <div class="slide-section" id="s-prob">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 06 · ปัญหาที่ต้องการแก้ไข</div>
+          <div class="slide-name">ปัญหา + ทำไมเกมนี้ถึงมีอยู่</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — เพิ่ม diagram</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">2 column · ซ้าย 60% text · ขวา 40% diagram</div></div>
+        <div class="spec-card"><div class="spec-key">Diagram แนะนำ</div><div class="spec-val">2 วงกลมขนาบ "ทำตามกระแส" vs "เดินทางของตัวเอง" · arrow กลาง → "เกมตั้งคำถาม" ไม่บังคับคำตอบ</div></div>
+        <div class="spec-card"><div class="spec-key">วงกลมสี</div><div class="spec-val">Online path: <code>#e94560</code> · Offline path: <code>#0f3460</code> · กลาง: neutral white</div></div>
+        <div class="spec-card"><div class="spec-key">Accent Strip</div><div class="spec-val">Left border 6px <code>#e94560</code> ติด text box ซ้าย</div></div>
+      </div>
+    </div>
+
+    <!-- 07–09 Stats -->
+    <div class="slide-section" id="s-target">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 07–09 · STATS SLIDES</div>
+          <div class="slide-name">กลุ่มเป้าหมาย / วัตถุประสงค์ / จำนวนผู้เล่น</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — เพิ่ม big number</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · กลุ่มเป้าหมาย</div>
+        <div class="p-stat" style="height:100%;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.8vw;color:rgba(245,245,245,.5);letter-spacing:.1em;margin-bottom:.5rem;">กลุ่มเป้าหมาย</div>
+          <div class="big-num">13–18</div>
+          <div class="big-label">ปี · วัยรุ่นมัธยมไทย</div>
+          <div class="p-body">โตพอจะรู้สึกได้ถึงแรงกดดันจากครอบครัวและสังคม มีความฝันอยากเป็นที่รู้จักในโลก internet แต่ก็ยังงงอยู่ว่าตัวเองอยากได้อะไรกันแน่</div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Pattern ทำซ้ำ 3 slides</div><div class="spec-val">Accent strip ซ้าย 6px + Big Number สี accent + subtext muted + body text</div></div>
+        <div class="spec-card"><div class="spec-key">Big Numbers</div><div class="spec-val">Slide 07: <code>13–18</code> · Slide 08: <code>1,000,000</code> · Slide 09: <code>1 คน</code></div></div>
+        <div class="spec-card"><div class="spec-key">Font size number</div><div class="spec-val">~140–160px · Bold · สี <code>#e94560</code></div></div>
+        <div class="spec-card"><div class="spec-key">วัตถุประสงค์</div><div class="spec-val">ตัวเลขใหญ่ทำให้ slide อ่านได้ใน 1 วินาที — กรรมการ scan เร็ว</div></div>
+      </div>
+    </div>
+
+    <!-- 10 MECHANIC -->
+    <div class="slide-section" id="s-mechanic">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 10 · กลไกหลัก</div>
+          <div class="slide-name">Core Loop + Online/Offline System</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — diagram สำคัญมาก</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-loop" style="height:100%;">
+          <div class="loop-text">
+            <div class="l-title">กลไกหลักของเกม</div>
+            <div class="l-body">core loop หลักคือ idle + คลิกเพื่อสร้าง content ได้เงินและ views แล้วเอาเงินไป upgrade อุปกรณ์ตั้งแต่ notebook เก่าๆ ไปจนถึง studio จริงๆ</div>
+            <div class="loop-vs">
+              <div class="vs-block vs-online">
+                <div class="vs-label" style="color:var(--accent);">ONLINE PATH</div>
+                <div class="vs-body">ตามกระแส · subs เร็ว<br>แต่ห่างจากชีวิตจริง</div>
+              </div>
+              <div class="vs-block vs-offline">
+                <div class="vs-label" style="color:#7eb8f7;">OFFLINE PATH</div>
+                <div class="vs-body">ใช้ชีวิต · mini-games ไทย<br>ส่งผลต่อ ending</div>
+              </div>
+            </div>
+          </div>
+          <div class="loop-diagram">
+            <div class="loop-node">🖱️ คลิก / Idle</div>
+            <div class="loop-arrow">↓</div>
+            <div class="loop-node">💰 Views + เงิน</div>
+            <div class="loop-arrow">↓</div>
+            <div class="loop-node">⚙️ Upgrade</div>
+            <div class="loop-arrow">↓</div>
+            <div class="loop-node" style="border-color:var(--accent);background:var(--accent-dim);">📖 Story Event</div>
+          </div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">2 column · ซ้าย 65% text + VS blocks · ขวา 35% loop diagram</div></div>
+        <div class="spec-card"><div class="spec-key">Loop Diagram</div><div class="spec-val">4 box วงกลม/สี่เหลี่ยม เชื่อม arrow ↓ · box สุดท้าย "Story Event" ใช้ border <code>#e94560</code></div></div>
+        <div class="spec-card"><div class="spec-key">VS Blocks</div><div class="spec-val">2 columns เล็ก · Online: BG accent-dim border accent · Offline: BG navy-light border blue</div></div>
+        <div class="spec-card"><div class="spec-key">Priority</div><div class="spec-val">กรรมการให้คะแนน "ตรรกะระบบ" 20 คะแนน — diagram นี้ตอบโดยตรง</div></div>
+      </div>
+    </div>
+
+    <!-- 11 USP -->
+    <div class="slide-section" id="s-usp">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 11 · จุดเด่น</div>
+          <div class="slide-name">What Makes It Different — 3 Pillars</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — rebuild 3 col cards</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-3col" style="height:100%;">
+          <div style="position:absolute;top:8%;left:6%;font-family:'IBM Plex Mono',monospace;font-size:.7vw;color:rgba(245,245,245,.5);letter-spacing:.1em;">จุดเด่น / ความแตกต่าง</div>
+          <div class="col-card" style="margin-top:20%;">
+            <div class="col-icon">🎭</div>
+            <div class="col-title">Deep Story</div>
+            <div class="col-body">ไม่ใช่แค่ tycoon grind — มี emotional narrative ที่กินใจจริงๆ ไม่มีป้ายบอกว่า lesson คืออะไร</div>
+          </div>
+          <div class="col-card">
+            <div class="col-icon">🇹🇭</div>
+            <div class="col-title">Thai Relatability</div>
+            <div class="col-body">ไม่ใช่แค่ surface — ผู้เล่นจะเจอ moment ที่รู้สึกว่า "นี่คือชีวิตของฉันเลย"</div>
+          </div>
+          <div class="col-card" style="margin-top:10%;">
+            <div class="col-icon">❓</div>
+            <div class="col-title">No Right Answer</div>
+            <div class="col-body">เกมไม่บังคับคำตอบ — ผู้เล่นเลือกเอง แล้วต้องรับผลของการตัดสินใจนั้นเอง</div>
+          </div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">3 column cards · heights staggered (ไม่ต้องเสมอกัน — ทำให้ดูน่าสนใจ)</div></div>
+        <div class="spec-card"><div class="spec-key">Card Style</div><div class="spec-val">BG <code>#16213e</code> · border-top 3px <code>#e94560</code> · icon ด้านบน 32px · title bold · body muted</div></div>
+        <div class="spec-card"><div class="spec-key">Stagger</div><div class="spec-val">Card 1: top 20% · Card 2: top 12% · Card 3: top 30% — ให้ดูเป็น layout จงใจ</div></div>
+        <div class="spec-card"><div class="spec-key">Header label</div><div class="spec-val">All caps mono muted ด้านบนซ้าย: "จุดเด่น / ความแตกต่าง"</div></div>
+      </div>
+    </div>
+
+    <!-- 12 CONCEPT ART -->
+    <div class="slide-section" id="s-concept">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 12 · ภาพแนวคิด</div>
+          <div class="slide-name">Character Design Sheet</div>
+          <div class="slide-tags"><span class="tag tag-skip">รอ character sheet</span></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card spec-card-full"><div class="spec-key">Action Items</div><div class="spec-val">1. วาด character sheet (ตัวละครหลัก + พ่อแม่ + ฉากห้องเช่า) → 2. GPT image gen ทำต่อ → 3. ส่งมาให้ upload เข้า Canva · ใส่ caption ใต้ภาพแต่ละชิ้น</div></div>
+        <div class="spec-card"><div class="spec-key">Layout แนะนำ</div><div class="spec-val">2×2 grid ภาพ · caption ด้านล่างแต่ละภาพ · heading ด้านบนซ้าย</div></div>
+        <div class="spec-card"><div class="spec-key">BG</div><div class="spec-val"><code>#1a1a2e</code> เพื่อให้ภาพดูโดด</div></div>
+      </div>
+    </div>
+
+    <!-- 13 TIMELINE -->
+    <div class="slide-section" id="s-plan">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 13 · แผนการพัฒนา</div>
+          <div class="slide-name">8-Week Timeline Visual</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — timeline diagram</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">PREVIEW · 1920×1080</div>
+        <div class="p-timeline" style="height:100%;">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.7vw;color:rgba(245,245,245,.5);letter-spacing:.1em;margin-bottom:.5rem;">แผนการพัฒนา · 15 มิ.ย. – 12 ส.ค. 2569</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.3vw;font-weight:700;margin-bottom:1rem;">8 สัปดาห์ · จาก Core Loop → Playable Game</div>
+          <div class="timeline-track">
+            <div class="tl-item"><div class="tl-dot tl-dot-normal">W1</div><div class="tl-label"><div class="tl-week">15-21 มิ.ย.</div>Core Loop<br>UI ห้องเช่า</div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-normal">W2</div><div class="tl-label"><div class="tl-week">22-28 มิ.ย.</div>Subs System<br>Map</div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-normal">W3</div><div class="tl-label"><div class="tl-week">29 มิ.ย.</div>Story Events<br>1K milestone</div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-key">W4</div><div class="tl-label" style="color:var(--accent);"><div class="tl-week" style="color:var(--accent);">12 ก.ค.</div><strong>10K event<br>On/Off split</strong></div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-normal">W5</div><div class="tl-label"><div class="tl-week">13-19 ก.ค.</div>Mini-games<br>Thai culture</div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-normal">W6</div><div class="tl-label"><div class="tl-week">20-26 ก.ค.</div>Upgrade tree<br>100K</div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-key">W7</div><div class="tl-label" style="color:var(--accent);"><div class="tl-week" style="color:var(--accent);">27 ก.ค.</div><strong>Multiple<br>Endings</strong></div></div>
+            <div class="tl-line"></div>
+            <div class="tl-item"><div class="tl-dot tl-dot-key">W8</div><div class="tl-label" style="color:var(--accent);"><div class="tl-week" style="color:var(--accent);">5-12 ส.ค.</div><strong>Bug fix<br>Playtest · Pitch</strong></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Timeline Elements</div><div class="spec-val">8 วงกลม เชื่อม line · W4, W7, W8 ใช้ fill <code>#e94560</code> (key milestones) · ที่เหลือ <code>#0f3460</code></div></div>
+        <div class="spec-card"><div class="spec-key">Canva วิธีทำ</div><div class="spec-val">ใช้ line element + circle element วางเรียง · หรือใช้ Timeline template ใน Canva แล้ว customize สี</div></div>
+        <div class="spec-card"><div class="spec-key">Label ใต้จุด</div><div class="spec-val">ช่วงวันที่ (muted) + งานหลัก 2 บรรทัด · key milestone label ใช้สี <code>#e94560</code></div></div>
+        <div class="spec-card"><div class="spec-key">วัตถุประสงค์</div><div class="spec-val">กรรมการให้ 20 คะแนนด้าน feasibility — timeline visual ทำให้ดู realistic และ thought-through</div></div>
+      </div>
+    </div>
+
+    <!-- 14 EXTRA -->
+    <div class="slide-section" id="s-extra">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 14 · ข้อมูลเพิ่มเติม</div>
+          <div class="slide-name">References + AI Disclosure</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — เพิ่ม ref badges</span><span class="tag tag-done">text พร้อม</span></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">Layout</div><div class="spec-val">Upper half: 3 ref game badges แนวนอน · Lower half: AI disclosure text</div></div>
+        <div class="spec-card"><div class="spec-key">Ref Badges</div><div class="spec-val">Rectangle <code>#16213e</code> · border 1px <code>rgba(233,69,96,.4)</code> · ชื่อเกม bold + dev + "ยืม: ..."</div></div>
+        <div class="spec-card"><div class="spec-key">Divider กลาง</div><div class="spec-val">Line 1px muted กั้น ref กับ AI section</div></div>
+        <div class="spec-card"><div class="spec-key">AI Section</div><div class="spec-val">Label mono: "AI USAGE DISCLOSURE" · text ขนาดเล็ก 18px · สี muted</div></div>
+      </div>
+    </div>
+
+    <!-- 15 THANK YOU -->
+    <div class="slide-section" id="s-end">
+      <div class="slide-header">
+        <div>
+          <div class="slide-id">SLIDE 15 · CLOSING</div>
+          <div class="slide-name">Thank You — Full Dark</div>
+          <div class="slide-tags"><span class="tag tag-edit">ต้องทำเอง — full dark rebuild</span></div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec-card"><div class="spec-key">BG</div><div class="spec-val"><code>#1a1a2e</code> เต็มหน้า</div></div>
+        <div class="spec-card"><div class="spec-key">THANK YOU</div><div class="spec-val">Text กลางหน้า · font ใหญ่ 120px · สีขาว · ใต้เส้น divider <code>#e94560</code> 80px</div></div>
+        <div class="spec-card"><div class="spec-key">Sub text</div><div class="spec-val">ชื่อทีม 3 คน · 20px muted · ด้านล่าง THANK YOU</div></div>
+        <div class="spec-card"><div class="spec-key">Bottom right</div><div class="spec-val">MUICT-AST TECH COMPETITION 2569 · mono 12px muted</div></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel">
+    <div class="panel-section">
+      <div class="panel-title">Color System</div>
+      <div class="swatch-row">
+        <div class="swatch-item"><div class="swatch-box" style="background:#1a1a2e;"></div><div class="swatch-text"><span class="swatch-name">Deep Navy</span><span class="swatch-code">#1a1a2e</span></div></div>
+        <div class="swatch-item"><div class="swatch-box" style="background:#16213e;"></div><div class="swatch-text"><span class="swatch-name">Navy Mid</span><span class="swatch-code">#16213e</span></div></div>
+        <div class="swatch-item"><div class="swatch-box" style="background:#0f3460;"></div><div class="swatch-text"><span class="swatch-name">Navy Light</span><span class="swatch-code">#0f3460</span></div></div>
+        <div class="swatch-item"><div class="swatch-box" style="background:#e94560;"></div><div class="swatch-text"><span class="swatch-name">Accent Red</span><span class="swatch-code">#e94560</span></div></div>
+        <div class="swatch-item"><div class="swatch-box" style="background:#f5f5f5;border:1px solid rgba(255,255,255,.1);"></div><div class="swatch-text"><span class="swatch-name">Off-white</span><span class="swatch-code">#f5f5f5</span></div></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Type Scale</div>
+      <div class="type-row"><div class="type-sample" style="font-size:22px;font-weight:700;line-height:1.2;">ชื่อเกม</div><div class="type-meta">48px · Bold · Heading</div></div>
+      <div class="type-row"><div class="type-sample" style="font-size:18px;font-weight:600;line-height:1.3;">หัวข้อ Slide</div><div class="type-meta">36px · Bold · Section</div></div>
+      <div class="type-row"><div class="type-sample" style="font-size:14px;line-height:1.6;">เนื้อหา body</div><div class="type-meta">22–26px · Reg · Body</div></div>
+      <div class="type-row"><div class="type-sample" style="font-size:12px;color:var(--muted);">รายชื่อ / label</div><div class="type-meta">20px · Reg · Muted</div></div>
+      <div class="type-row"><div class="type-sample" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;">MONO LABEL</div><div class="type-meta">Mono · caps · UI label</div></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Priority Checklist</div>
+      <div class="checklist">
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Cover — เปลี่ยน BG + quote</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Hook slide ใหม่ (★02)</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">3 Moments slide ใหม่ (★05)</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Theme — ref cards ขวามือ</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Core loop diagram</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">3 USP column cards</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Timeline visual (W1–W8)</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Stats slides — big numbers</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Thank You — full dark</span></div>
+        <div class="check-item"><div class="check-box check-todo"></div><span class="check-label">Concept art (รอ char sheet)</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Scoring Map</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>ความสมบูรณ์</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">20pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>ความเป็นไทย</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">20pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>ตรรกะระบบ</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">20pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>ออกแบบตัวละคร/ฉาก</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">20pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span>Feasibility</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">20pt</span></div>
+        <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;"><span>รวม</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--gold);">100pt</span></div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+const navItems = document.querySelectorAll('.nav-item');
+navItems.forEach(item => {
+  item.addEventListener('click', e => {
+    navItems.forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+const sections = document.querySelectorAll('.slide-section');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(n => {
+        n.classList.toggle('active', n.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3, rootMargin: '-73px 0px 0px 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

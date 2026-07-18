@@ -32,4 +32,15 @@ function Formulas.vidqMultiplier(tier: string): number
 	error("unknown tier: " .. tostring(tier))
 end
 
+-- design doc §3: 3 โซน — 70-100 ×1.0-1.25 (cap จงใจ), 40-69 ×1.0, 1-39 ×0.6-1.0
+function Formulas.mentalMultiplier(pct: number, rng)
+	rng = rng or math.random
+	for _, z in Config.Mental.zones do
+		if pct >= z.min then
+			return z.multMin + (z.multMax - z.multMin) * rng()
+		end
+	end
+	return 0 -- mental 0: MentalService ยิง Bad End 2 — สูตรแค่คืน 0
+end
+
 return Formulas

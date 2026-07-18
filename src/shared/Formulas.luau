@@ -43,4 +43,23 @@ function Formulas.mentalMultiplier(pct: number, rng)
 	return 0 -- mental 0: MentalService ยิง Bad End 2 — สูตรแค่คืน 0
 end
 
+-- design doc §2: follower ต่อคลิป = base(สุ่มตามเฟส) × VidQ × mental แล้วลุ้น viral
+-- ลำดับเรียก rng (เทสอิงลำดับนี้ ห้ามสลับ): ① base ② mentalZone ③ viralChance ④ viralMult
+function Formulas.followerGain(phase: number, tier: string, mentalPct: number, rng)
+	rng = rng or math.random
+	local b = Config.FollowerBase[phase]
+	local base = b.min + (b.max - b.min) * rng()
+	local n = base * Formulas.vidqMultiplier(tier) * Formulas.mentalMultiplier(mentalPct, rng)
+	local isViral = rng() < Config.Viral.chance
+	if isViral then
+		n = n * (Config.Viral.multMin + (Config.Viral.multMax - Config.Viral.multMin) * rng())
+	end
+	return math.floor(n), isViral
+end
+
+-- design doc §4: เงิน = follower ที่ได้จากคลิป × rate ของเฟส
+function Formulas.moneyGain(followers: number, phase: number): number
+	return math.floor(followers * Config.MoneyRatePerFollower[phase])
+end
+
 return Formulas

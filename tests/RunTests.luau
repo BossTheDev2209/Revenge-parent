@@ -58,5 +58,28 @@ check("โซนต่ำ ขอบล่าง 1 rng=0 → 0.6", Formulas.menta
 check("โซนต่ำ ขอบบน 39 ไม่เกิน 1.0", Formulas.mentalMultiplier(39, rngHi) <= 1.0)
 check("mental 0 → 0 (Bad End 2 เป็นหน้าที่ service)", Formulas.mentalMultiplier(0, rng0) == 0)
 
+-- ===== followerGain (design doc §2: base(สุ่ม) × VidQ × mental, viral 12% ×4–8) =====
+-- ลำดับเรียก rng (implementation ต้องตรง): ① base ② mentalZone ③ viralChance ④ viralMult
+local n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0, 0, 0.5 }))
+check("phase1 B mental กลาง ไม่ viral = base ต่ำสุด 400", n == 400 and viral == false)
+
+n, viral = Formulas.followerGain(1, "S", 50, rngQueue({ 0, 0, 0.5 }))
+check("tier S คูณ 2 → 800", n == 800 and viral == false)
+
+n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0, 0, 0.05, 0 }))
+check("viral ติด (0.05 < 0.12) คูณต่ำสุด 4 → 1600", n == 1600 and viral == true)
+
+n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0.999, 0, 0.5 }))
+check("base สุ่มบนสุด phase1 ≈ 900", n >= 898 and n <= 900)
+
+n, viral = Formulas.followerGain(3, "B", 50, rngQueue({ 0, 0, 0.5 }))
+check("phase3 base ต่ำสุด 9000", n == 9000)
+
+-- ===== moneyGain (design doc §4: follower × rate เฟส) =====
+check("rate phase1 0.8", Formulas.moneyGain(1000, 1) == 800)
+check("rate phase2 1.2", Formulas.moneyGain(1000, 2) == 1200)
+check("rate phase3 1.5", Formulas.moneyGain(1000, 3) == 1500)
+check("ปัดเศษลง", Formulas.moneyGain(999, 1) == 799)
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

@@ -98,6 +98,12 @@ Config.EndingThresholds = {
 -- Bad1 = เงินหมด โดนไล่ที่ 2 รอบ (phase 1–2) | Bad2 = mental ≤ 0 (phase 2–3) — ทั้งคู่ optional
 -- Neutral/Good ต้องถึง 1M ก่อน
 
+-- Dialogue typewriter (design doc §7) — วิ/ตัวอักษร (เลขเลือกเอง ปรับได้)
+Config.Dialogue = { charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 } }
+
+-- Comment ต่อคลิป (PDF หน้า 8)
+Config.CommentsPerClip = 3
+
 -- เงินตั้งต้น + เวลา — ที่มา: PDF ต้นฉบับหน้า 9, 6 (design doc ไม่ระบุ — flag ไว้แล้วใน docs/08)
 Config.StartMoney = 2_500
 

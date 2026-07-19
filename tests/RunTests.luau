@@ -395,5 +395,20 @@ for _, name in { "Bad1", "Bad2", "Bad3", "Neutral1", "Neutral2", "Good1" } do
 	check("Content.Endings." .. name .. " validate ผ่าน", CutscenePlayer.validate(stepsMod) == true)
 end
 
+-- ===== Main Menu support (PDF หน้า 1 — Continue/save 4 ช่อง) =====
+check("latestSlot เลือก savedAt มากสุด",
+	GameState.latestSlot({ [2] = { savedAt = 5 }, [4] = { savedAt = 9 } }) == 4)
+check("ไม่มี save = nil", GameState.latestSlot({}) == nil)
+local dst = GameState.newGame()
+dst.money = 1
+local src2 = GameState.newGame()
+src2.money = 777
+local same = GameState.replaceWith(dst, src2)
+check("replaceWith: ตาราง identity เดิม + ค่าใหม่", same == dst and dst.money == 777)
+local gotPlayer = nil
+ActionRouter.register("TestPlayer", function(st, a, plr) gotPlayer = plr end)
+ActionRouter.route(fakeState, { type = "TestPlayer" }, "PLAYER")
+check("route ส่ง player เป็น arg 3", gotPlayer == "PLAYER")
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

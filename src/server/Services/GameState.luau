@@ -55,6 +55,24 @@ function GameState.slotSummary(state)
 	}
 end
 
+-- หน้า Main Menu ใช้ — Continue = slot ที่เซฟล่าสุด (savedAt มากสุด)
+function GameState.latestSlot(summaries)
+	local best, bestAt = nil, -1
+	for slot, sum in summaries do
+		if sum.savedAt > bestAt then
+			best, bestAt = slot, sum.savedAt
+		end
+	end
+	return best
+end
+
+-- โหลด save ทับ state เดิมโดยรักษา identity ของตาราง (service/Main ถือ reference เดิมอยู่)
+function GameState.replaceWith(state, newState)
+	for k in state do state[k] = nil end
+	for k, v in newState do state[k] = v end
+	return state
+end
+
 -- ===== Roblox glue (Studio เท่านั้น — lune ไม่แตะส่วนนี้) =====
 local DATASTORE_NAME = "SaveSlots_v1"
 local MAX_SLOTS = 4

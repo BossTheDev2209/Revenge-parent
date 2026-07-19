@@ -42,7 +42,8 @@ python tools/mcp_driver.py steps.json
 | เทส | `tests/RunTests.luau` | ✅ dual-mode: lune local + Studio Script |
 | ใน Studio | `ReplicatedStorage.Shared.Config` + `.Formulas`, `Shared.Remotes.Action/StateChanged`, `ServerScriptService.Main` (Script รันจริง), `Services.GameState` + `.ActionRouter`, `Tests.RunTests` (Disabled) | ✅ sync แล้ว 19 ก.ค. — เทสรันใน Studio ผ่าน 65/65 |
 | GameState + Save 4 slot + ActionRouter | `src/server/Services/`, `src/server/Main.server.luau` | ✅ เสร็จ 19 ก.ค. (`plans/2026-07-19-gamestate-actionrouter.md`) |
-| TimeService + Mental(พื้นฐาน) + Follower + Money + HUD placeholder + client Main | `src/server/Services/`, `src/client/` | ✅ เสร็จ 19 ก.ค. — core loop เดโม่ได้, action ที่มี: `FinishEdit{score}`, `UploadClip{clip}` (`plans/2026-07-19-timeservice.md`, `plans/2026-07-19-coreloop.md`) |
+| TimeService + Mental(พื้นฐาน) + Follower + Money + HUD placeholder + client Main | `src/server/Services/`, `src/client/` | ✅ เสร็จ 19 ก.ค. — core loop เดโม่ได้ (`plans/2026-07-19-timeservice.md`, `plans/2026-07-19-coreloop.md`) |
+| Edit QTE + InteractBinder + Activity system | `src/client/UI/Apps/EditQTE.luau`, `src/client/InteractBinder.luau` | ✅ เสร็จ 19 ก.ค. — เล่นเต็ม loop ด้วยมือ, placeholder `Interact_*` neon 4 จุดใกล้ spawn (ทีมย้ายได้), action ครบ: `FinishEdit{score}`, `UploadClip{clip|"latest"}`, `DoActivity{activity}` (`plans/2026-07-19-qte-interact.md`) |
 | ของเดิมใน Studio ก่อน sync | `Shared.Hello`, `ServerScriptService.Server`, `StarterPlayerScripts.Client` | template hello-world — **ปล่อยไว้ ไม่ลบ** (กฎห้ามลบของเดิม) |
 
 Test runner local: `lune` binary อยู่ scratchpad (หายได้ — โหลดใหม่: GitHub lune-org/lune release `windows-x86_64.zip` แตก zip รัน `lune.exe run tests/RunTests.luau`)

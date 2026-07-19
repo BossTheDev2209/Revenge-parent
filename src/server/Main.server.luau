@@ -19,8 +19,12 @@ ActionRouter.register("FinishEdit", function(s, a)
 	MentalService.apply(s, "clipEdit")
 end)
 ActionRouter.register("UploadClip", function(s, a)
+	if a.clip == "latest" then a.clip = #s.clips end
 	local ok, viral = FollowerService.uploadClip(s, a, MentalService.effective(s))
 	if ok and viral then MentalService.apply(s, "viralClip") end
+end)
+ActionRouter.register("DoActivity", function(s, a)
+	MentalService.doActivity(s, a.activity)
 end)
 
 -- client action ทุกอันวิ่งผ่านเส้นนี้เส้นเดียว

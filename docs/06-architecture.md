@@ -165,7 +165,7 @@ Claude เป็นคนเดียวที่แตะ repo. ทุกคร
 | `ServerScriptService.Tests.*` | `tests/…` |
 | `StarterPlayerScripts.*` | `src/client/…` |
 
-ทีมแก้ Config/Content เองใน Studio ได้ — แต่ต้องบอก Claude sync ไม่งั้นย้อนกลับไม่ได้ตอนพัง
+ทีมแก้ Config/Content เองใน Studio ได้เลย ไม่ต้องแจ้ง — agent **pull จาก Studio ก่อนเริ่มงานทุก session** (workflow ⭐ ใน docs/08)
 
 ---
 

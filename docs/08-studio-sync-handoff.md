@@ -3,6 +3,16 @@
 **เขียนเมื่อ:** 19 ก.ค. 2569 | **สถานะ: ✅ SYNC เสร็จแล้ว (19 ก.ค.)** — Config/Formulas/RunTests อยู่ใน Studio, เทส 46 ข้อผ่านใน Studio จริง
 **อ่านก่อน:** `CLAUDE.md` → `docs/02` (ตัวเลข) → `docs/06` (โครง Studio) → ไฟล์นี้ (§6 วิธีคุย Studio MCP)
 
+## ⭐ Workflow หลัก (user สั่ง 20 ก.ค.): **Studio = ของจริงทุกอย่าง**
+
+- **ข้อมูลเกมทั้งหมด (script, Content, UIAssets, รูป) อยู่ใน Studio ที่เดียว** — เสมือนทีม 3 คนทำใน Studio ล้วนๆ
+- repo `getting-1m-follower` = **backup + สะพาน**: docs ให้ agent อ่าน + git history กันงานหาย — ไม่ใช่ที่ทำงานจริง
+- **agent เริ่มงานทุกครั้ง: pull จาก Studio ก่อน** — ทีมอาจแก้ Config/Content ใน Studio ไปแล้ว
+  (`script_read` หรือ execute_luau dump `.Source` → เทียบ/เขียนทับไฟล์ mirror ใน repo → commit "sync-back")
+- แก้โค้ด: เขียนเข้า Studio ผ่าน MCP → mirror ลง repo → commit (ลำดับนี้ ไม่ใช่กลับกัน)
+- รูปภาพ: ทีมอัปโหลดใน Studio ได้ asset id → ใส่ `ReplicatedStorage.Shared.UIAssets` ใน Studio ตรงๆ ได้เลย
+- TDD local (lune) ยังใช้ได้ — รันกับ mirror ใน repo หลัง pull ล่าสุด
+
 ## 0. วิธีคุยกับ Studio MCP จาก session ที่ tool ไม่โหลด (ใช้จริงมาแล้ว)
 
 MCP `Roblox_Studio` ลงทะเบียนใน local config แล้ว — session ใหม่ได้ tool `mcp__Roblox_Studio__*` ปกติ (ยืนยันแล้ว 19 ก.ค.)
@@ -114,7 +124,7 @@ ServerScriptService
 4. ติ๊ก Enabled กลับเป็น false
 5. **Save place**
 
-ถ้า fail: อย่าแก้ใน Studio — แก้ที่ repo ให้เทส lune ผ่านก่อน แล้ว copy ทับใหม่ (repo คือต้นทางของ logic, Studio คือต้นทางของ scene/UI)
+ถ้า fail: debug ได้ทั้งสองทาง แต่**ผลสุดท้ายต้องลงเอยใน Studio** แล้ว mirror กลับ repo (Studio = ของจริง — ดู ⭐ Workflow ข้างบน)
 
 ### 3.4 หลังผ่าน
 

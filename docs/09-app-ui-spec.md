@@ -1,0 +1,131 @@
+# 09 — App UI Spec: วิเคราะห์ PDF หน้า 5–9 เทียบของจริง + วิธีทำให้ตรง
+
+อ้างอิง: PDF ต้นฉบับหน้า 5–9 | สถานะโค้ด ณ 20 ก.ค. (เทส 176) | ตัวเลขใหม่ทุกตัวที่ต้องเพิ่ม → ลง `Config` เสมอ
+**เครื่องหมาย:** ✅ ตรงแล้ว | 🟡 มีแต่ไม่ตรงร่าง | 🔴 ยังไม่มี | ❓ PDF ไม่ชัด/ไม่มีตัวเลข — **ต้องถาม user ก่อน implement**
+
+---
+
+## 1. HUD ติดจอ (PDF หน้า 5 บน)
+
+**ร่างใน PDF:** กล่อง follower + delta ("1,024 +300") / กล่องเงิน + delta ("8,374$ +20") / นาฬิกา 15:24 + วันที่ 24 / **แถบ progress เฟสยาวบนจอ แบ่ง 3 ช่วง (10%-40%-45%-5%) จุด milestone** / ซ้าย: storage "790 GB / 1T" + "1080p ×2.5" + ปุ่ม setting/เสียง / ขวา: mental bar แนวตั้ง 100→0 หัวใจบน-ล่าง / ล่างกลาง: **hotbar 3 ช่อง** (tool อัดคลิป)
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| follower/เงิน/นาฬิกา/เฟส | ✅ | — |
+| **delta popup** (+300 เด้งข้างตัวเลข) | 🔴 | client เทียบ state เก่า-ใหม่ → TextLabel เด้งจางหาย 1.5 วิ |
+| **แถบ progress สู่ 1M** | 🔴 | bar ยาวบนจอ: fill = follower/1M, ขีด milestone 1K/10K/100K, สีต่างตามเฟส |
+| storage GB | 🔴 | ผูกกับระบบอัดคลิป (§4) — โชว์ `footageGB / capacity` |
+| resolution ×mult | 🟡 | โชว์ 1080p แล้ว — เพิ่มตัวคูณ (รอสูตร resolution→VidQ ❓) |
+| mental bar | ✅ | มีสีโซนแล้ว — เพิ่มหัวใจบน/ล่างเมื่อได้รูปจาก UIAssets |
+| hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
+| ปุ่ม setting/เสียง | 🔴 | ปุ่มเปิด panel volume (placeholder ได้) |
+
+## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ เกือบครบ
+
+icon 8 แอป + wallpaper + Exit + zoom กล้อง = มีแล้ว. เหลือ: รูป icon จริงจาก UIAssets (ทีมวาด), ตำแหน่ง icon ร่างเป็นคอลัมน์ซ้าย ✅ ตรง
+
+## 3. Calendar app (PDF หน้า 6)
+
+**ร่างใน PDF:** ตาราง**เดือนเต็ม 7 คอลัมน์ (Sat→Fri) × ~5 แถว** ตัวเลขวัน / วันนี้วงกลม "today" / block เป็นการ์ดสีวางในช่อง: "Marathon ตัดต่อ" (ลากวางได้), "คุยกับพ่อแม่", "พักผ่อน" / **block กินหลายวันได้** ("มีเรื่องกับ Hater" คร่อม 3 ช่อง สีแดง = Canon lock) / ท้ายเดือน "จ่ายค่าเช่า เงินเดือน" marker / โน้ต: "ลาก block ได้แต่ Canon ห้าม" + "มีมากกว่า 1 อย่างให้ลูกน้องทำแทน"
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| ตารางเดือน 7×5 | 🔴 (ตอนนี้ list 7 วัน) | grid Frame 7 คอลัมน์ เริ่มวันเสาร์ ช่องละวัน เลขมุม |
+| block สี + ชนิด | 🔴 | Canon=แดง(lock) / Select=ม่วง / Schedule=เขียว / Sponsor=ส้ม — อ่าน `state.calendar` |
+| block หลายวัน | 🔴 | เพิ่ม field `length` ใน block: `{type, id, length=3}` — CalendarService.place เช็คชนทุกวันในช่วง |
+| ลากวาง block | ❓ | ลากบน grid ซับซ้อน — เสนอ: กดเลือก block → กดวันปลายทาง = ย้าย (พอเทียบเท่า UX ลาก) รอ user ตัดสิน |
+| marker วันตัดรอบ | 🔴 | ทุกวันที่ `(day-1)%7==0` แปะป้าย "จ่ายค่าเช่า" |
+| งานให้ลูกน้องทำแทน | ❓ | ผูกระบบ staff (§8) — รอตัวเลข staff ก่อน |
+
+**Logic เพิ่มใน service:** `CalendarService.place` รองรับ length + เช็คชนช่วง | `moveBlock(state, fromDay, toDay)` (Canon = ห้าม)
+
+## 4. ระบบอัดคลิป — Record (PDF หน้า 7 บน) 🔴 ยังไม่มีทั้งระบบ
+
+**ร่างใน PDF:** ถือ tool (กล้อง/มือถือ/ไม้เซลฟี่) เดินในแมพ กด click ที่จุดต่างๆ → ได้ footage ทีละ +1 (มีจุด "+2.4 Bonus!") สะสมจนเต็มความจุ [กระเป๋า] / มุมขวา: resolution ladder โชว์ตัวคูณ ×1.5/×2/×3/×4 ตามระดับกล้อง / storage เต็ม = "1T/1T FULL" อัดต่อไม่ได้
+
+**Logic ที่ต้องสร้าง:**
+1. `state.footageGB` + ความจุจาก storage level: `Config.StorageCapacityGB = {250, 500, 1000, 2000, 4000}` ❓ *(เลขเสนอ — PDF มีแค่ "790GB/1T" ต้อง user ยืนยัน)*
+2. Tool 3 ชิ้นใน StarterPack: `Tool_Camera / Tool_Phone / Tool_Selfie` — Activated → ยิง action `RecordFootage{spot=ชื่อจุด}`
+3. จุดถ่าย = part `FilmSpot_*` วางในแมพ (ทีมวาง — convention ใหม่ลง docs/05) บางจุด attribute `Bonus = 2.4`
+4. server: footage ต่อ click = `base × bonus × ตัวคูณ tool` ❓ *(base GB/click กับตัวคูณ tool PDF ไม่ระบุ — เสนอ: 10 GB/click, กล้อง ×1.5 มือถือ ×1 ไม้เซลฟี่ ×1.2)*
+5. เต็มความจุ = block + popup "FULL"
+6. **ตัดคลิปเปลี่ยนเป็นกิน footage** (§5) — วงจรเต็ม: อัด → footage → ตัด → clip → อัป
+
+## 5. Edit app (PDF หน้า 7 ล่าง)
+
+**ร่างใน PDF:** (จอ 1) "How much footage for this video?" **slider 0→1T** + "footage left: 650 GB" + ปุ่ม Let's go / (จอ 2) จอตัดต่อ: พื้นหลังโปรแกรมตัดต่อ static + ภาพสุ่มจาก pool + **QTE โผล่บน timeline ล่าง** (Q, Z, A วงกลมจังหวะแบบ osu) + โชว์ rating การกดล่าสุด "S!" / (จอ 3) สรุป: Score 182/200, Video Quality: B, stats (label เก่า bad/normal/good/awesome — **ใช้ C/B/A/S ตาม design doc**), footage left, ปุ่ม **Edit more / Done**
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| slider เลือก footage | 🔴 | จอแรกก่อน QTE: slider GB (ขั้นต่ำ ❓ *เสนอ 50 GB/คลิป*) — `FinishEdit` ส่ง `footageUsed` ไปหักด้วย |
+| QTE บน timeline | 🟡 (ตอนนี้โผล่กลางจอ) | ย้ายปุ่มวิ่งซ้าย→ขวาบนแถบ timeline + จุดกดตรงกลาง — logic scoring เดิมใช้ได้ |
+| rating ต่อปุ่ม (S!) | 🟡 | มีสีเขียว/เหลือง/แดงแล้ว — เปลี่ยนเป็น text S!/A/B/C ตามคะแนน 10/7/4/อื่น |
+| จอสรุป + Edit more | 🟡 | มีสรุป+tier แล้ว — เพิ่มปุ่ม "Edit more" (วน slider ใหม่ถ้า footage เหลือ) |
+| ภาพสุ่มใน preview | 🔴 | pool รูปใน UIAssets (ทีมวาด/แคป) — cosmetic |
+
+## 6. Upload app (PDF หน้า 8 บน)
+
+**ร่างใน PDF:** ซ้าย: คลัง storage เป็น thumbnail แถวตั้ง / กลาง: preview ใหญ่ + **title 3 ตัวเลือก + description 3 ตัวเลือก** (เลือกอันเดียว — กรอบแดง = ที่เลือก) + ปุ่ม upload / โน้ต "Select video to upload first!"
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| layout 2 ฝั่ง เลือกก่อนอัป | 🟡 (ตอนนี้ list+ปุ่มเดียว) | ซ้าย list → กดเลือก → ขวาโชว์ preview + ปุ่มอัป |
+| title/desc 3 ตัวเลือก | 🔴 | pool ข้อความใน `Content/ClipTitles.luau` (ทีมเขียน) สุ่มโชว์ 3 เลือก 1 เก็บลง `clip.title` — **cosmetic ไม่มีผลตัวเลข** (PDF ไม่ระบุผล) |
+| กระแสช่องนี้ (trend tag ×4 bonus) | ❓ | หน้า 8 ล่าง: อัดตามสถานที่ trend → bonus การอัด ×4, random 20%/click — ผูกระบบ Record §4 — **เสนอเป็นงานเฟสหลัง core** |
+
+## 7. Feedback app (PDF หน้า 8 ล่าง)
+
+**ร่างใน PDF:** ซ้าย: list คลิป latest upload (views ต่อคลิป) / กลาง: **กราฟเส้น follower + กราฟ Earn (last 7 days)** / ใต้กราฟ: "Comment from [title]" 2 ชุด + **ช้อยตอบ 3 ปุ่มใต้แต่ละชุด** / ขวา: "กระแสช่องนี้" tags (ร้านอาหาร/สยาม/ธรรมชาติ) / โน้ตขวา: **สัดส่วน comment ตาม VidQ ของคลิป** (C: ⊖40% ◎25% ⊕10%... อ่านไม่ครบ ❓) + ตอบ 3 แบบ: กดใจ(+10/-10 mental), เลือกช้อย, ปล่อยผ่าน
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| ตอบ comment 3 ช้อย | ✅ | — |
+| list คลิป + views | 🟡 | มี history text — เปลี่ยนเป็น list กดได้ + เก็บ `clip.views` (สุ่มจาก follower gain ×สัดส่วน ❓ *เสนอ views = gained × 3–8*) |
+| **กราฟ 7 วัน** | 🔴 | ต้องมี `state.history[day] = {follower=, earn=}` — MoneyService/FollowerService บันทึกทุก onDay → วาดกราฟเส้นด้วย Frame บางๆต่อจุด |
+| comment weight ตาม tier | 🔴 | `CommentService.generate(state, tier)` ถ่วงน้ำหนัก sentiment ตาม tier — **ตาราง % จาก PDF อ่านไม่ชัด ❓ เสนอ:** C 60/30/10 (⊖/◎/⊕), B 35/35/30, A 20/35/45, S 10/30/60 — Content/Comments เพิ่ม field `sentiment` ต่อ comment |
+| trend tags panel | ❓ | รอระบบ trend (§6) |
+
+## 8. Bank + Manage app (PDF หน้า 9 บน)
+
+**ร่างใน PDF:** 3 กล่องบน: ยอดคงเหลือ / income per week / รายจ่ายรวม per week (แดง) / 3 การ์ด: ค่าอาหาร (⊖ 1K ⊕), ค่าพนักงาน (⊖ 10K ⊕), ค่าเช่า (⊖ 2K ⊕) / ปุ่ม "manage" → **หน้าจ้างพนักงาน:** ซ้าย: สรุปทีม "Video per day 10/20" + bar speed 36/100 + quality 100 + salary 40k / ขวา: การ์ดพนักงาน "Bob" (speed 18, quality 50, salary 20k) ปุ่ม hire — จ้างแล้วเป็น Active + ปุ่ม fire
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| 3 กล่องสรุป | 🟡 | มี text — จัดเป็น 3 กล่อง + income/week (ต้องมี history §7) |
+| ปุ่ม ⊖⊕ ปรับรายจ่าย | ❓ | **ตีความไม่ได้จากร่าง** — ปรับระดับการกิน/ที่อยู่? มีผลอะไร? — แสดงเฉยๆ read-only ไปก่อน รอ user อธิบาย |
+| **ระบบพนักงานทั้งหมด** | 🔴 | ยังไม่มี design ตัวเลขเลย ❓: พนักงานผลิตคลิป auto กี่ตัว/วัน? tier จาก quality ยังไง? เงินเดือนหักรอบไหน? สุ่มพนักงานจากไหน? — **ต้อง design session กับ user ก่อน implement** (ใหญ่พอเป็นแผนแยก) |
+
+## 9. Message app (PDF หน้า 9 กลาง)
+
+**ร่างใน PDF:** HSR style — list คนซ้าย (พนักงาน1, sponsor) / แชทขวา bubble สองฝั่ง / **ช่องตอบ 3 ตัวเลือกล่าง** — เลือกได้แต่ไม่มีผล คำตอบ NPC fix ตาม set
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| list คน + แชท bubble | 🟡 (ตอนนี้ text ก้อนเดียว) | 2 pane: list ซ้าย → แชทขวา bubble ซ้าย(NPC)/ขวา(เรา) |
+| choice ตอบ 3 ช่อง | 🔴 | ขยาย format `Content/DMs.luau`: `{from, exchanges={{npc="...", choices={"ก","ข","ค"}, reply="..."}}}` — เลือกอะไรก็ได้ NPC ตอบ reply เดิม (ตาม design §6 ไม่นับ choice) |
+
+## 10. Shop/Upgrade app (PDF หน้า 9 ล่าง)
+
+**ร่างใน PDF:** 2 หมวด Camera / Storage — แถวละ **4 การ์ด** (รูป + price + quality + ปุ่ม Buy) + ลูกศรเลื่อนขวา
+
+| ชิ้น | สถานะ | ต้องทำ |
+|------|-------|--------|
+| การ์ด 4 ใบต่อหมวด | 🟡 (ตอนนี้ปุ่มเดียวซื้อระดับถัดไป) | โชว์การ์ดครบ 4: ซื้อแล้ว=✓, ถัดไป=Buy, ไกลกว่า=lock — logic `BuyUpgrade` เดิมใช้ได้ |
+| รูปสินค้า | 🔴 | UIAssets เพิ่ม key `shop_camera_1..4`, `shop_storage_1..4` (ทีมวาด 8 รูป 128×128) |
+
+---
+
+## ลำดับลงมือ (เสนอ)
+
+| # | งาน | ติด ❓ ไหม |
+|---|------|------------|
+| 1 | HUD: progress bar 1M + delta popup | ไม่ติด — ทำได้เลย |
+| 2 | Edit: slider footage + timeline + Edit more | ติดเลข GB (มีค่าเสนอ) |
+| 3 | **Record system ทั้งก้อน** (tool/FilmSpot/footageGB) + HUD storage + hotbar | ติดเลข GB/click + ตัวคูณ tool (มีค่าเสนอ) |
+| 4 | Feedback: history 7 วัน + กราฟ + comment weight | ติดตาราง % comment (มีค่าเสนอ) |
+| 5 | Calendar: grid เดือน + block สี + หลายวัน | ลากวาง = รอ user เลือกวิธี |
+| 6 | Upload 2-pane + title 3 ช้อย + Message HSR + Shop การ์ด 4 | Content ทีมเขียน (ClipTitles, DMs format ใหม่) |
+| 7 | Staff/Manage ทั้งระบบ | **รอ design session** |
+| 8 | Trend tag ×4 | เฟสหลัง core |
+
+**คำถามรอ user ตอบ (สรุป ❓ ทั้งหมด):** ① ความจุ storage 5 ระดับ + GB/click + ตัวคูณ tool ② ตาราง % comment ตาม tier ③ ปุ่ม ⊖⊕ ใน Bank คืออะไร ④ ตัวเลขระบบพนักงาน ⑤ วิธีย้าย block ปฏิทิน (กดเลือก vs ลากจริง) ⑥ สูตร resolution → VidQ multiplier

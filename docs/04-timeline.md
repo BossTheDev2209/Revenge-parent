@@ -19,6 +19,8 @@
 - ✅ **Core loop เดโม่ได้** (19 ก.ค.): Mental(พื้นฐาน)/Follower/Money + HUD placeholder + wiring — เทส 102/102 ทั้ง lune/Studio + Play mode ไม่มี error — mental drain modifiers รอ user ตัดสิน (docs/08 §4)
 - ✅ **เล่นได้ด้วยมือจริง** (19 ก.ค.): Edit QTE 20 ปุ่ม + InteractBinder + Activity system (streak 3/cooldown) + placeholder Interact_ parts 4 จุด — เทส 115/115 — docs/07 top-5 ครบทั้ง 5 ตัวแล้ว
 - ✅ **Engine ครบทุกตัว** (19 ก.ค.): Dialogue typewriter+tag / Comment choice ⊕◎⊖ / Calendar+Sponsor / EndingService (Bad1/Bad2 สด + % ที่ 1M) / CutscenePlayer / Canon milestone events — เทส 151/151 ทั้ง lune+Studio — **เหลือแค่เติมบทใน Content/ ไม่ต้องแตะโค้ด**
+- ✅ Main Menu + Save/Load UI (19 ก.ค.): Continue/save 4 ช่อง/Credit/ปุ่มเซฟ — เทส 155/155
+- ⚠️ **ต้องทำใน Studio (คนเดียวที่ทำได้คือทีม):** Game Settings → Security → เปิด "Enable Studio Access to API Services" (place ต้อง publish ก่อน) — ไม่งั้น save ใช้ไม่ได้ (ตอนนี้ error 403 แต่เกมไม่ crash)
 - ✅ Canva deck 13 สไลด์ (`DAHJLyI79DE`) — ยังต้องเพิ่มภาพแนวคิด slide 10
 - 🟡 ตัวละครหลัก + แม่ build ใน Studio R6 บางส่วน (ทิศทาง: R6 classic, ไม่ใช้ AI concept art)
 - 🔴 Story system placement ยังไม่ชัด

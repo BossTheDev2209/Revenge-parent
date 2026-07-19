@@ -5,8 +5,9 @@
 
 ## 0. วิธีคุยกับ Studio MCP จาก session ที่ tool ไม่โหลด (ใช้จริงมาแล้ว)
 
-MCP `Roblox_Studio` ลงทะเบียนใน local config แล้ว (`claude mcp list` ต้องเห็น) — session ใหม่จะได้ tool ปกติ
-ถ้า tool ไม่โผล่ (session เก่า/config โหลดไม่ทัน) ใช้ **direct stdio driver**: `tools/mcp_driver.py`
+MCP `Roblox_Studio` ลงทะเบียนใน local config แล้ว — session ใหม่ได้ tool `mcp__Roblox_Studio__*` ปกติ (ยืนยันแล้ว 19 ก.ค.)
+ถ้า tool ไม่โผล่ ใช้ **direct stdio driver**: `tools/mcp_driver.py` — และ **driver ใช้คู่กับ native session ได้** (WS host รับหลาย client)
+payload ใหญ่ (sync ทั้งชุด) ใช้ driver สะดวกกว่า (python อ่านไฟล์จาก disk ตรง) — native tool เหมาะกับ call สั้นๆ (play/console/inspect)
 
 ```bash
 # steps.json = [{"tool": "...", "args": {...}}, ...]
@@ -47,7 +48,9 @@ python tools/mcp_driver.py steps.json
 | **Engines ครบชุด**: Dialogue / Comment / Calendar+Sponsor / Ending / Cutscene / Canon events | `src/server/Services/{Comment,Calendar,Ending}Service.luau`, `src/client/UI/{DialogueUI,CutscenePlayer,CommentUI}.luau`, `src/shared/Content/**` | ✅ เสร็จ 19 ก.ค. — เทส 151/151 (`plans/2026-07-19-engines-complete.md`) |
 
 **Actions ทั้งหมดที่ระบบรับ (client → `Remotes.Action`):**
-`FinishEdit{score}` `UploadClip{clip|"latest"}` `DoActivity{activity="Bed|Kitchen|Exercise"}` `AnswerComment{reply=1..3}` `PlaceBlock{day,id}` `AcceptSponsor{day}` `FreezeTime{on}` `EventSeen{id}`
+`FinishEdit{score}` `UploadClip{clip|"latest"}` `DoActivity{activity="Bed|Kitchen|Exercise"}` `AnswerComment{reply=1..3}` `PlaceBlock{day,id}` `AcceptSponsor{day}` `FreezeTime{on}` `EventSeen{id}` `RequestSlots{}` `LoadSlot{slot}` `SaveSlot{slot?}` `NewGame{slot}`
+
+**⚠️ Save ใช้จริงต้องเปิด:** Game Settings → Security → Enable Studio Access to API Services (place ต้อง publish ก่อน) — ยังไม่เปิด = 403 warn แต่เกมเล่นได้
 
 **ทีมเติมบท = แก้เฉพาะ `ReplicatedStorage.Shared.Content/**` (หรือ `src/shared/Content/` แล้วให้ Claude sync):**
 Dialogue 6 ไฟล์ (tag `[slow][fast][normal]`) | Comments (pool + replies 3 tag pos/neu/neg) | CanonEvents (milestone_*) | Endings 6 ไฟล์ (step: text/wait/camera) — ทุกไฟล์มี format ตัวอย่างใน comment หัวไฟล์ ห้ามแตะโค้ดนอก Content

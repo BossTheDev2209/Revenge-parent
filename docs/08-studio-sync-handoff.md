@@ -1,7 +1,29 @@
 # 08 — Studio Sync Handoff (สำหรับ agent ทุกตัวที่มาทำต่อ)
 
-**เขียนเมื่อ:** 19 ก.ค. 2569 | **สถานะ:** รอ Studio MCP ต่อ — งานฝั่ง repo เสร็จแล้ว รอยกเข้า Studio
-**อ่านก่อน:** `CLAUDE.md` → `docs/02` (ตัวเลข) → `docs/06` (โครง Studio) → ไฟล์นี้ (งานที่ค้าง)
+**เขียนเมื่อ:** 19 ก.ค. 2569 | **สถานะ: ✅ SYNC เสร็จแล้ว (19 ก.ค.)** — Config/Formulas/RunTests อยู่ใน Studio, เทส 46 ข้อผ่านใน Studio จริง
+**อ่านก่อน:** `CLAUDE.md` → `docs/02` (ตัวเลข) → `docs/06` (โครง Studio) → ไฟล์นี้ (§6 วิธีคุย Studio MCP)
+
+## 0. วิธีคุยกับ Studio MCP จาก session ที่ tool ไม่โหลด (ใช้จริงมาแล้ว)
+
+MCP `Roblox_Studio` ลงทะเบียนใน local config แล้ว (`claude mcp list` ต้องเห็น) — session ใหม่จะได้ tool ปกติ
+ถ้า tool ไม่โผล่ (session เก่า/config โหลดไม่ทัน) ใช้ **direct stdio driver**: `tools/mcp_driver.py`
+
+```bash
+# steps.json = [{"tool": "...", "args": {...}}, ...]
+python tools/mcp_driver.py steps.json
+```
+
+ข้อเท็จจริงที่เจ็บมาแล้ว (อ่านก่อนใช้):
+- **`execute_luau` ต้องส่ง `"datamodel_type": "Edit"` เสมอ** ไม่งั้น error
+- **StudioMCP.exe = WS host ที่ Studio ต่อเข้ามา** — รันได้ทีละตัว (bind port 13469)
+  โปรเซสเก่าค้าง = ตัวใหม่ต่อไม่ได้ ("Not connected to the WS host") → `taskkill //F` ตัวเก่าก่อน
+  driver ฆ่าตัวเองตอนจบแล้ว แต่เช็ค `tasklist //FI "IMAGENAME eq StudioMCP.exe"` ถ้าเจอปัญหา
+- step แรกของ batch retry 60 วิอัตโนมัติ (รอ Studio plugin reconnect เข้า host ใหม่)
+- path ใน steps.json ต้องเป็น Windows format (`C:/...`) ไม่ใช่ git-bash (`/c/...`)
+- ส่ง source code เข้า Studio: ห่อด้วย long bracket `[=====[ ... ]=====]` (เช็คก่อนว่า source ไม่มี `]=====]`)
+- เทสใน Studio ไม่ต้องกด Play: `loadstring(RunTests.Source)` + `setfenv` ให้ `script` ชี้ instance แล้ว `pcall` — ดู `tools/` + ประวัติ commit
+- tool มีครบ 27 ตัว: `execute_luau`, `inspect_instance`, `script_read`, `multi_edit`, `search_game_tree`, `get_console_output`, `start_stop_play`, `screen_capture` ฯลฯ
+- **Place เป็น Team Create** — ทีมออนไลน์พร้อมกันได้ ระวังแก้ชนกัน + Team Create autosave เอง
 
 ---
 
@@ -12,7 +34,8 @@
 | Config ตัวเลขทั้งเกม | `src/shared/Config.luau` | ✅ ครบ ตรง design doc — ไฟล์เดียว ไม่แตก 7 ไฟล์ (ตัดสินใจแล้ว: ctrl+F ง่ายกว่าสำหรับทีม) |
 | Formulas 7 functions | `src/shared/Formulas.luau` | ✅ ผ่านเทส 46 ข้อ |
 | เทส | `tests/RunTests.luau` | ✅ dual-mode: lune local + Studio Script |
-| ใน Studio | — | ❌ **ยังไม่มีอะไรเลย — นี่คืองานถัดไป** |
+| ใน Studio | `ReplicatedStorage.Shared.Config` + `.Formulas` (ModuleScript), `Shared.Remotes.Action/StateChanged` (RemoteEvent), `ServerScriptService.Services` + `.Tests.RunTests` (Script, Disabled) | ✅ sync แล้ว 19 ก.ค. — เทสรันใน Studio ผ่าน 46/46 |
+| ของเดิมใน Studio ก่อน sync | `Shared.Hello`, `ServerScriptService.Server`, `StarterPlayerScripts.Client` | template hello-world — **ปล่อยไว้ ไม่ลบ** (กฎห้ามลบของเดิม) |
 
 Test runner local: `lune` binary อยู่ scratchpad (หายได้ — โหลดใหม่: GitHub lune-org/lune release `windows-x86_64.zip` แตก zip รัน `lune.exe run tests/RunTests.luau`)
 

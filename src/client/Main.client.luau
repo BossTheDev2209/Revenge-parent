@@ -47,18 +47,18 @@ saveBtn.Activated:Connect(function()
 	task.delay(1.5, function() saveBtn.Text = "💾 เซฟ" end)
 end)
 
--- PC Screen (PDF หน้า 5 "UI PC") — แอปเรียงตาม design
+-- PC Screen (PDF หน้า 5 "UI PC") — id ตรง key ใน UIAssets ("app_"..id)
 local PC_APPS = {
-	{ label = "✂️ ตัดคลิป", external = function()
+	{ id = "edit", name = "ตัดคลิป", label = "✂️ ตัดคลิป", external = function()
 		EditQTE.start(playerGui, fireAction)
 	end },
-	{ label = "⬆️ อัปโหลด", create = Upload.create },
-	{ label = "📊 Feedback", create = Feedback.create },
-	{ label = "🏦 Bank", create = Bank.create },
-	{ label = "📅 ปฏิทิน", create = CalendarApp.create },
-	{ label = "🛒 Shop", create = Shop.create },
-	{ label = "✉️ Message", create = Message.create },
-	{ label = "👥 Manage", create = function(frame)
+	{ id = "upload", name = "อัปโหลด", label = "⬆️ อัปโหลด", create = Upload.create },
+	{ id = "feedback", name = "feedback", label = "📊 Feedback", create = Feedback.create },
+	{ id = "bank", name = "ธนาคาร", label = "🏦 Bank", create = Bank.create },
+	{ id = "calendar", name = "ปฏิทิน", label = "📅 ปฏิทิน", create = CalendarApp.create },
+	{ id = "shop", name = "ร้านค้า", label = "🛒 Shop", create = Shop.create },
+	{ id = "message", name = "ข้อความ", label = "✉️ Message", create = Message.create },
+	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = function(frame)
 		local l = Instance.new("TextLabel")
 		l.Size = UDim2.new(1, 0, 1, 0)
 		l.BackgroundTransparency = 1
@@ -122,8 +122,8 @@ end)
 InteractBinder.init({
 	fireAction = fireAction,
 	playerGui = playerGui,
-	startQTE = function() -- Interact_Camera = นั่งคอม → เปิด PC Screen (มีแอปตัดคลิปข้างใน)
-		PCScreen.open(playerGui, pcDeps, PC_APPS)
+	openPC = function(screenPart) -- Interact_pcMonitor = zoom เข้าจอ | Interact_Camera เก่า = เปิดเฉยๆ
+		PCScreen.open(playerGui, pcDeps, PC_APPS, screenPart)
 	end,
 	startDialogue = startDialogue,
 })

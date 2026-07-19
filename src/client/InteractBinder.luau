@@ -5,6 +5,7 @@ local InteractBinder = {}
 
 local PROMPT_TEXT = {
 	Interact_Camera = "ใช้คอมพิวเตอร์",
+	Interact_pcMonitor = "ใช้คอมพิวเตอร์",
 	Interact_Bed = "พักผ่อน",
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",
@@ -47,9 +48,10 @@ local function openBedMenu(playerGui, fireAction)
 end
 
 function InteractBinder.init(deps)
-	local function onTriggered(name)
-		if name == "Interact_Camera" then
-			deps.startQTE()
+	local function onTriggered(name, part)
+		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
+			-- part ส่งต่อให้กล้อง zoom เข้าจอ (universal ทุกเครื่องที่มี Interact_pcMonitor)
+			deps.openPC(name == "Interact_pcMonitor" and part or nil)
 		elseif name == "Interact_Bed" then
 			openBedMenu(deps.playerGui, deps.fireAction)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then
@@ -70,7 +72,7 @@ function InteractBinder.init(deps)
 		prompt.ObjectText = ""
 		prompt.HoldDuration = 0.3
 		prompt.Triggered:Connect(function()
-			onTriggered(inst.Name)
+			onTriggered(inst.Name, inst)
 		end)
 		prompt.Parent = inst
 	end

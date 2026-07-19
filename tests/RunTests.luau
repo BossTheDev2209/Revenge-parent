@@ -30,6 +30,10 @@ local MoneyService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.MoneyService)
 	else require("../src/server/Services/MoneyService")
 
+local EditQTE = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.EditQTE)
+	else require("../src/client/UI/Apps/EditQTE")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -281,6 +285,17 @@ check("ระหว่าง cooldown ใช้ไม่ได้", MentalServic
 da.day += 1
 check("วันใหม่ใช้ได้อีก", MentalService.doActivity(da, "Bed") == true)
 check("activity มั่วคืน false", MentalService.doActivity(da, "อาบน้ำ") == false)
+
+-- ===== EditQTE scoring (PDF หน้า 7 — กดกลาง window เป๊ะ = 10) =====
+check("กดกลาง window (0.75s) = 10", EditQTE.scoreFor(0.75, 1.5) == 10)
+check("กดทันทีที่ขึ้น (0s) = 0", EditQTE.scoreFor(0, 1.5) == 0)
+check("กดวินาทีสุดท้าย = 0", EditQTE.scoreFor(1.5, 1.5) == 0)
+check("กดครึ่งทางถึงกลาง = 5", EditQTE.scoreFor(0.375, 1.5) == 5)
+check("ไม่ติดลบ", EditQTE.scoreFor(99, 1.5) == 0)
+local qkeys = EditQTE.pickKeys(20, { "Q", "W", "E" }, rngQueue({
+	0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4 }))
+check("pickKeys ครบ 20 ตัว", #qkeys == 20)
+check("rng fix เลือกถูกตัว", qkeys[1] == "Q" and qkeys[2] == "W" and qkeys[3] == "E")
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

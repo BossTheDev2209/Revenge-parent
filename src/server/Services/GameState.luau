@@ -25,6 +25,7 @@ function GameState.newGame()
 		upgrades = { camera = 1, storage = 1 },
 		calendar = {}, -- [day] = {type=..., id=...}
 		flags = {},    -- canon event ที่ผ่านแล้ว
+		activity = { streak = 0, cooldownUntilDay = 0 }, -- ฟื้นใจติดกัน 3 ครั้ง → cooldown
 		slot = 1,
 		savedAt = 0,
 	}

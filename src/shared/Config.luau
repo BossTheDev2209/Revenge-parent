@@ -58,6 +58,8 @@ Config.Mental = {
 		activityRest = 25,
 		activityEat = 15,
 	},
+	-- Activity system (PDF หน้า 6): ทำติดกันเกิน maxStreak → cooldown ข้ามวัน
+	activity = { maxStreak = 3, cooldownDays = 1 },
 }
 
 -- §4 Economy

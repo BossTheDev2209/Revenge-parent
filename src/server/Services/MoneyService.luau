@@ -29,11 +29,11 @@ end
 function MoneyService.buyUpgrade(state, item: string): boolean
 	local costs = Config.UpgradeCosts[item]
 	if not costs then return false end
-	local nextLevel = state.upgrades[item] + 1
-	local cost = costs[nextLevel]
+	-- ราคา 4 ขั้น = ซื้อ 4 ครั้ง (ระดับ 1→5 ตาม ResolutionLadder): จ่าย costs[ระดับปัจจุบัน]
+	local cost = costs[state.upgrades[item]]
 	if not cost or state.money < cost then return false end
 	state.money -= cost
-	state.upgrades[item] = nextLevel
+	state.upgrades[item] += 1
 	return true
 end
 

@@ -485,7 +485,7 @@ check("ซื้อกล้อง lv2 (2000)", MoneyService.buyUpgrade(bu, "cam
 	and bu.upgrades.camera == 2 and bu.money == 1_000)
 check("เงินไม่พอ (lv3 = 8000)", MoneyService.buyUpgrade(bu, "camera") == false and bu.upgrades.camera == 2)
 bu.money = 999_999
-bu.upgrades.storage = 4
+bu.upgrades.storage = 5 -- ระดับสูงสุด (ซื้อครบ 4 ครั้ง)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
 

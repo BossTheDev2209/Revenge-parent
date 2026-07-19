@@ -20,6 +20,16 @@ local TimeService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.TimeService)
 	else require("../src/server/Services/TimeService")
 
+local MentalService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.MentalService)
+	else require("../src/server/Services/MentalService")
+local FollowerService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.FollowerService)
+	else require("../src/server/Services/FollowerService")
+local MoneyService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.MoneyService)
+	else require("../src/server/Services/MoneyService")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -193,6 +203,68 @@ TimeService.sleep(ts)
 check("นอน 4 ทุ่ม ข้าม 8 ชม. → ตื่น 6 โมง วันถัดไป", ts.timeOfDay == 6 and ts.day == 6)
 check("นอนยิง callback ครบทุกชั่วโมงที่ข้าม",
 	hourCount == before.h + 8 and dayCount == before.d + 1)
+
+-- ===== MentalService (design doc §3 — ไม่มี modifiers ตาม option ข) =====
+check("drain ต่อชั่วโมงเกม = 1% × 7.5/4.5 ≈ 1.667",
+	math.abs(MentalService.drainPerHour - 5 / 3) < 0.001)
+local ms = GameState.newGame() -- phase 1, mental 80
+check("phase 1: effective = 50 (โซนกลาง มัลติ 1.0 — bar ยังไม่เข้าระบบ)",
+	MentalService.effective(ms) == 50)
+MentalService.apply(ms, "clipEdit")
+check("phase 1: mental ไม่ขยับ", ms.mental == 80)
+ms.phase = 2
+check("phase 2: effective = ค่าจริง", MentalService.effective(ms) == 80)
+MentalService.apply(ms, "clipEdit")
+check("ตัดคลิป -20 → 60", ms.mental == 60)
+ms.mental = 95
+MentalService.apply(ms, "viralClip")
+check("clamp บน 100", ms.mental == 100)
+ms.mental = 10
+MentalService.apply(ms, "clipEdit")
+check("ลงถึง 0 + ตั้ง flag Bad End 2", ms.mental == 0 and ms.flags.mentalZero == true)
+ms.mental = 50
+MentalService.onHour(ms)
+check("onHour หัก drain", math.abs(ms.mental - (50 - 5 / 3)) < 0.001)
+
+-- ===== FollowerService (docs/07 §3.4 ฝั่ง server + §4) =====
+local fs = GameState.newGame()
+FollowerService.finishEdit(fs, { score = 160 })
+check("finishEdit: clip tier S ยังไม่อัป", fs.clips[1].tier == "S" and fs.clips[1].uploaded == false)
+FollowerService.finishEdit(fs, { score = 999 })
+check("finishEdit: clamp คะแนน 0-200", fs.clips[2].score == 200)
+FollowerService.finishEdit(fs, { score = 70 })
+
+local upOk, upViral = FollowerService.uploadClip(fs, { clip = 3 }, 50, rngQueue({ 0, 0, 0.5 }))
+check("upload clip B: +400 follower", upOk == true and fs.follower == 400)
+check("เงินเข้า 400×0.8 = 320", fs.money == 2500 + 320)
+check("clip ถูก mark uploaded", fs.clips[3].uploaded == true)
+check("ไม่ viral", upViral == false)
+check("อัปซ้ำไม่ได้", FollowerService.uploadClip(fs, { clip = 3 }, 50, rngQueue({ 0, 0, 0.5 })) == false)
+check("index มั่วไม่ crash", FollowerService.uploadClip(fs, { clip = 99 }, 50, rngQueue({})) == false)
+
+fs.follower = 9_900
+local upOk2, upViral2 = FollowerService.uploadClip(fs, { clip = 1 }, 50, rngQueue({ 0, 0, 0.05, 0 }))
+check("clip S viral: base 400 ×2 ×4 = 3200", upOk2 and upViral2 and fs.follower == 9_900 + 3_200)
+check("ข้าม gate → phase 2", fs.phase == 2)
+
+-- ===== MoneyService (design doc §4 — หักราย 7 วัน) =====
+check("รวมรายจ่าย phase 1 = 2200", MoneyService.weeklyTotal(1) == 2_200)
+check("รวมรายจ่าย phase 3 = 7700", MoneyService.weeklyTotal(3) == 7_700)
+local mo = GameState.newGame()
+mo.money = 5_000
+mo.day = 8
+check("วัน 8 (ครบสัปดาห์แรก) หักแล้วเหลือ 2800",
+	MoneyService.onDay(mo) == false and mo.money == 2_800)
+mo.day = 9
+MoneyService.onDay(mo)
+check("วัน 9 ไม่หัก", mo.money == 2_800)
+mo.day = 1
+MoneyService.onDay(mo)
+check("วัน 1 ไม่หัก", mo.money == 2_800)
+mo.day = 15
+mo.money = 1_000
+check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + คืน true",
+	MoneyService.onDay(mo) == true and mo.money == 0 and mo.flags.rentMissed == 1)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

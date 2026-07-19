@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 
 local GameState = require(SSS.Services.GameState)
 local ActionRouter = require(SSS.Services.ActionRouter)
+local TimeService = require(SSS.Services.TimeService)
 
 local state = GameState.newGame()
 
@@ -29,6 +30,12 @@ task.spawn(function()
 		end
 	end
 end)
+
+-- นาฬิกาเกม: เดินตลอด, ทุกชั่วโมงเกม push state (client เห็นนาฬิกา/วันขยับ)
+TimeService.onHour(function(s)
+	GameState.push(s)
+end)
+TimeService.start(state)
 
 game:BindToClose(function()
 	local player = Players:GetPlayers()[1]

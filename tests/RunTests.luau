@@ -410,5 +410,73 @@ ActionRouter.register("TestPlayer", function(st, a, plr) gotPlayer = plr end)
 ActionRouter.route(fakeState, { type = "TestPlayer" }, "PLAYER")
 check("route ส่ง player เป็น arg 3", gotPlayer == "PLAYER")
 
+-- ===== Mental modifiers (docs/02 §3 lock 19 ก.ค.) =====
+local mm = GameState.newGame()
+mm.phase = 2
+check("ไม่มี mod: drainMultiplier = 1", MentalService.drainMultiplier(mm) == 1)
+MentalService.addMod(mm, "NoSleep")
+MentalService.addMod(mm, "EditStreak5")
+check("ซ้อน 1.5×1.5 = 2.25", MentalService.drainMultiplier(mm) == 2.25)
+MentalService.addMod(mm, "CommentBadStreak3")
+check("cap ที่ ×3 (1.5×1.5×2=4.5 → 3)", MentalService.drainMultiplier(mm) == 3)
+MentalService.addMod(mm, "NoSleep")
+local nCount = 0
+for _, m in mm.mentalMods do if m.id == "NoSleep" then nCount += 1 end end
+check("addMod ซ้ำไม่เบิ้ล", nCount == 1)
+
+-- recovery: comment ดี +10 × CommentGoodStreak3 (1.25) = 12.5
+local mr = GameState.newGame()
+mr.phase = 2
+mr.mental = 50
+MentalService.addMod(mr, "CommentGoodStreak3")
+MentalService.apply(mr, "commentChoiceGood")
+check("delta บวกคูณ recover mod: 50+12.5", mr.mental == 62.5)
+mr.mental = 50
+MentalService.apply(mr, "clipEdit")
+check("delta ลบไม่โดน recover mod: 50-20", mr.mental == 30)
+
+-- expiry ตามชั่วโมงเกม
+local me = GameState.newGame()
+me.phase = 2
+MentalService.addMod(me, "CanonEvent") -- 24 ชม.
+check("CanonEvent ติด", MentalService.drainMultiplier(me) == 1.25)
+me.day = 2
+me.timeOfDay = 9 -- ผ่านไป 25 ชม.จากวัน1 8:00
+MentalService.expireMods(me)
+check("ครบ 24 ชม.แล้วหาย", MentalService.drainMultiplier(me) == 1)
+
+-- streak hooks
+local mh = GameState.newGame()
+mh.phase = 2
+for _ = 1, 5 do MentalService.onEdit(mh) end
+check("ตัด 5 ติด → EditStreak5", MentalService.drainMultiplier(mh) == 1.5)
+MentalService.onActivityDone(mh)
+check("activity ล้าง EditStreak5 + streak", MentalService.drainMultiplier(mh) == 1 and mh.streaks.edit == 0)
+for _ = 1, 3 do MentalService.onCommentAnswered(mh, "neg") end
+check("comment แย่ 3 ติด → ×2", MentalService.drainMultiplier(mh) == 2)
+MentalService.onCommentAnswered(mh, "pos")
+check("ตอบดีล้าง CommentBadStreak3", MentalService.drainMultiplier(mh) == 1)
+MentalService.onCommentAnswered(mh, "pos")
+MentalService.onCommentAnswered(mh, "pos")
+check("comment ดี 3 ติด → recover 1.25", MentalService.recoverMultiplier(mh) == 1.25)
+
+-- อดนอน + นอน
+local mn = GameState.newGame()
+mn.phase = 2
+for _ = 1, 20 do MentalService.onHourAwake(mn) end
+check("ตื่นครบ 20 ชม. → NoSleep", MentalService.drainMultiplier(mn) == 1.5)
+MentalService.onSleep(mn)
+check("นอนแล้วหาย + นับใหม่", MentalService.drainMultiplier(mn) == 1 and mn.awakeHours == 0)
+
+-- viral 2 วันติด
+local mv = GameState.newGame()
+mv.phase = 2
+mv.day = 5
+MentalService.onViral(mv)
+check("viral วันแรกยังไม่ติด", MentalService.recoverMultiplier(mv) == 1)
+mv.day = 6
+MentalService.onViral(mv)
+check("viral 2 วันติด → recover ×2", MentalService.recoverMultiplier(mv) == 2)
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

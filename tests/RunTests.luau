@@ -478,5 +478,16 @@ mv.day = 6
 MentalService.onViral(mv)
 check("viral 2 วันติด → recover ×2", MentalService.recoverMultiplier(mv) == 2)
 
+-- ===== buyUpgrade (design doc §4 — 4 ระดับ) =====
+local bu = GameState.newGame()
+bu.money = 3_000
+check("ซื้อกล้อง lv2 (2000)", MoneyService.buyUpgrade(bu, "camera") == true
+	and bu.upgrades.camera == 2 and bu.money == 1_000)
+check("เงินไม่พอ (lv3 = 8000)", MoneyService.buyUpgrade(bu, "camera") == false and bu.upgrades.camera == 2)
+bu.money = 999_999
+bu.upgrades.storage = 4
+check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
+check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

@@ -69,6 +69,9 @@ ActionRouter.register("AnswerComment", function(s, a)
 	elseif tag == "neg" then MentalService.apply(s, "commentChoiceBad") end
 	checkEnding(s)
 end)
+ActionRouter.register("BuyUpgrade", function(s, a)
+	MoneyService.buyUpgrade(s, a.item)
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่

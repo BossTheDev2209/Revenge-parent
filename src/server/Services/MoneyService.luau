@@ -25,4 +25,16 @@ function MoneyService.onDay(state): boolean
 	return true
 end
 
+-- ซื้อ upgrade กล้อง/storage 4 ระดับ (design doc §4) — ผลต่อ VidQ ยัง unwired (รอ fix สูตร resolution)
+function MoneyService.buyUpgrade(state, item: string): boolean
+	local costs = Config.UpgradeCosts[item]
+	if not costs then return false end
+	local nextLevel = state.upgrades[item] + 1
+	local cost = costs[nextLevel]
+	if not cost or state.money < cost then return false end
+	state.money -= cost
+	state.upgrades[item] = nextLevel
+	return true
+end
+
 return MoneyService

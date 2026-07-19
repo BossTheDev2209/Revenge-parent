@@ -21,11 +21,38 @@ local NPC_DIALOGUE = {
 	Interact_NPC_05 = "Hater",
 }
 
+-- เตียงมี 2 ทาง (docs/02 §3): พักผ่อน = activity ฟื้นใจ | นอน = ข้ามเวลา 8/12 ชม. + ล้าง NoSleep
+local function openBedMenu(playerGui, fireAction)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "Gui_BedMenu"
+	gui.ResetOnSpawn = false
+	local function btn(text, x, action)
+		local b = Instance.new("TextButton")
+		b.Size = UDim2.new(0, 180, 0, 48)
+		b.Position = UDim2.new(0.5, x, 0.5, -24)
+		b.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+		b.TextColor3 = Color3.new(1, 1, 1)
+		b.TextScaled = true
+		b.Text = text
+		b.Parent = gui
+		b.Activated:Connect(function()
+			if action then fireAction(action) end
+			gui:Destroy()
+		end)
+	end
+	btn("😌 พักผ่อน (+ใจ)", -280, { type = "DoActivity", activity = "Bed" })
+	btn("😴 นอน (ข้ามเวลา)", -90, { type = "Sleep" })
+	btn("❌ ยกเลิก", 100, nil)
+	gui.Parent = playerGui
+end
+
 function InteractBinder.init(deps)
 	local function onTriggered(name)
 		if name == "Interact_Camera" then
 			deps.startQTE()
-		elseif name == "Interact_Bed" or name == "Interact_Kitchen" or name == "Interact_Exercise" then
+		elseif name == "Interact_Bed" then
+			openBedMenu(deps.playerGui, deps.fireAction)
+		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then
 			deps.fireAction({ type = "DoActivity", activity = name:gsub("Interact_", "") })
 		elseif NPC_DIALOGUE[name] then
 			deps.startDialogue(NPC_DIALOGUE[name])

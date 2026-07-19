@@ -86,6 +86,7 @@ end)
 
 InteractBinder.init({
 	fireAction = fireAction,
+	playerGui = playerGui,
 	startQTE = function()
 		EditQTE.start(playerGui, fireAction)
 	end,

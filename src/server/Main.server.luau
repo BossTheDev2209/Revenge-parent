@@ -17,13 +17,14 @@ local Config = require(RS.Shared.Config)
 
 local state = GameState.newGame()
 
--- follower ข้าม milestone (1K/10K/100K/1M) → flag + คิว event ให้ client เล่นบท
+-- follower ข้าม milestone (1K/10K/100K/1M) → flag + คิว event ให้ client เล่นบท + drain แรงขึ้น 1 วัน
 local function checkMilestones(s)
 	for _, m in Config.StoryMilestones do
 		local key = "milestone_" .. m
 		if s.follower >= m and not s.flags[key] then
 			s.flags[key] = true
 			table.insert(s.pendingEvents, key)
+			MentalService.onCanonEvent(s)
 		end
 	end
 end
@@ -40,26 +41,37 @@ end
 -- ทุกการกระทำของผู้เล่น — service ไม่เรียก push เอง Main push หลัง route สำเร็จ
 ActionRouter.register("FinishEdit", function(s, a)
 	FollowerService.finishEdit(s, a)
+	MentalService.onEdit(s) -- นับ streak ตัดคลิป 5 ติด
 	MentalService.apply(s, "clipEdit")
 end)
 ActionRouter.register("UploadClip", function(s, a)
 	if a.clip == "latest" then a.clip = #s.clips end
 	local ok, viral = FollowerService.uploadClip(s, a, MentalService.effective(s))
 	if ok then
-		if viral then MentalService.apply(s, "viralClip") end
+		if viral then
+			MentalService.onViral(s) -- viral 2 วันติด → recover ×2
+			MentalService.apply(s, "viralClip")
+		end
 		CommentService.generate(s)
 		checkMilestones(s)
 		checkEnding(s)
 	end
 end)
 ActionRouter.register("DoActivity", function(s, a)
-	MentalService.doActivity(s, a.activity)
+	if MentalService.doActivity(s, a.activity) then
+		MentalService.onActivityDone(s) -- ล้าง EditStreak5/CommentBadStreak3
+	end
 end)
 ActionRouter.register("AnswerComment", function(s, a)
 	local tag = CommentService.answer(s, a)
+	if tag then MentalService.onCommentAnswered(s, tag) end -- streak สองฝั่ง
 	if tag == "pos" then MentalService.apply(s, "commentChoiceGood")
 	elseif tag == "neg" then MentalService.apply(s, "commentChoiceBad") end
 	checkEnding(s)
+end)
+ActionRouter.register("Sleep", function(s)
+	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
+	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่
 end)
 ActionRouter.register("PlaceBlock", function(s, a)
 	CalendarService.place(s, tonumber(a.day) or 0, { type = "Schedule", id = a.id })

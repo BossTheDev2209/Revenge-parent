@@ -12,6 +12,10 @@ local GameState = if isStudio
 	then require(game:GetService("ServerScriptService").Services.GameState)
 	else require("../src/server/Services/GameState")
 
+local ActionRouter = if isStudio
+	then require(game:GetService("ServerScriptService").Services.ActionRouter)
+	else require("../src/server/Services/ActionRouter")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -132,6 +136,23 @@ local sum = GameState.slotSummary({ follower = 55_000, day = 12, money = 1, ment
 	clips = {}, choices = {}, upgrades = {}, calendar = {}, flags = {}, savedAt = 123 })
 check("summary: follower/day/savedAt", sum.follower == 55_000 and sum.day == 12 and sum.savedAt == 123)
 check("summary: phase คำนวณจาก follower", sum.phase == 2)
+
+-- ===== ActionRouter (docs/06 §3 — Action เส้นเดียว แจกตาม type) =====
+local hitState, hitAction = nil, nil
+ActionRouter.register("TestPing", function(st, a)
+	hitState, hitAction = st, a
+end)
+local fakeState = { money = 1 }
+check("route เจอ handler คืน true",
+	ActionRouter.route(fakeState, { type = "TestPing", x = 7 }) == true)
+check("handler ได้ state + action ถูกตัว", hitState == fakeState and hitAction.x == 7)
+check("type ไม่รู้จัก คืน false ไม่ crash",
+	ActionRouter.route(fakeState, { type = "ไม่มีจริง" }) == false)
+check("action เพี้ยน (nil) คืน false", ActionRouter.route(fakeState, nil) == false)
+local dupOk = pcall(function()
+	ActionRouter.register("TestPing", function() end)
+end)
+check("register ชื่อซ้ำต้อง error (กันเขียนทับเงียบ)", dupOk == false)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

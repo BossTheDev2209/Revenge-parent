@@ -266,5 +266,21 @@ mo.money = 1_000
 check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + คืน true",
 	MoneyService.onDay(mo) == true and mo.money == 0 and mo.flags.rentMissed == 1)
 
+-- ===== doActivity (PDF หน้า 6 — ติดกัน 3 ครั้ง cooldown 1 วัน) =====
+local da = GameState.newGame()
+da.phase = 2
+da.mental = 50
+check("Bed +25 (activityRest)", MentalService.doActivity(da, "Bed") == true and da.mental == 75)
+da.mental = 50
+MentalService.doActivity(da, "Kitchen") -- ครั้ง 2 (+15 → 65)
+MentalService.doActivity(da, "Exercise") -- ครั้ง 3 (+20 → 85) → เข้า cooldown
+check("ครั้ง 3 ยังได้ผล", da.mental == 85)
+check("cooldown ถึงวันพรุ่งนี้ + streak รีเซ็ต",
+	da.activity.cooldownUntilDay == da.day + 1 and da.activity.streak == 0)
+check("ระหว่าง cooldown ใช้ไม่ได้", MentalService.doActivity(da, "Bed") == false)
+da.day += 1
+check("วันใหม่ใช้ได้อีก", MentalService.doActivity(da, "Bed") == true)
+check("activity มั่วคืน false", MentalService.doActivity(da, "อาบน้ำ") == false)
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

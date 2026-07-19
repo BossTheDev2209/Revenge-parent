@@ -37,4 +37,21 @@ function MentalService.onHour(state)
 	MentalService.applyDelta(state, -MentalService.drainPerHour)
 end
 
+-- Activity system (แทน Thai mini-games — design doc §9): Interact_Bed/Kitchen/Exercise
+local ACTIVITY_REASON = { Bed = "activityRest", Kitchen = "activityEat", Exercise = "activityExercise" }
+
+-- คืน true ถ้าทำได้ (client ค่อยเล่น cutscene 5-10 วิ) — ติดกันเกิน maxStreak = cooldown ข้ามวัน
+function MentalService.doActivity(state, name): boolean
+	local reason = ACTIVITY_REASON[name]
+	if not reason then return false end
+	if state.day < state.activity.cooldownUntilDay then return false end
+	state.activity.streak += 1
+	if state.activity.streak >= Config.Mental.activity.maxStreak then
+		state.activity.cooldownUntilDay = state.day + Config.Mental.activity.cooldownDays
+		state.activity.streak = 0
+	end
+	MentalService.apply(state, reason)
+	return true
+end
+
 return MentalService

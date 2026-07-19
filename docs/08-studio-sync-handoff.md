@@ -27,6 +27,9 @@ python tools/mcp_driver.py steps.json
 - **Studio require cache:** อัป `Source` ของ ModuleScript ที่เคยถูก require แล้ว = โมดูลเก่ายังถูก cache
   → sync module ที่แก้แล้วต้อง **`:Destroy()` instance เดิมแล้วสร้างใหม่** (เฉพาะของเราเอง — ของทีมห้ามแตะ)
   require ตาม path จะเจอ instance ใหม่ = fresh เสมอ
+- **Module state ค้างข้ามรอบเทส:** service ที่มี state ภายใน (ActionRouter handlers, TimeService callbacks)
+  จะสะสม state ถ้าเทสรันซ้ำใน session เดิม → **ก่อน verify ทุกรอบ replace service ที่ stateful ทั้งหมด**
+  (ปัจจุบัน: ActionRouter, TimeService — เพิ่ม service ใหม่ที่มี state = เพิ่มใน list นี้)
 
 ---
 

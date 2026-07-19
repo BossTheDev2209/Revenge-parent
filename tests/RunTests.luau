@@ -34,6 +34,22 @@ local EditQTE = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.EditQTE)
 	else require("../src/client/UI/Apps/EditQTE")
 
+local CommentService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.CommentService)
+	else require("../src/server/Services/CommentService")
+local CalendarService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.CalendarService)
+	else require("../src/server/Services/CalendarService")
+local EndingService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.EndingService)
+	else require("../src/server/Services/EndingService")
+local DialogueUI = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.DialogueUI)
+	else require("../src/client/UI/DialogueUI")
+local CutscenePlayer = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.CutscenePlayer)
+	else require("../src/client/UI/CutscenePlayer")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -296,6 +312,88 @@ local qkeys = EditQTE.pickKeys(20, { "Q", "W", "E" }, rngQueue({
 	0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4 }))
 check("pickKeys ครบ 20 ตัว", #qkeys == 20)
 check("rng fix เลือกถูกตัว", qkeys[1] == "Q" and qkeys[2] == "W" and qkeys[3] == "E")
+
+-- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====
+check("sponsorPay phase1 rng=0 → 650×0.8×2 = 1040", Formulas.sponsorPay(1, rng0) == 1040)
+local sp = Formulas.sponsorPay(1, rngHi)
+check("sponsorPay rng สูง → เข้าใกล้ ×4", sp >= 2070 and sp <= 2080)
+local ns = GameState.newGame()
+check("state ใหม่มี pendingComments/pendingEvents",
+	#ns.pendingComments == 0 and #ns.pendingEvents == 0)
+
+-- ===== CommentService (design doc §6 — ช่องเดียวที่นับ choice) =====
+local cs = GameState.newGame()
+CommentService.generate(cs, rngQueue({ 0, 0.4, 0.8 }))
+check("generate 3 ใบตาม Config", #cs.pendingComments == 3)
+check("id ตาม rng (pool 3 ใบ)", cs.pendingComments[1].id == 1 and cs.pendingComments[2].id == 2)
+local tag1 = CommentService.answer(cs, { reply = 1 })
+check("ตอบใบแรก reply 1 = pos", tag1 == "pos" and cs.choices.pos == 1)
+check("pending เหลือ 2", #cs.pendingComments == 2)
+check("reply index มั่ว = nil ไม่ pop", CommentService.answer(cs, { reply = 99 }) == nil and #cs.pendingComments == 2)
+CommentService.answer(cs, { reply = 3 })
+check("reply 3 = neg", cs.choices.neg == 1)
+CommentService.answer(cs, { reply = 2 })
+check("หมดแล้วตอบอีก = nil", CommentService.answer(cs, { reply = 1 }) == nil)
+
+-- ===== CalendarService =====
+local cal = GameState.newGame()
+cal.day = 5
+check("วางวันอนาคตได้", CalendarService.place(cal, 7, { type = "Schedule", id = "Marathon" }) == true)
+check("วางวันนี้/อดีตไม่ได้", CalendarService.place(cal, 5, { type = "Schedule" }) == false)
+cal.calendar[9] = { type = "Canon", id = "Hater", locked = true }
+check("ทับ Canon ไม่ได้", CalendarService.place(cal, 9, { type = "Schedule" }) == false)
+check("sponsor ก่อน 10K ไม่ได้", CalendarService.acceptSponsor(cal, 8) == false)
+cal.follower = 15_000
+check("sponsor หลัง 10K ได้", CalendarService.acceptSponsor(cal, 8) == true)
+cal.day = 8
+local money0 = cal.money
+local blk = CalendarService.onDay(cal, rng0)
+check("วัน sponsor: เงินเข้า + block หาย",
+	blk.type == "Sponsor" and cal.money > money0 and cal.calendar[8] == nil)
+check("วันไม่มี block คืน nil", CalendarService.onDay(GameState.newGame(), rng0) == nil)
+
+-- ===== EndingService =====
+local es = GameState.newGame()
+check("เกมปกติยังไม่จบ", EndingService.check(es) == nil)
+es.flags.rentMissed = 2
+es.flags.mentalZero = true
+check("Bad1 มาก่อน Bad2", EndingService.check(es) == "Bad1")
+es.flags.rentMissed = 0
+check("mental หมด → Bad2", EndingService.check(es) == "Bad2")
+local eg = GameState.newGame()
+eg.follower = 1_000_000
+eg.clips = { { tier = "A" }, { tier = "A" }, { tier = "S" }, { tier = "B" }, { tier = "A" } }
+eg.choices = { pos = 8, neu = 1, neg = 1 }
+check("1M + สายดี → Good1", EndingService.check(eg) == "Good1")
+eg.flags.ending = "Good1"
+check("จบแล้วเช็คอีก = nil", EndingService.check(eg) == nil)
+local st = EndingService.computeStats(eg)
+check("stats vidq % ถูก (A 60%)", st.vidq.A == 60 and st.vidq.S == 20 and st.vidq.C == 0)
+check("stats choice % ถูก (pos 80%)", st.choice.pos == 80 and st.choice.neg == 10)
+
+-- ===== DialogueUI.parseTags (design doc §7) =====
+local seg = DialogueUI.parseTags("สวัสดี")
+check("ไม่มี tag = normal ก้อนเดียว", #seg == 1 and seg[1].speed == "normal" and seg[1].text == "สวัสดี")
+seg = DialogueUI.parseTags("[slow]ก[fast]ข")
+check("tag นำหน้า + กลางบรรทัด", #seg == 2 and seg[1].speed == "slow" and seg[1].text == "ก"
+	and seg[2].speed == "fast" and seg[2].text == "ข")
+seg = DialogueUI.parseTags("ปกติ[slow]ช้า")
+check("เริ่ม normal แล้วเปลี่ยน", seg[1].speed == "normal" and seg[2].speed == "slow" and seg[2].text == "ช้า")
+
+-- ===== CutscenePlayer.validate =====
+local okc = CutscenePlayer.validate({ { type = "text", text = "x" }, { type = "wait", t = 1 },
+	{ type = "camera", pos = { 0, 5, 0 }, look = { 0, 0, 0 } } })
+check("script ถูก = ผ่าน", okc == true)
+check("type มั่ว = ไม่ผ่าน", CutscenePlayer.validate({ { type = "explode" } }) == false)
+check("wait ไม่มี t = ไม่ผ่าน", CutscenePlayer.validate({ { type = "wait" } }) == false)
+-- content จริงทั้ง 6 ending ต้อง validate ผ่าน
+local Endings = if isStudio
+	then game:GetService("ReplicatedStorage").Shared.Content.Endings
+	else nil
+for _, name in { "Bad1", "Bad2", "Bad3", "Neutral1", "Neutral2", "Good1" } do
+	local stepsMod = if isStudio then require(Endings[name]) else require("../src/shared/Content/Endings/" .. name)
+	check("Content.Endings." .. name .. " validate ผ่าน", CutscenePlayer.validate(stepsMod) == true)
+end
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

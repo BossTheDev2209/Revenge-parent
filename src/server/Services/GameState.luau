@@ -26,6 +26,8 @@ function GameState.newGame()
 		calendar = {}, -- [day] = {type=..., id=...}
 		flags = {},    -- canon event ที่ผ่านแล้ว
 		activity = { streak = 0, cooldownUntilDay = 0 }, -- ฟื้นใจติดกัน 3 ครั้ง → cooldown
+		pendingComments = {}, -- comment รอตอบ {id=} (CommentService)
+		pendingEvents = {},   -- canon event รอเล่นฝั่ง client เช่น "milestone_1000"
 		slot = 1,
 		savedAt = 0,
 	}

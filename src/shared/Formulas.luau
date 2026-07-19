@@ -62,6 +62,14 @@ function Formulas.moneyGain(followers: number, phase: number): number
 	return math.floor(followers * Config.MoneyRatePerFollower[phase])
 end
 
+-- PDF หน้า 6: sponsor จ่าย = เงินคลิปเฉลี่ย (base กลางเฟส, tier B) × 2–4 (สุ่ม)
+function Formulas.sponsorPay(phase: number, rng): number
+	rng = rng or math.random
+	local b = Config.FollowerBase[phase]
+	local avgClipMoney = (b.min + b.max) / 2 * Config.MoneyRatePerFollower[phase]
+	return math.floor(avgClipMoney * (2 + 2 * rng()))
+end
+
 -- เช็คเงื่อนไขฝั่ง VidQ % ของ ending หนึ่งตัว (เงื่อนไขไหนไม่ระบุใน Config = ไม่เช็ค)
 local function vidqPass(c, v): boolean
 	if not c then return false end

@@ -43,7 +43,14 @@ python tools/mcp_driver.py steps.json
 | ใน Studio | `ReplicatedStorage.Shared.Config` + `.Formulas`, `Shared.Remotes.Action/StateChanged`, `ServerScriptService.Main` (Script รันจริง), `Services.GameState` + `.ActionRouter`, `Tests.RunTests` (Disabled) | ✅ sync แล้ว 19 ก.ค. — เทสรันใน Studio ผ่าน 65/65 |
 | GameState + Save 4 slot + ActionRouter | `src/server/Services/`, `src/server/Main.server.luau` | ✅ เสร็จ 19 ก.ค. (`plans/2026-07-19-gamestate-actionrouter.md`) |
 | TimeService + Mental(พื้นฐาน) + Follower + Money + HUD placeholder + client Main | `src/server/Services/`, `src/client/` | ✅ เสร็จ 19 ก.ค. — core loop เดโม่ได้ (`plans/2026-07-19-timeservice.md`, `plans/2026-07-19-coreloop.md`) |
-| Edit QTE + InteractBinder + Activity system | `src/client/UI/Apps/EditQTE.luau`, `src/client/InteractBinder.luau` | ✅ เสร็จ 19 ก.ค. — เล่นเต็ม loop ด้วยมือ, placeholder `Interact_*` neon 4 จุดใกล้ spawn (ทีมย้ายได้), action ครบ: `FinishEdit{score}`, `UploadClip{clip|"latest"}`, `DoActivity{activity}` (`plans/2026-07-19-qte-interact.md`) |
+| Edit QTE + InteractBinder + Activity system | `src/client/UI/Apps/EditQTE.luau`, `src/client/InteractBinder.luau` | ✅ เสร็จ 19 ก.ค. — เล่นเต็ม loop ด้วยมือ, placeholder `Interact_*` neon 4 จุดใกล้ spawn (ทีมย้ายได้) (`plans/2026-07-19-qte-interact.md`) |
+| **Engines ครบชุด**: Dialogue / Comment / Calendar+Sponsor / Ending / Cutscene / Canon events | `src/server/Services/{Comment,Calendar,Ending}Service.luau`, `src/client/UI/{DialogueUI,CutscenePlayer,CommentUI}.luau`, `src/shared/Content/**` | ✅ เสร็จ 19 ก.ค. — เทส 151/151 (`plans/2026-07-19-engines-complete.md`) |
+
+**Actions ทั้งหมดที่ระบบรับ (client → `Remotes.Action`):**
+`FinishEdit{score}` `UploadClip{clip|"latest"}` `DoActivity{activity="Bed|Kitchen|Exercise"}` `AnswerComment{reply=1..3}` `PlaceBlock{day,id}` `AcceptSponsor{day}` `FreezeTime{on}` `EventSeen{id}`
+
+**ทีมเติมบท = แก้เฉพาะ `ReplicatedStorage.Shared.Content/**` (หรือ `src/shared/Content/` แล้วให้ Claude sync):**
+Dialogue 6 ไฟล์ (tag `[slow][fast][normal]`) | Comments (pool + replies 3 tag pos/neu/neg) | CanonEvents (milestone_*) | Endings 6 ไฟล์ (step: text/wait/camera) — ทุกไฟล์มี format ตัวอย่างใน comment หัวไฟล์ ห้ามแตะโค้ดนอก Content
 | ของเดิมใน Studio ก่อน sync | `Shared.Hello`, `ServerScriptService.Server`, `StarterPlayerScripts.Client` | template hello-world — **ปล่อยไว้ ไม่ลบ** (กฎห้ามลบของเดิม) |
 
 Test runner local: `lune` binary อยู่ scratchpad (หายได้ — โหลดใหม่: GitHub lune-org/lune release `windows-x86_64.zip` แตก zip รัน `lune.exe run tests/RunTests.luau`)

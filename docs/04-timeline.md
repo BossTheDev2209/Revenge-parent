@@ -16,6 +16,7 @@
 - ✅ Sync เข้า Studio ผ่าน MCP (19 ก.ค.) — วิธี+driver อยู่ docs/08 §0
 - ✅ GameState + Save 4 slot + ActionRouter + Main.server (19 ก.ค.) — เทส 65/65 ผ่านทั้ง lune และใน Studio
 - ✅ TimeService — นาฬิกากลาง tick/freeze/นอน 8-12 ชม. (19 ก.ค.) — เทส 78/78 ผ่านทั้งสองที่
+- ✅ **Core loop เดโม่ได้** (19 ก.ค.): Mental(พื้นฐาน)/Follower/Money + HUD placeholder + wiring — เทส 102/102 ทั้ง lune/Studio + Play mode ไม่มี error — mental drain modifiers รอ user ตัดสิน (docs/08 §4)
 - ✅ Canva deck 13 สไลด์ (`DAHJLyI79DE`) — ยังต้องเพิ่มภาพแนวคิด slide 10
 - 🟡 ตัวละครหลัก + แม่ build ใน Studio R6 บางส่วน (ทิศทาง: R6 classic, ไม่ใช้ AI concept art)
 - 🔴 Story system placement ยังไม่ชัด

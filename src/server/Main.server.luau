@@ -70,6 +70,23 @@ end)
 ActionRouter.register("FreezeTime", function(s, a)
 	TimeService.setFrozen(a.on == true)
 end)
+-- Main Menu (PDF หน้า 1): slot list ส่งกลับทาง state.slotList — ไม่เพิ่ม Remote
+ActionRouter.register("RequestSlots", function(s, a, player)
+	s.slotList = GameState.listSlots(player.UserId)
+end)
+ActionRouter.register("LoadSlot", function(s, a, player)
+	local loaded = GameState.loadSlot(player.UserId, tonumber(a.slot) or 1)
+	if loaded then GameState.replaceWith(s, loaded) end
+end)
+ActionRouter.register("SaveSlot", function(s, a, player)
+	s.slot = tonumber(a.slot) or s.slot
+	GameState.saveSlot(player.UserId, s)
+end)
+ActionRouter.register("NewGame", function(s, a)
+	local fresh = GameState.newGame()
+	fresh.slot = tonumber(a.slot) or 1
+	GameState.replaceWith(s, fresh)
+end)
 ActionRouter.register("EventSeen", function(s, a)
 	for i, id in s.pendingEvents do
 		if id == a.id then
@@ -81,7 +98,7 @@ end)
 
 -- client action ทุกอันวิ่งผ่านเส้นนี้เส้นเดียว
 RS.Shared.Remotes.Action.OnServerEvent:Connect(function(player, action)
-	if ActionRouter.route(state, action) then
+	if ActionRouter.route(state, action, player) then
 		GameState.push(state)
 	end
 end)

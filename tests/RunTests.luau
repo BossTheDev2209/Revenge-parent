@@ -16,6 +16,10 @@ local ActionRouter = if isStudio
 	then require(game:GetService("ServerScriptService").Services.ActionRouter)
 	else require("../src/server/Services/ActionRouter")
 
+local TimeService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.TimeService)
+	else require("../src/server/Services/TimeService")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -153,6 +157,42 @@ local dupOk = pcall(function()
 	ActionRouter.register("TestPing", function() end)
 end)
 check("register ชื่อซ้ำต้อง error (กันเขียนทับเงียบ)", dupOk == false)
+
+-- ===== TimeService (docs/07 §3.1 — นาฬิกาเดียว ระบบอื่นสมัครฟัง) =====
+local hourCount, dayCount = 0, 0
+TimeService.onHour(function() hourCount += 1 end)
+TimeService.onDay(function() dayCount += 1 end)
+
+local ts = GameState.newGame() -- timeOfDay 8, day 1
+TimeService.tick(ts)
+check("tick: 8 โมง → 9 โมง วันเดิม", ts.timeOfDay == 9 and ts.day == 1)
+check("tick ยิง onHour ไม่ยิง onDay", hourCount == 1 and dayCount == 0)
+
+ts.timeOfDay = 23
+TimeService.tick(ts)
+check("tick: 23 → 0 ขึ้นวันใหม่", ts.timeOfDay == 0 and ts.day == 2)
+check("ข้ามเที่ยงคืนยิง onDay", dayCount == 1)
+
+TimeService.setFrozen(true)
+TimeService.tick(ts)
+check("frozen: เวลาไม่เดิน callback ไม่ยิง", ts.timeOfDay == 0 and hourCount == 2)
+TimeService.setFrozen(false)
+
+-- กติกานอน (PDF หน้า 6): เริ่มนอน 18:00–5:59 ข้าม 8 ชม. | นอกช่วง ข้าม 12 ชม.
+check("นอน 17:00 (นอกช่วง) = 12 ชม.", TimeService.sleepHours(17) == 12)
+check("นอน 18:00 (ขอบล่าง) = 8 ชม.", TimeService.sleepHours(18) == 8)
+check("นอน 23:00 = 8 ชม.", TimeService.sleepHours(23) == 8)
+check("นอน 0:00 = 8 ชม.", TimeService.sleepHours(0) == 8)
+check("นอน 5:00 (ขอบบน) = 8 ชม.", TimeService.sleepHours(5) == 8)
+check("นอน 6:00 (พ้นช่วง) = 12 ชม.", TimeService.sleepHours(6) == 12)
+
+local before = { h = hourCount, d = dayCount }
+ts.timeOfDay = 22
+ts.day = 5
+TimeService.sleep(ts)
+check("นอน 4 ทุ่ม ข้าม 8 ชม. → ตื่น 6 โมง วันถัดไป", ts.timeOfDay == 6 and ts.day == 6)
+check("นอนยิง callback ครบทุกชั่วโมงที่ข้าม",
+	hourCount == before.h + 8 and dayCount == before.d + 1)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

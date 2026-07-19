@@ -8,6 +8,17 @@ local PROMPT_TEXT = {
 	Interact_Bed = "พักผ่อน",
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",
+	Interact_NPC_Mom = "คุยกับแม่",
+}
+
+-- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
+local NPC_DIALOGUE = {
+	Interact_NPC_Mom = "Mom",
+	Interact_NPC_01 = "Dad",
+	Interact_NPC_02 = "Friend1",
+	Interact_NPC_03 = "Friend2",
+	Interact_NPC_04 = "CC1",
+	Interact_NPC_05 = "Hater",
 }
 
 function InteractBinder.init(deps)
@@ -16,8 +27,10 @@ function InteractBinder.init(deps)
 			deps.startQTE()
 		elseif name == "Interact_Bed" or name == "Interact_Kitchen" or name == "Interact_Exercise" then
 			deps.fireAction({ type = "DoActivity", activity = name:gsub("Interact_", "") })
+		elseif NPC_DIALOGUE[name] then
+			deps.startDialogue(NPC_DIALOGUE[name])
 		else
-			warn("[InteractBinder] ยังไม่ผูก logic:", name) -- NPC รอ Dialogue engine
+			warn("[InteractBinder] ยังไม่ผูก logic:", name)
 		end
 	end
 

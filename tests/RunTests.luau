@@ -8,6 +8,10 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../src/shared/Formulas")
 
+local GameState = if isStudio
+	then require(game:GetService("ServerScriptService").Services.GameState)
+	else require("../src/server/Services/GameState")
+
 local pass, fail = 0, 0
 local function check(name: string, ok: boolean)
 	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
@@ -103,6 +107,31 @@ check("priority: เข้าทั้ง Bad3+Good1 ต้องได้ Bad3"
 	Formulas.resolveEnding(stats(40, 20, 20, 20, 80, 10, 10)) == "Bad3")
 check("ไม่เข้าอะไรเลย → fallback Neutral2",
 	Formulas.resolveEnding(stats(30, 40, 20, 10, 30, 30, 40)) == "Neutral2")
+
+-- ===== GameState.newGame (docs/06 §3 state shape) =====
+local s = GameState.newGame()
+check("เงินตั้งต้น 2500", s.money == 2500)
+check("mental เริ่ม 80", s.mental == 80)
+check("เริ่ม phase 1 วัน 1", s.phase == 1 and s.day == 1)
+check("เริ่มเวลา 8 โมง", s.timeOfDay == 8)
+check("follower 0", s.follower == 0)
+check("choices ว่าง", s.choices.pos == 0 and s.choices.neu == 0 and s.choices.neg == 0)
+check("upgrades เริ่ม level 1", s.upgrades.camera == 1 and s.upgrades.storage == 1)
+check("slot default 1", s.slot == 1)
+check("ตาราง clips/calendar/flags ว่าง", #s.clips == 0 and next(s.calendar) == nil and next(s.flags) == nil)
+
+-- ===== GameState.mergeDefaults (save เก่า + key ใหม่ = ไม่พัง) =====
+local old = { money = 999, choices = { pos = 5 } }
+local merged = GameState.mergeDefaults(old, GameState.newGame())
+check("ค่าเดิมอยู่ครบ", merged.money == 999 and merged.choices.pos == 5)
+check("key ที่ขาดถูกเติม", merged.mental == 80 and merged.choices.neg == 0)
+check("ตารางซ้อนถูกเติมทั้งก้อน", merged.upgrades.camera == 1)
+
+-- ===== GameState.slotSummary =====
+local sum = GameState.slotSummary({ follower = 55_000, day = 12, money = 1, mental = 1,
+	clips = {}, choices = {}, upgrades = {}, calendar = {}, flags = {}, savedAt = 123 })
+check("summary: follower/day/savedAt", sum.follower == 55_000 and sum.day == 12 and sum.savedAt == 123)
+check("summary: phase คำนวณจาก follower", sum.phase == 2)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

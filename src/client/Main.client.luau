@@ -1,11 +1,17 @@
--- Main.client.luau — จุดเริ่มเดียวของ client: Remote + HUD + Interact + Comment + Dialogue + Ending
+-- Main.client.luau — จุดเริ่มเดียวของ client: Remote + HUD + PC Screen + Interact + Dialogue + Ending
 local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local HUD = require(script.Parent.UI.HUD)
+local PCScreen = require(script.Parent.UI.PCScreen)
 local EditQTE = require(script.Parent.UI.Apps.EditQTE)
+local Upload = require(script.Parent.UI.Apps.Upload)
+local Feedback = require(script.Parent.UI.Apps.Feedback)
+local Bank = require(script.Parent.UI.Apps.Bank)
+local CalendarApp = require(script.Parent.UI.Apps.CalendarApp)
+local Shop = require(script.Parent.UI.Apps.Shop)
+local Message = require(script.Parent.UI.Apps.Message)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
-local CommentUI = require(script.Parent.UI.CommentUI)
 local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
 
@@ -13,12 +19,13 @@ local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
 local Content = RS.Shared.Content
 
+local latestState = nil
+
 local function fireAction(action)
 	actionRemote:FireServer(action)
 end
 
 HUD.init(playerGui)
-CommentUI.init(playerGui, fireAction)
 MenuUI.open(playerGui, { fireAction = fireAction }) -- เกมเริ่มที่เมนู (freeze จนกดเล่น)
 
 -- ปุ่มเซฟเล็กมุมซ้ายล่างระหว่างเล่น
@@ -35,10 +42,37 @@ saveBtn.Text = "💾 เซฟ"
 saveBtn.Parent = saveGui
 saveGui.Parent = playerGui
 saveBtn.Activated:Connect(function()
-	fireAction({ type = "SaveSlot" }) -- เซฟช่องปัจจุบัน (state.slot)
+	fireAction({ type = "SaveSlot" })
 	saveBtn.Text = "✅ เซฟแล้ว"
 	task.delay(1.5, function() saveBtn.Text = "💾 เซฟ" end)
 end)
+
+-- PC Screen (PDF หน้า 5 "UI PC") — แอปเรียงตาม design
+local PC_APPS = {
+	{ label = "✂️ ตัดคลิป", external = function()
+		EditQTE.start(playerGui, fireAction)
+	end },
+	{ label = "⬆️ อัปโหลด", create = Upload.create },
+	{ label = "📊 Feedback", create = Feedback.create },
+	{ label = "🏦 Bank", create = Bank.create },
+	{ label = "📅 ปฏิทิน", create = CalendarApp.create },
+	{ label = "🛒 Shop", create = Shop.create },
+	{ label = "✉️ Message", create = Message.create },
+	{ label = "👥 Manage", create = function(frame)
+		local l = Instance.new("TextLabel")
+		l.Size = UDim2.new(1, 0, 1, 0)
+		l.BackgroundTransparency = 1
+		l.TextScaled = true
+		l.Text = "👥 จ้างพนักงาน\n(เร็วๆนี้)"
+		l.Parent = frame
+		return {}
+	end },
+}
+
+local pcDeps = {
+	fireAction = fireAction,
+	getState = function() return latestState end,
+}
 
 -- คุย NPC: freeze เวลา → typewriter → unfreeze (design doc §7 — ทางเดียว ไม่นับ choice)
 local function startDialogue(dialogueName)
@@ -53,11 +87,12 @@ local function startDialogue(dialogueName)
 	end)
 end
 
--- state มาใหม่ทุกครั้ง: HUD + comment + canon event + ending
+-- state มาใหม่ทุกครั้ง: HUD + PC + menu + canon event + ending
 local endingPlayed = false
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
+	latestState = state
 	HUD.update(state)
-	CommentUI.update(state)
+	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
 
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว
@@ -70,7 +105,7 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 				fireAction({ type = "EventSeen", id = eventId })
 			end)
 		else
-			fireAction({ type = "EventSeen", id = eventId }) -- ไม่มีบท ข้ามทิ้ง
+			fireAction({ type = "EventSeen", id = eventId })
 		end
 	end
 
@@ -87,8 +122,8 @@ end)
 InteractBinder.init({
 	fireAction = fireAction,
 	playerGui = playerGui,
-	startQTE = function()
-		EditQTE.start(playerGui, fireAction)
+	startQTE = function() -- Interact_Camera = นั่งคอม → เปิด PC Screen (มีแอปตัดคลิปข้างใน)
+		PCScreen.open(playerGui, pcDeps, PC_APPS)
 	end,
 	startDialogue = startDialogue,
 })

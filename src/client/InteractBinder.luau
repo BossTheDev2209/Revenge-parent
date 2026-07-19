@@ -4,7 +4,7 @@
 local InteractBinder = {}
 
 local PROMPT_TEXT = {
-	Interact_Camera = "ตัดคลิป",
+	Interact_Camera = "ใช้คอมพิวเตอร์",
 	Interact_Bed = "พักผ่อน",
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",

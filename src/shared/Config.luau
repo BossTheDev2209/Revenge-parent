@@ -96,4 +96,13 @@ Config.EndingThresholds = {
 -- Bad1 = เงินหมด โดนไล่ที่ 2 รอบ (phase 1–2) | Bad2 = mental ≤ 0 (phase 2–3) — ทั้งคู่ optional
 -- Neutral/Good ต้องถึง 1M ก่อน
 
+-- เงินตั้งต้น + เวลา — ที่มา: PDF ต้นฉบับหน้า 9, 6 (design doc ไม่ระบุ — flag ไว้แล้วใน docs/08)
+Config.StartMoney = 2_500
+
+Config.Time = {
+	secondsPerGameHour = 7.5, -- 1 วันเกม = 3 นาทีจริง ÷ 24
+	dayStartHour = 8,
+	sleep = { normalHours = 8, windowStart = 18, windowEnd = 6, outsideHours = 12 },
+}
+
 return Config

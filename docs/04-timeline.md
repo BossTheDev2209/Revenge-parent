@@ -21,6 +21,8 @@
 - ✅ **Engine ครบทุกตัว** (19 ก.ค.): Dialogue typewriter+tag / Comment choice ⊕◎⊖ / Calendar+Sponsor / EndingService (Bad1/Bad2 สด + % ที่ 1M) / CutscenePlayer / Canon milestone events — เทส 151/151 ทั้ง lune+Studio — **เหลือแค่เติมบทใน Content/ ไม่ต้องแตะโค้ด**
 - ✅ Main Menu + Save/Load UI (19 ก.ค.): Continue/save 4 ช่อง/Credit/ปุ่มเซฟ — เทส 155/155
 - ✅ Mental modifiers ครบ (19 ก.ค. — user lock 4 decision ใน docs/02 §3): อดนอน 20 ชม./canon/ตัด 5 ติด/comment streak/viral 2 วันติด + cap ×3 + action Sleep + เมนูเตียง — เทส 172/172
+- ✅ HUD v2 + PC Screen แบบ Jim's Computer (19 ก.ค.): แยก UI 2 ชั้นตาม PDF หน้า 5 — เครื่องต่างตามเฟส (โน้ตบุ๊ค/desktop/RGB), apps 8: Edit/Upload/Feedback(+ตอบ comment)/Bank/ปฏิทิน+sponsor/Shop(BuyUpgrade)/Message/Manage(รอ) — เทส 176/176
+- ⚠️ Upgrade กล้อง → ผลต่อ VidQ multiplier ยังไม่ wire (design ยังไม่ fix สูตร resolution) — flag
 - ⚠️ **ต้องทำใน Studio (คนเดียวที่ทำได้คือทีม):** Game Settings → Security → เปิด "Enable Studio Access to API Services" (place ต้อง publish ก่อน) — ไม่งั้น save ใช้ไม่ได้ (ตอนนี้ error 403 แต่เกมไม่ crash)
 - ✅ Canva deck 13 สไลด์ (`DAHJLyI79DE`) — ยังต้องเพิ่มภาพแนวคิด slide 10
 - 🟡 ตัวละครหลัก + แม่ build ใน Studio R6 บางส่วน (ทิศทาง: R6 classic, ไม่ใช้ AI concept art)

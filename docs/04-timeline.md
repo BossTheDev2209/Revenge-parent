@@ -13,7 +13,8 @@
 - ✅ Design lock (12 ก.ค.) — `docs/02-game-design-locked.md`
 - ✅ Architecture + จัดอันดับระบบ (19 ก.ค.) — `docs/06`, `docs/07`
 - ✅ Config + Formulas + เทส 46 ข้อผ่าน (19 ก.ค.) — `src/shared/`
-- ✅ Sync เข้า Studio ผ่าน MCP (19 ก.ค.) — เทสรันใน Studio ผ่าน 46/46, วิธี+driver อยู่ docs/08 §0
+- ✅ Sync เข้า Studio ผ่าน MCP (19 ก.ค.) — วิธี+driver อยู่ docs/08 §0
+- ✅ GameState + Save 4 slot + ActionRouter + Main.server (19 ก.ค.) — เทส 65/65 ผ่านทั้ง lune และใน Studio
 - ✅ Canva deck 13 สไลด์ (`DAHJLyI79DE`) — ยังต้องเพิ่มภาพแนวคิด slide 10
 - 🟡 ตัวละครหลัก + แม่ build ใน Studio R6 บางส่วน (ทิศทาง: R6 classic, ไม่ใช้ AI concept art)
 - 🔴 Story system placement ยังไม่ชัด

@@ -24,6 +24,9 @@ python tools/mcp_driver.py steps.json
 - เทสใน Studio ไม่ต้องกด Play: `loadstring(RunTests.Source)` + `setfenv` ให้ `script` ชี้ instance แล้ว `pcall` — ดู `tools/` + ประวัติ commit
 - tool มีครบ 27 ตัว: `execute_luau`, `inspect_instance`, `script_read`, `multi_edit`, `search_game_tree`, `get_console_output`, `start_stop_play`, `screen_capture` ฯลฯ
 - **Place เป็น Team Create** — ทีมออนไลน์พร้อมกันได้ ระวังแก้ชนกัน + Team Create autosave เอง
+- **Studio require cache:** อัป `Source` ของ ModuleScript ที่เคยถูก require แล้ว = โมดูลเก่ายังถูก cache
+  → sync module ที่แก้แล้วต้อง **`:Destroy()` instance เดิมแล้วสร้างใหม่** (เฉพาะของเราเอง — ของทีมห้ามแตะ)
+  require ตาม path จะเจอ instance ใหม่ = fresh เสมอ
 
 ---
 
@@ -34,7 +37,8 @@ python tools/mcp_driver.py steps.json
 | Config ตัวเลขทั้งเกม | `src/shared/Config.luau` | ✅ ครบ ตรง design doc — ไฟล์เดียว ไม่แตก 7 ไฟล์ (ตัดสินใจแล้ว: ctrl+F ง่ายกว่าสำหรับทีม) |
 | Formulas 7 functions | `src/shared/Formulas.luau` | ✅ ผ่านเทส 46 ข้อ |
 | เทส | `tests/RunTests.luau` | ✅ dual-mode: lune local + Studio Script |
-| ใน Studio | `ReplicatedStorage.Shared.Config` + `.Formulas` (ModuleScript), `Shared.Remotes.Action/StateChanged` (RemoteEvent), `ServerScriptService.Services` + `.Tests.RunTests` (Script, Disabled) | ✅ sync แล้ว 19 ก.ค. — เทสรันใน Studio ผ่าน 46/46 |
+| ใน Studio | `ReplicatedStorage.Shared.Config` + `.Formulas`, `Shared.Remotes.Action/StateChanged`, `ServerScriptService.Main` (Script รันจริง), `Services.GameState` + `.ActionRouter`, `Tests.RunTests` (Disabled) | ✅ sync แล้ว 19 ก.ค. — เทสรันใน Studio ผ่าน 65/65 |
+| GameState + Save 4 slot + ActionRouter | `src/server/Services/`, `src/server/Main.server.luau` | ✅ เสร็จ 19 ก.ค. (`plans/2026-07-19-gamestate-actionrouter.md`) |
 | ของเดิมใน Studio ก่อน sync | `Shared.Hello`, `ServerScriptService.Server`, `StarterPlayerScripts.Client` | template hello-world — **ปล่อยไว้ ไม่ลบ** (กฎห้ามลบของเดิม) |
 
 Test runner local: `lune` binary อยู่ scratchpad (หายได้ — โหลดใหม่: GitHub lune-org/lune release `windows-x86_64.zip` แตก zip รัน `lune.exe run tests/RunTests.luau`)

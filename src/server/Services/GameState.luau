@@ -52,4 +52,54 @@ function GameState.slotSummary(state)
 	}
 end
 
+-- ===== Roblox glue (Studio เท่านั้น — lune ไม่แตะส่วนนี้) =====
+local DATASTORE_NAME = "SaveSlots_v1"
+local MAX_SLOTS = 4
+
+local function store()
+	return game:GetService("DataStoreService"):GetDataStore(DATASTORE_NAME)
+end
+
+local dirty = false
+
+-- ยิง state ทั้งก้อนให้ client + ตั้ง dirty รอ autosave (docs/06 §3)
+function GameState.push(state)
+	dirty = true
+	local remote = game:GetService("ReplicatedStorage").Shared.Remotes.StateChanged
+	remote:FireAllClients(state)
+end
+
+function GameState.isDirty()
+	return dirty
+end
+
+-- ทุกจุดแตะ DataStore ห่อ pcall — fail = warn + เล่นต่อ (Edit mode fail เป็นเรื่องปกติ)
+function GameState.saveSlot(userId: number, state)
+	state.savedAt = os.time()
+	local ok, err = pcall(function()
+		store():SetAsync(userId .. "_" .. state.slot, state)
+	end)
+	if ok then dirty = false else warn("[GameState] save ไม่สำเร็จ:", err) end
+	return ok
+end
+
+function GameState.loadSlot(userId: number, slot: number)
+	local ok, data = pcall(function()
+		return store():GetAsync(userId .. "_" .. slot)
+	end)
+	if not ok or data == nil then return nil end
+	data.slot = slot
+	return GameState.mergeDefaults(data, GameState.newGame())
+end
+
+-- คืน {[slot] = summary} เฉพาะ slot ที่มี save — หน้า Main Menu ใช้ (Continue = savedAt มากสุด)
+function GameState.listSlots(userId: number)
+	local out = {}
+	for slot = 1, MAX_SLOTS do
+		local data = GameState.loadSlot(userId, slot)
+		if data then out[slot] = GameState.slotSummary(data) end
+	end
+	return out
+end
+
 return GameState

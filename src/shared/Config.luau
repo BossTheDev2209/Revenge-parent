@@ -60,6 +60,23 @@ Config.Mental = {
 	},
 	-- Activity system (PDF หน้า 6): ทำติดกันเกิน maxStreak → cooldown ข้ามวัน
 	activity = { maxStreak = 3, cooldownDays = 1 },
+
+	-- Drain/Recovery modifiers (lock 19 ก.ค. — docs/02 §3)
+	-- kind: "drain" = คูณอัตรา drain | "recover" = คูณ delta ฝั่งบวก
+	-- อายุ: hours = หมดตามชั่วโมงเกม | untilEvent = "sleep"|"activity"|"activityOrGood"
+	mods = {
+		NoSleep = { mult = 1.5, kind = "drain", untilEvent = "sleep" },
+		CanonEvent = { mult = 1.25, kind = "drain", hours = 24 },
+		EditStreak5 = { mult = 1.5, kind = "drain", untilEvent = "activity", streak = 5 },
+		CommentBadStreak3 = { mult = 2, kind = "drain", untilEvent = "activityOrGood", streak = 3 },
+		CommentGoodStreak3 = { mult = 1.25, kind = "recover", hours = 24, streak = 3 },
+		ViralStreak2 = { mult = 2, kind = "recover", hours = 36 },
+		-- dormant: dialogue ทางเดียวไม่มี choice (docs/02 §6) — เก็บไว้เผื่อดึง NPC choice กลับ
+		NpcBadStreak3 = { mult = 2, kind = "drain", untilEvent = "activityOrGood", streak = 3 },
+		NpcGoodStreak3 = { mult = 1.5, kind = "recover", hours = 24, streak = 3 },
+	},
+	modCap = 3, -- คูณซ้อนกันได้ไม่เกิน ×3 ทั้งสองฝั่ง
+	awakeHoursForNoSleep = 20,
 }
 
 -- §4 Economy

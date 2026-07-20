@@ -267,10 +267,12 @@ local upOk2, upViral2 = FollowerService.uploadClip(fs, { clip = 1 }, 50, rngQueu
 check("clip S viral: base 400 ×2 ×4 = 3200", upOk2 and upViral2 and fs.follower == 9_900 + 3_200)
 check("ข้าม gate → phase 2", fs.phase == 2)
 
--- ===== MoneyService (design doc §4 — หักราย 7 วัน) =====
-check("รวมรายจ่าย phase 1 = 2200", MoneyService.weeklyTotal(1) == 2_200)
-check("รวมรายจ่าย phase 3 = 7700", MoneyService.weeklyTotal(3) == 7_700)
+-- ===== MoneyService (design doc §4 — หักราย 7 วัน + Bank ⊖⊕ lock 21 ก.ค.) =====
 local mo = GameState.newGame()
+check("รวมรายจ่าย phase 1 = 2200", MoneyService.weeklyTotal(mo) == 2_200)
+mo.phase = 3
+check("รวมรายจ่าย phase 3 = 7700", MoneyService.weeklyTotal(mo) == 7_700)
+mo.phase = 1
 mo.money = 5_000
 mo.day = 8
 check("วัน 8 (ครบสัปดาห์แรก) หักแล้วเหลือ 2800",
@@ -285,6 +287,32 @@ mo.day = 15
 mo.money = 1_000
 check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + คืน true",
 	MoneyService.onDay(mo) == true and mo.money == 0 and mo.flags.rentMissed == 1)
+
+-- Bank ⊖⊕ (PDF หน้า 9)
+local spb = GameState.newGame()
+check("เพิ่มค่ากิน 1 step", MoneyService.adjustSpending(spb, "food", 1) == true and spb.spending.food == 1)
+check("weeklyTotal รวม offset: 2200+200", MoneyService.weeklyTotal(spb) == 2_400)
+spb.spending.food = 3
+check("เกิน maxOffset ไม่ได้", MoneyService.adjustSpending(spb, "food", 1) == false)
+spb.spending.food = -1
+check("ต่ำกว่า minOffset ไม่ได้", MoneyService.adjustSpending(spb, "food", -1) == false)
+check("card มั่ว = false", MoneyService.adjustSpending(spb, "รถ", 1) == false)
+check("lifestyle: กินถูกสุด = -4/สัปดาห์", MoneyService.lifestyleMental(spb) == -4)
+spb.spending.food = 2
+spb.spending.rent = 1
+check("lifestyle: กินดี +4 เช่าดี +1 = +5", MoneyService.lifestyleMental(spb) == 5)
+spb.spending.food = 0
+spb.spending.rent = -2
+spb.money = 99_999
+spb.day = 8
+local brokeB, billedB = MoneyService.onDay(spb)
+check("เช่า offset -2 = นับค้างเช่าแม้เงินพอ", brokeB == false and billedB == true and spb.flags.rentMissed == 1)
+check("ยอดหักตาม offset: เช่า 500+กิน 400+เน็ต 300 = 1200", spb.money == 99_999 - 1_200)
+check("staff งบโบนัส: +2 step = 2200+2000", (function()
+	local s2 = GameState.newGame()
+	s2.spending.staff = 2
+	return MoneyService.weeklyTotal(s2) == 4_200
+end)())
 
 -- ===== doActivity (PDF หน้า 6 — ติดกัน 3 ครั้ง cooldown 1 วัน) =====
 local da = GameState.newGame()

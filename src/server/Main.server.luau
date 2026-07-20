@@ -72,6 +72,9 @@ end)
 ActionRouter.register("BuyUpgrade", function(s, a)
 	MoneyService.buyUpgrade(s, a.item)
 end)
+ActionRouter.register("AdjustSpending", function(s, a) -- ⊖⊕ ใน Bank
+	MoneyService.adjustSpending(s, a.card, a.dir)
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่
@@ -141,8 +144,13 @@ TimeService.onHour(function(s)
 end)
 -- ทุกวันใหม่: ครบ 7 วันหักรายจ่าย — จ่ายไม่ไหวหัก mental ต่อ + block ปฏิทิน + เช็คจบเกม
 TimeService.onDay(function(s)
-	if MoneyService.onDay(s) then
+	local broke, billed = MoneyService.onDay(s)
+	if broke then
 		MentalService.apply(s, "rentMissed")
+	end
+	if billed then -- ผลใจไลฟ์สไตล์ (Bank ⊖⊕) เฉพาะวันตัดรอบ
+		local delta = MoneyService.lifestyleMental(s)
+		if delta ~= 0 then MentalService.applyDelta(s, delta) end
 	end
 	CalendarService.onDay(s)
 	checkEnding(s)

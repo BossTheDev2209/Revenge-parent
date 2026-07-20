@@ -95,6 +95,14 @@ Config.WeeklyExpenses = {
 
 -- อุปกรณ์ 6 ระดับ (user lock 21 ก.ค. — เริ่มฟรีระดับ 1, ซื้อเพิ่ม 5 ครั้ง/สาย)
 -- ราคา: costs[ระดับปัจจุบัน] = ราคาซื้อระดับถัดไป
+-- Bank ⊖⊕ (PDF หน้า 9 — user lock 21 ก.ค., step/ผลใจเลือกโดย agent — docs/02 §9.7)
+-- ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step | ผลใจคิดตอนตัดรอบ 7 วัน
+Config.Spending = {
+	food = { step = 200, minOffset = -1, maxOffset = 3, mentalUp = 2, mentalDown = -4 },
+	rent = { step = 500, minOffset = -2, maxOffset = 2, mentalUp = 1, mentalDown = -3, missedAtOffset = -2 },
+	staff = { step = 1_000, minOffset = 0, maxOffset = 5 }, -- ผลผูกระบบพนักงาน (ยังไม่ทำ) — กันงบไว้ก่อน
+}
+
 Config.UpgradeCosts = {
 	camera = { 2_000, 8_000, 30_000, 120_000, 300_000 },
 	storage = { 1_500, 6_000, 25_000, 100_000, 250_000 },

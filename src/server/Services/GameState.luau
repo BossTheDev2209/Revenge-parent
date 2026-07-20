@@ -23,6 +23,7 @@ function GameState.newGame()
 		clips = {},    -- {tier="B", uploaded=true, ...}
 		choices = { pos = 0, neu = 0, neg = 0 }, -- ชื่อตรงกับ Formulas.resolveEnding
 		upgrades = { camera = 1, storage = 1 },
+		spending = { food = 0, rent = 0, staff = 0 }, -- ⊖⊕ ใน Bank เป็น offset step (Config.Spending)
 		calendar = {}, -- [day] = {type=..., id=...}
 		flags = {},    -- canon event ที่ผ่านแล้ว
 		activity = { streak = 0, cooldownUntilDay = 0 }, -- ฟื้นใจติดกัน 3 ครั้ง → cooldown

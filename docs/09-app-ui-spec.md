@@ -80,10 +80,10 @@ icon 8 แอป + wallpaper + Exit + zoom กล้อง = มีแล้ว.
 
 | ชิ้น | สถานะ | ต้องทำ |
 |------|-------|--------|
-| ตอบ comment 3 ช้อย | ✅ | — |
+| ตอบ comment | ✅ ทำใหม่ครบ 21 ก.ค. | slot ⊖/◎/⊕ ทอยแยกตามเกรด + heart/ช้อย/skip + สุ่มลำดับปุ่ม — docs/02 §9.6 |
 | list คลิป + views | 🟡 | มี history text — เปลี่ยนเป็น list กดได้ + เก็บ `clip.views` (สุ่มจาก follower gain ×สัดส่วน ❓ *เสนอ views = gained × 3–8*) |
 | **กราฟ 7 วัน** | 🔴 | ต้องมี `state.history[day] = {follower=, earn=}` — MoneyService/FollowerService บันทึกทุก onDay → วาดกราฟเส้นด้วย Frame บางๆต่อจุด |
-| comment weight ตาม tier | 🔴 | `CommentService.generate(state, tier)` ถ่วงน้ำหนัก sentiment ตาม tier — **ตาราง % จาก PDF อ่านไม่ชัด ❓ เสนอ:** C 60/30/10 (⊖/◎/⊕), B 35/35/30, A 20/35/45, S 10/30/60 — Content/Comments เพิ่ม field `sentiment` ต่อ comment |
+| comment weight ตาม tier | ✅ lock 21 ก.ค. | ทำแล้ว — ตารางจริงอยู่ docs/02 §9.6, Comments มี field `sentiment` แล้ว |
 | trend tags panel | ❓ | รอระบบ trend (§6) |
 
 ## 8. Bank + Manage app (PDF หน้า 9 บน)

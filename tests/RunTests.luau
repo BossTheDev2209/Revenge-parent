@@ -321,19 +321,44 @@ local ns = GameState.newGame()
 check("state ใหม่มี pendingComments/pendingEvents",
 	#ns.pendingComments == 0 and #ns.pendingEvents == 0)
 
--- ===== CommentService (design doc §6 — ช่องเดียวที่นับ choice) =====
+-- ===== CommentService (design doc §6 + PDF หน้า 8 lock 21 ก.ค. — slot ⊖/◎/⊕ ทอยแยก) =====
+-- rng ลำดับ: ทอย neg → (ถ้าออก เลือกใบ) → ทอย neu → ... → ทอย pos
 local cs = GameState.newGame()
-CommentService.generate(cs, rngQueue({ 0, 0.4, 0.8 }))
-check("generate 3 ใบตาม Config", #cs.pendingComments == 3)
-check("id ตาม rng (pool 3 ใบ)", cs.pendingComments[1].id == 1 and cs.pendingComments[2].id == 2)
-local tag1 = CommentService.answer(cs, { reply = 1 })
-check("ตอบใบแรก reply 1 = pos", tag1 == "pos" and cs.choices.pos == 1)
-check("pending เหลือ 2", #cs.pendingComments == 2)
-check("reply index มั่ว = nil ไม่ pop", CommentService.answer(cs, { reply = 99 }) == nil and #cs.pendingComments == 2)
-CommentService.answer(cs, { reply = 3 })
-check("reply 3 = neg", cs.choices.neg == 1)
-CommentService.answer(cs, { reply = 2 })
-check("หมดแล้วตอบอีก = nil", CommentService.answer(cs, { reply = 1 }) == nil)
+-- tier B (neg 40% neu 36% pos 40%): ทอย neg 0.39=ออก เลือกใบแรก, neu 0.9=เงียบ, pos 0.39=ออก เลือกใบแรก
+CommentService.generate(cs, "B", rngQueue({ 0.39, 0, 0.9, 0.39, 0 }))
+check("tier B ออก ⊖ กับ ⊕ (◎ เงียบ)", #cs.pendingComments == 2
+	and cs.pendingComments[1].sentiment == "neg" and cs.pendingComments[2].sentiment == "pos")
+local csQuiet = GameState.newGame()
+CommentService.generate(csQuiet, "C", rngQueue({ 0.99, 0.99, 0.99 }))
+check("ทอยแป้กหมด = คลิปเงียบ 0 ใบ", #csQuiet.pendingComments == 0)
+check("tier มั่วไม่ crash", (CommentService.generate(GameState.newGame(), "Z", rngQueue({ 0 })) or true) == true)
+
+-- ตอบใบแรก (⊖): heart = -10 นับ neg
+local h1, tag1, reason1 = CommentService.answer(cs, { response = "heart" })
+check("heart ⊖ = นับ neg + reason commentHeartNeg", h1 == true and tag1 == "neg"
+	and reason1 == "commentHeartNeg" and cs.choices.neg == 1)
+-- ใบสอง (⊕): ช้อย accept ใช้ไม่ได้ / heart ได้ = pos
+local hBad = CommentService.answer(cs, { response = "insult" })
+check("ด่าใส่ comment ⊕ ไม่ได้ ไม่ pop", hBad == false and #cs.pendingComments == 1)
+local h2, tag2, reason2 = CommentService.answer(cs, { response = "heart" })
+check("heart ⊕ = นับ pos", h2 == true and tag2 == "pos" and reason2 == "commentHeartPos" and cs.choices.pos == 1)
+check("หมดคิวตอบอีก = false", CommentService.answer(cs, { response = "heart" }) == false)
+
+-- ช้อยตอบ + skip
+local cs2 = GameState.newGame()
+CommentService.generate(cs2, "S", rngQueue({ 0, 0, 0.9, 0.9 })) -- ⊖ ออกใบแรก (S neg 5%? 0<0.05 จริง)
+check("S ออก ⊖ ได้ (5%)", #cs2.pendingComments == 1 and cs2.pendingComments[1].sentiment == "neg")
+local _, tagA, reasonA = CommentService.answer(cs2, { response = "accept" })
+check("ยอมรับปัญหา = นับ pos +ใจ", tagA == "pos" and reasonA == "commentAccept")
+CommentService.generate(cs2, "A", rngQueue({ 0.9, 0.1, 0, 0.9 })) -- ◎ ออก
+check("A ออก ◎", cs2.pendingComments[1] and cs2.pendingComments[1].sentiment == "neu")
+local _, tagS, reasonS = CommentService.answer(cs2, { response = "sarcasm" })
+check("ประชด = นับ neu -5", tagS == "neu" and reasonS == "commentSarcasm" and cs2.choices.neu == 1)
+CommentService.generate(cs2, "B", rngQueue({ 0.1, 0, 0.9, 0.9 }))
+local before = { pos = cs2.choices.pos, neu = cs2.choices.neu, neg = cs2.choices.neg }
+local hSkip, tagSkip = CommentService.answer(cs2, { response = "skip" })
+check("ปล่อยผ่าน = pop แต่ไม่นับ", hSkip == true and tagSkip == nil and #cs2.pendingComments == 0
+	and cs2.choices.pos == before.pos and cs2.choices.neu == before.neu and cs2.choices.neg == before.neg)
 
 -- ===== CalendarService =====
 local cal = GameState.newGame()
@@ -448,7 +473,7 @@ local mr = GameState.newGame()
 mr.phase = 2
 mr.mental = 50
 MentalService.addMod(mr, "CommentGoodStreak3")
-MentalService.apply(mr, "commentChoiceGood")
+MentalService.apply(mr, "commentAccept")
 check("delta บวกคูณ recover mod: 50+12.5", mr.mental == 62.5)
 mr.mental = 50
 MentalService.apply(mr, "clipEdit")

@@ -52,7 +52,7 @@ ActionRouter.register("UploadClip", function(s, a)
 			MentalService.onViral(s) -- viral 2 วันติด → recover ×2
 			MentalService.apply(s, "viralClip")
 		end
-		CommentService.generate(s)
+		CommentService.generate(s, s.clips[a.clip] and s.clips[a.clip].tier)
 		checkMilestones(s)
 		checkEnding(s)
 	end
@@ -63,10 +63,10 @@ ActionRouter.register("DoActivity", function(s, a)
 	end
 end)
 ActionRouter.register("AnswerComment", function(s, a)
-	local tag = CommentService.answer(s, a)
-	if tag then MentalService.onCommentAnswered(s, tag) end -- streak สองฝั่ง
-	if tag == "pos" then MentalService.apply(s, "commentChoiceGood")
-	elseif tag == "neg" then MentalService.apply(s, "commentChoiceBad") end
+	local handled, tag, reason = CommentService.answer(s, a)
+	if not handled then return end
+	if reason then MentalService.apply(s, reason) end
+	if tag then MentalService.onCommentAnswered(s, tag) end -- streak สองฝั่ง (skip/neu ไม่แตะ streak)
 	checkEnding(s)
 end)
 ActionRouter.register("BuyUpgrade", function(s, a)

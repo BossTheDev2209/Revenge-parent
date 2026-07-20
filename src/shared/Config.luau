@@ -49,10 +49,14 @@ Config.Mental = {
 	deltas = {
 		clipEdit = -20,
 		npcChoiceBad = -10,
-		commentChoiceBad = -5,
 		rentMissed = -15,
 		npcChoiceGood = 15,
-		commentChoiceGood = 10,
+		-- ตอบ comment (PDF หน้า 8 ล่าง — user lock 21 ก.ค.)
+		commentHeartPos = 10, -- กดใจ comment ⊕
+		commentHeartNeg = -10, -- กดใจ comment ⊖
+		commentAccept = 10, -- ยอมรับปัญหา (⊖/◎)
+		commentSarcasm = -5, -- ประชด (⊖/◎)
+		commentInsult = -10, -- ด่า (⊖ เท่านั้น)
 		viralClip = 25,
 		activityExercise = 20,
 		activityRest = 25,
@@ -135,8 +139,21 @@ Config.EndingThresholds = {
 -- Dialogue typewriter (design doc §7) — วิ/ตัวอักษร (เลขเลือกเอง ปรับได้)
 Config.Dialogue = { charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 } }
 
--- Comment ต่อคลิป (PDF หน้า 8)
-Config.CommentsPerClip = 3
+-- Comment ต่อคลิป (PDF หน้า 8 — user lock 21 ก.ค.): slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป
+-- แต้มไม่รวม 100 จงใจ — แต่ละช่องคือโอกาสของ slot ตัวเอง ไม่ออก = เงียบ (สูงสุด 3 ใบ/คลิป)
+Config.Comments = {
+	chanceByTier = {
+		C = { neg = 0.40, neu = 0.25, pos = 0.10 },
+		B = { neg = 0.40, neu = 0.36, pos = 0.40 },
+		A = { neg = 0.20, neu = 0.30, pos = 0.40 },
+		S = { neg = 0.05, neu = 0.40, pos = 0.50 },
+	},
+	-- การนับ % เข้า ending (agent เสนอ — ยังไม่ lock): heart⊕/ยอมรับ→pos, ประชด→neu, heart⊖/ด่า→neg, ปล่อยผ่าน→ไม่นับ
+	countAs = {
+		heartPos = "pos", heartNeg = "neg",
+		accept = "pos", sarcasm = "neu", insult = "neg",
+	},
+}
 
 -- เงินตั้งต้น + เวลา — ที่มา: PDF ต้นฉบับหน้า 9, 6 (design doc ไม่ระบุ — flag ไว้แล้วใน docs/08)
 Config.StartMoney = 2_500

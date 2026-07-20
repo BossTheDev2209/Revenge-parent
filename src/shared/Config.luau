@@ -98,12 +98,16 @@ Config.UpgradeCosts = {
 Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p" }
 Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192 } -- 128GB → 8TB
 
--- ระบบอัดคลิป (user lock 21 ก.ค. + เลขต่อคลิกเลือกโดย agent — docs/02 §10)
+-- ระบบอัดคลิป (user lock 21 ก.ค. + เลขต่อคลิกเลือกโดย agent — docs/02 §9.5)
+-- สูตรต่อคลิก: GB = footagePerClickGB[กล้อง] × (bonus? bonusMult : 1) × (ในโซน? zoneMult : 1)
 Config.Record = {
-	-- GB ต่อคลิก ตามระดับกล้อง (index = upgrades.camera) — ไฟล์ใหญ่ขึ้นตาม resolution
-	-- เต็ม storage ระดับเดียวกันใน ~32 คลิก (ระดับ 5-6 ~64 คลิก จงใจ — ปลายเกมมี zone ×2.5 ช่วย)
-	footagePerClickGB = { 4, 8, 16, 32, 64, 128 },
-	-- โซนถ่าย (จุดแดง PDF หน้า 4): คลิกในโซน × ตัวคูณตามเฟส
+	-- GB ต่อคลิก ตามระดับกล้อง — เต็ม storage ระดับเดียวกัน ~128 คลิก (L5-6 ~256 จงใจ บังคับพึ่งโซน/พนักงาน)
+	footagePerClickGB = { 1, 2, 4, 8, 16, 32 },
+	clickCooldownSeconds = 0.6, -- กันสแปมแบบ simulator (user feedback 21 ก.ค.)
+	-- Bonus proc (PDF หน้า 7 "+2.4 Bonus!") — เกิดได้ทุกที่ ซ้อนกับโซนได้
+	bonusChance = 0.1,
+	bonusMult = 2.4,
+	-- โซนถ่าย (จุดแดง PDF หน้า 4): อัดนอกโซนได้ base rate, ในโซน × ตัวคูณตามเฟส
 	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
 	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
 }

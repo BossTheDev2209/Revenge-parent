@@ -43,13 +43,14 @@ icon 8 แอป + wallpaper + Exit + zoom กล้อง = มีแล้ว.
 
 **ร่างใน PDF:** ถือ tool (กล้อง/มือถือ/ไม้เซลฟี่) เดินในแมพ กด click ที่จุดต่างๆ → ได้ footage ทีละ +1 (มีจุด "+2.4 Bonus!") สะสมจนเต็มความจุ [กระเป๋า] / มุมขวา: resolution ladder โชว์ตัวคูณ ×1.5/×2/×3/×4 ตามระดับกล้อง / storage เต็ม = "1T/1T FULL" อัดต่อไม่ได้
 
-**Logic ที่ต้องสร้าง:**
-1. `state.footageGB` + ความจุจาก storage level: `Config.StorageCapacityGB = {250, 500, 1000, 2000, 4000}` ❓ *(เลขเสนอ — PDF มีแค่ "790GB/1T" ต้อง user ยืนยัน)*
-2. Tool 3 ชิ้นใน StarterPack: `Tool_Camera / Tool_Phone / Tool_Selfie` — Activated → ยิง action `RecordFootage{spot=ชื่อจุด}`
-3. จุดถ่าย = part `FilmSpot_*` วางในแมพ (ทีมวาง — convention ใหม่ลง docs/05) บางจุด attribute `Bonus = 2.4`
-4. server: footage ต่อ click = `base × bonus × ตัวคูณ tool` ❓ *(base GB/click กับตัวคูณ tool PDF ไม่ระบุ — เสนอ: 10 GB/click, กล้อง ×1.5 มือถือ ×1 ไม้เซลฟี่ ×1.2)*
+**Logic ที่ต้องสร้าง (✅ ตัวเลข lock แล้ว 21 ก.ค. — docs/02 §9.5 + Config.Record):**
+1. `state.footageGB` + ความจุจาก `Config.StorageLadderGB = {128, 256, 512, 1024, 4096, 8192}` (6 ระดับ เริ่ม 128GB)
+2. Tool 3 ชิ้นใน StarterPack: `Tool_Camera / Tool_Phone / Tool_Selfie` — Activated → ยิง action `RecordFootage`
+3. **โซนถ่ายแบบสุ่มย้ายจุด** (แทน FilmSpot ตายตัว): วงพื้นที่ + ตัวคูณกลางวง + เวลา remaining, อยู่ 120 วิ แล้ว spawn จุดใหม่ (กัน AFK) — จุด spawn เป็นได้ = part `FilmSpot_*` ทีมวางไว้หลายจุด service สุ่มเลือกทีละจุด
+4. server: footage ต่อ click = `Config.Record.footagePerClickGB[ระดับกล้อง]` = {4,8,16,32,64,128} × ในโซน = `zoneMultByPhase` (เฟส 1 ×1.5 / 2 ×2 / 3 ×2.5) — ตีความ: อัดนอกโซนได้ที่ base rate (ยังไม่ lock)
 5. เต็มความจุ = block + popup "FULL"
 6. **ตัดคลิปเปลี่ยนเป็นกิน footage** (§5) — วงจรเต็ม: อัด → footage → ตัด → clip → อัป
+7. **ตัด dropdown เปลี่ยน resolution ทิ้ง** (user 21 ก.ค.) — ระดับกล้อง = resolution ตายตัว
 
 ## 5. Edit app (PDF หน้า 7 ล่าง)
 

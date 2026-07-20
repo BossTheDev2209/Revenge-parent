@@ -497,16 +497,23 @@ mv.day = 6
 MentalService.onViral(mv)
 check("viral 2 วันติด → recover ×2", MentalService.recoverMultiplier(mv) == 2)
 
--- ===== buyUpgrade (design doc §4 — 4 ระดับ) =====
+-- ===== buyUpgrade (6 ระดับ ซื้อ 5 ครั้ง — user lock 21 ก.ค.) =====
 local bu = GameState.newGame()
 bu.money = 3_000
 check("ซื้อกล้อง lv2 (2000)", MoneyService.buyUpgrade(bu, "camera") == true
 	and bu.upgrades.camera == 2 and bu.money == 1_000)
 check("เงินไม่พอ (lv3 = 8000)", MoneyService.buyUpgrade(bu, "camera") == false and bu.upgrades.camera == 2)
 bu.money = 999_999
-bu.upgrades.storage = 5 -- ระดับสูงสุด (ซื้อครบ 4 ครั้ง)
+bu.upgrades.storage = 6 -- ระดับสูงสุด (ซื้อครบ 5 ครั้ง)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
+local Config = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Config)
+	else require("../src/shared/Config")
+check("ladder 6 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 6
+	and #Config.StorageLadderGB == 6 and #Config.Record.footagePerClickGB == 6
+	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)
+check("เริ่มเกม = 480p/128GB", Config.ResolutionLadder[1] == "480p" and Config.StorageLadderGB[1] == 128)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

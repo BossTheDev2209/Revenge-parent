@@ -89,11 +89,24 @@ Config.WeeklyExpenses = {
 	[3] = { rent = 6_000, internet = 800, food = 900 }, -- รวม 7,700
 }
 
+-- อุปกรณ์ 6 ระดับ (user lock 21 ก.ค. — เริ่มฟรีระดับ 1, ซื้อเพิ่ม 5 ครั้ง/สาย)
+-- ราคา: costs[ระดับปัจจุบัน] = ราคาซื้อระดับถัดไป
 Config.UpgradeCosts = {
-	camera = { 2_000, 8_000, 30_000, 120_000 },
-	storage = { 1_500, 6_000, 25_000, 100_000 },
+	camera = { 2_000, 8_000, 30_000, 120_000, 300_000 },
+	storage = { 1_500, 6_000, 25_000, 100_000, 250_000 },
 }
-Config.ResolutionLadder = { "720p", "1080p", "1440p", "2160p", "4320p" }
+Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p" }
+Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192 } -- 128GB → 8TB
+
+-- ระบบอัดคลิป (user lock 21 ก.ค. + เลขต่อคลิกเลือกโดย agent — docs/02 §10)
+Config.Record = {
+	-- GB ต่อคลิก ตามระดับกล้อง (index = upgrades.camera) — ไฟล์ใหญ่ขึ้นตาม resolution
+	-- เต็ม storage ระดับเดียวกันใน ~32 คลิก (ระดับ 5-6 ~64 คลิก จงใจ — ปลายเกมมี zone ×2.5 ช่วย)
+	footagePerClickGB = { 4, 8, 16, 32, 64, 128 },
+	-- โซนถ่าย (จุดแดง PDF หน้า 4): คลิกในโซน × ตัวคูณตามเฟส
+	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
+	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
+}
 
 Config.SponsorUnlockFollowers = 10_000
 

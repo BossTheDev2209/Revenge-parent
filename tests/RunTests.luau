@@ -386,6 +386,8 @@ local okc = CutscenePlayer.validate({ { type = "text", text = "x" }, { type = "w
 check("script ถูก = ผ่าน", okc == true)
 check("type มั่ว = ไม่ผ่าน", CutscenePlayer.validate({ { type = "explode" } }) == false)
 check("wait ไม่มี t = ไม่ผ่าน", CutscenePlayer.validate({ { type = "wait" } }) == false)
+check("camera cam=ชื่อPart ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "Cam_Bad1_01" } }) == true)
+check("camera ไม่มีทั้ง cam/pos = ไม่ผ่าน", CutscenePlayer.validate({ { type = "camera" } }) == false)
 -- content จริงทั้ง 6 ending ต้อง validate ผ่าน
 local Endings = if isStudio
 	then game:GetService("ReplicatedStorage").Shared.Content.Endings
@@ -393,6 +395,23 @@ local Endings = if isStudio
 for _, name in { "Bad1", "Bad2", "Bad3", "Neutral1", "Neutral2", "Good1" } do
 	local stepsMod = if isStudio then require(Endings[name]) else require("../src/shared/Content/Endings/" .. name)
 	check("Content.Endings." .. name .. " validate ผ่าน", CutscenePlayer.validate(stepsMod) == true)
+end
+
+-- ===== DMs schema (docs/10 — เพื่อนทีม content แก้แล้ว format ต้องไม่พัง) =====
+local DMsContent = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
+	else require("../src/shared/Content/DMs")
+for i, dm in DMsContent do
+	check(("DMs[%d] มี from"):format(i), type(dm.from) == "string")
+	check(("DMs[%d] มี lines หรือ exchanges"):format(i),
+		type(dm.lines) == "table" or type(dm.exchanges) == "table")
+	if dm.exchanges then
+		for j, ex in dm.exchanges do
+			check(("DMs[%d].exchanges[%d] npc เป็น string"):format(i, j), type(ex.npc) == "string")
+			check(("DMs[%d].exchanges[%d] choices ว่างไม่ได้"):format(i, j),
+				ex.choices == nil or (type(ex.choices) == "table" and #ex.choices > 0))
+		end
+	end
 end
 
 -- ===== Main Menu support (PDF หน้า 1 — Continue/save 4 ช่อง) =====

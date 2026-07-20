@@ -1,5 +1,6 @@
 -- CutscenePlayer.luau — เล่น cutscene จาก script data (design doc §8, Genshin ref)
--- step: {type="text",text=} | {type="wait",t=} | {type="camera",pos={x,y,z},look={x,y,z}}
+-- step: {type="text",text=} | {type="wait",t=} | {type="camera",cam="ชื่อPart"} | {type="camera",pos={x,y,z},look={x,y,z}}
+-- cam = ชื่อ Part ใน Workspace.CutsceneCams (ทีมวาง Part หันหน้าไปทางที่อยากให้กล้องมอง — docs/10)
 -- pure: validate | glue: play() — content อยู่ Content/Endings/* ทีมแก้ได้ไม่แตะไฟล์นี้
 local CutscenePlayer = {}
 CutscenePlayer.running = false
@@ -8,6 +9,7 @@ local VALID = {
 	text = function(s) return type(s.text) == "string" end,
 	wait = function(s) return type(s.t) == "number" end,
 	camera = function(s)
+		if type(s.cam) == "string" then return true end
 		return type(s.pos) == "table" and #s.pos == 3 and type(s.look) == "table" and #s.look == 3
 	end,
 }
@@ -68,11 +70,23 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 			elseif step.type == "wait" then
 				task.wait(step.t)
 			elseif step.type == "camera" then
-				camera.CameraType = Enum.CameraType.Scriptable
-				camera.CFrame = CFrame.lookAt(
-					Vector3.new(step.pos[1], step.pos[2], step.pos[3]),
-					Vector3.new(step.look[1], step.look[2], step.look[3])
-				)
+				if step.cam then
+					local folder = workspace:FindFirstChild("CutsceneCams")
+					local part = folder and folder:FindFirstChild(step.cam, true)
+						or workspace:FindFirstChild(step.cam, true)
+					if part and part:IsA("BasePart") then
+						camera.CameraType = Enum.CameraType.Scriptable
+						camera.CFrame = part.CFrame
+					else
+						warn("[CutscenePlayer] ไม่เจอ Part กล้อง:", step.cam)
+					end
+				else
+					camera.CameraType = Enum.CameraType.Scriptable
+					camera.CFrame = CFrame.lookAt(
+						Vector3.new(step.pos[1], step.pos[2], step.pos[3]),
+						Vector3.new(step.look[1], step.look[2], step.look[3])
+					)
+				end
 			end
 		end
 		camera.CameraType = savedType

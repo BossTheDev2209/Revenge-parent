@@ -60,6 +60,13 @@ Interact_NPC_01..06  คุยกับ NPC
 - ทำเป็น Part โปร่งใส (Transparency 1) วางทับจุดนั้นก็ได้ ไม่ต้องสวย
 - **ห้องสวยแค่ไหน ถ้าไม่มี `Interact_` = ต่อ logic ไม่ได้**
 
+ชื่อพิเศษเพิ่มเติม (ระบบใหม่):
+```
+CutsceneCams (Folder ใน Workspace) → Cam_<ending>_<เลข>   มุมกล้อง cutscene (docs/10 §3)
+FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
+Tool_Camera / Tool_Phone / Tool_Selfie                     Tool อัดคลิปใน StarterPack
+```
+
 ---
 
 ## 4. NPC — เอาแค่ยืนได้ก่อน

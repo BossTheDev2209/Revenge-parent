@@ -3,9 +3,14 @@ Usage: python mcp_driver.py batch <steps.json>
 steps.json = [{"tool": "...", "args": {...}} | {"tool": "execute_luau", "luau_file": "path"}]
 First step retries up to 60s (waits for Studio plugin to reconnect to new WS host).
 """
-import json, subprocess, sys, threading, queue, time
+import glob, json, os, subprocess, sys, threading, queue, time
 
-EXE = r"C:\Users\khunb\AppData\Local\Roblox\Versions\version-ed7d8193e8564b1f\StudioMCP.exe"
+# หา StudioMCP.exe เวอร์ชันล่าสุดอัตโนมัติ — ใช้ได้ทุกเครื่องในทีม ไม่ต้องแก้ path
+_candidates = glob.glob(os.path.expandvars(
+    r"%LOCALAPPDATA%\Roblox\Versions\version-*\StudioMCP.exe"))
+if not _candidates:
+    sys.exit("ไม่เจอ StudioMCP.exe — ติดตั้ง Roblox Studio + MCP plugin ก่อน (docs/08)")
+EXE = max(_candidates, key=os.path.getmtime)
 
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE,
                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)

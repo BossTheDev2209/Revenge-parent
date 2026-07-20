@@ -75,6 +75,9 @@ end)
 ActionRouter.register("AdjustSpending", function(s, a) -- ⊖⊕ ใน Bank
 	MoneyService.adjustSpending(s, a.card, a.dir)
 end)
+ActionRouter.register("MoveBlock", function(s, a) -- ย้าย block ปฏิทิน (ทาง ก: กดเลือก+กดปลายทาง)
+	CalendarService.moveBlock(s, a.fromDay, a.toDay)
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่

@@ -405,6 +405,33 @@ check("วัน sponsor: เงินเข้า + block หาย",
 	blk.type == "Sponsor" and cal.money > money0 and cal.calendar[8] == nil)
 check("วันไม่มี block คืน nil", CalendarService.onDay(GameState.newGame(), rng0) == nil)
 
+-- block หลายวัน + ย้าย (lock 21 ก.ค. — UX ทาง ก)
+local cal2 = GameState.newGame()
+cal2.day = 2
+check("วาง block 3 วัน ครองทุกช่อง", CalendarService.place(cal2, 5, { type = "Schedule", id = "Job", length = 3 }) == true
+	and cal2.calendar[5] ~= nil and cal2.calendar[7] ~= nil and cal2.calendar[5].startDay == 5)
+check("วางทับกลาง block ยาวไม่ได้", CalendarService.place(cal2, 6, { type = "Schedule" }) == false)
+check("ย้ายทั้งก้อนจากช่องกลางได้", CalendarService.moveBlock(cal2, 6, 10) == true
+	and cal2.calendar[5] == nil and cal2.calendar[7] == nil
+	and cal2.calendar[10].startDay == 10 and cal2.calendar[12] ~= nil)
+check("ย้ายไปวันผ่านแล้วไม่ได้ + block คืนที่เดิม",
+	CalendarService.moveBlock(cal2, 10, 1) == false and cal2.calendar[10] ~= nil and cal2.calendar[12] ~= nil)
+cal2.calendar[20] = { type = "Canon", id = "X", locked = true }
+check("ย้าย Canon ไม่ได้", CalendarService.moveBlock(cal2, 20, 25) == false)
+
+-- block ยาว: ผลเกิดวันจบงาน
+local cal3 = GameState.newGame()
+cal3.day = 2
+CalendarService.place(cal3, 3, { type = "Sponsor", length = 2 })
+cal3.day = 3
+local m0 = cal3.money
+check("วันแรกของงานยาว: ยังไม่จ่าย แค่เคลียร์ช่อง",
+	CalendarService.onDay(cal3, rng0) == nil and cal3.money == m0 and cal3.calendar[3] == nil)
+cal3.day = 4
+local doneBlk = CalendarService.onDay(cal3, rng0)
+check("วันจบงาน: จ่ายเงิน + เคลียร์",
+	doneBlk ~= nil and doneBlk.type == "Sponsor" and cal3.money > m0 and cal3.calendar[4] == nil)
+
 -- ===== EndingService =====
 local es = GameState.newGame()
 check("เกมปกติยังไม่จบ", EndingService.check(es) == nil)

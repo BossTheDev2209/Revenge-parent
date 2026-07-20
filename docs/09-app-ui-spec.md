@@ -31,13 +31,12 @@ icon 8 แอป + wallpaper + Exit + zoom กล้อง = มีแล้ว.
 | ชิ้น | สถานะ | ต้องทำ |
 |------|-------|--------|
 | ตารางเดือน 7×5 | 🔴 (ตอนนี้ list 7 วัน) | grid Frame 7 คอลัมน์ เริ่มวันเสาร์ ช่องละวัน เลขมุม |
-| block สี + ชนิด | 🔴 | Canon=แดง(lock) / Select=ม่วง / Schedule=เขียว / Sponsor=ส้ม — อ่าน `state.calendar` |
-| block หลายวัน | 🔴 | เพิ่ม field `length` ใน block: `{type, id, length=3}` — CalendarService.place เช็คชนทุกวันในช่วง |
-| ลากวาง block | ❓ | ลากบน grid ซับซ้อน — เสนอ: กดเลือก block → กดวันปลายทาง = ย้าย (พอเทียบเท่า UX ลาก) รอ user ตัดสิน |
+| block สี + ชนิด | 🔴 UI | **สี 3 ชนิดเท่านั้น (user 21 ก.ค.): Canon=แดง(lock) / Select=ม่วง / Schedule=เขียว — Sponsor ใช้สี Schedule ไม่แยก** |
+| block หลายวัน | ✅ service 21 ก.ค. | `{type, id, length=3}` place เช็คชนทั้งช่วง, ผลเกิดวันจบงาน — เหลือวาดบน grid |
+| ย้าย block | ✅ service 21 ก.ค. (ทาง ก) | กดเลือก block → กดวันปลายทาง — action `MoveBlock{fromDay,toDay}` มีแล้ว, Canon/วันผ่านแล้ว/ช่องชน = ไม่ให้ — เหลือฝั่ง UI |
 | marker วันตัดรอบ | 🔴 | ทุกวันที่ `(day-1)%7==0` แปะป้าย "จ่ายค่าเช่า" |
+| sponsor spawn 5%/วัน (เฟส 2-3) | 🔴 | PDF หน้า 6: โอกาสได้ offer 5% — ตอนนี้กดรับได้ตลอด ต้องเปลี่ยนเป็นสุ่ม offer เข้า Message/ปฏิทิน |
 | งานให้ลูกน้องทำแทน | ❓ | ผูกระบบ staff (§8) — รอตัวเลข staff ก่อน |
-
-**Logic เพิ่มใน service:** `CalendarService.place` รองรับ length + เช็คชนช่วง | `moveBlock(state, fromDay, toDay)` (Canon = ห้าม)
 
 ## 4. ระบบอัดคลิป — Record (PDF หน้า 7 บน) 🔴 ยังไม่มีทั้งระบบ
 

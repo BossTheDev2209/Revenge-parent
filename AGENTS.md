@@ -1,6 +1,6 @@
 # AGENTS.md — คู่มือ agent ทุกตัวในโปรเจกต์นี้ (Claude Code / Codex / Cursor / อื่นๆ)
 
-อ่านไฟล์นี้ก่อนทำอะไรทั้งนั้น แล้วอ่านต่อ: `CLAUDE.md` (กติกาหลักทั้งหมด — ใช้กับ agent ทุกตัว ไม่ใช่แค่ Claude) → `docs/10-team-roles.md` (โซนของคนที่สั่งงานอยู่) → `docs/08-studio-sync-handoff.md` (วิธีคุยกับ Roblox Studio ผ่าน MCP)
+อ่านไฟล์นี้ก่อนทำอะไรทั้งนั้น แล้วอ่านต่อ: `CLAUDE.md` (กติกาหลักทั้งหมด — ใช้กับ agent ทุกตัว ไม่ใช่แค่ Claude) → `docs/11-workflow-rules.md` (กฎ Studio + GitHub — **บังคับ**) → `docs/10-team-roles.md` (โซนของคนที่สั่งงานอยู่) → `docs/08-studio-sync-handoff.md` (วิธีคุยกับ Roblox Studio ผ่าน MCP)
 
 ## กฎเหล็ก
 
@@ -22,3 +22,4 @@
 | คุยกับ Studio ผ่าน MCP + gotchas | `docs/08-studio-sync-handoff.md` |
 | gap UI แต่ละแอป vs ร่าง PDF | `docs/09-app-ui-spec.md` |
 | โซนหน้าที่ 3 คน + คู่มือเขียนบท/วางกล้อง | `docs/10-team-roles.md` |
+| กฎ Studio + GitHub (บังคับอ่าน) | `docs/11-workflow-rules.md` |

@@ -13,14 +13,28 @@ local PROMPT_TEXT = {
 }
 
 -- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
+-- พ่อแม่ = ขีดดำ ตัดชั่วคราว (docs/02 §9.4) — ไฟล์ Mom/Dad ยังอยู่ ถ้าดึงกลับค่อยผูก Interact_NPC_Mom
 local NPC_DIALOGUE = {
 	Interact_NPC_Mom = "Mom",
-	Interact_NPC_01 = "Dad",
-	Interact_NPC_02 = "Friend1",
-	Interact_NPC_03 = "Friend2",
-	Interact_NPC_04 = "CC1",
+	Interact_NPC_01 = "Landlord", -- ป้าแดง เจ้าของห้องเช่า
+	Interact_NPC_02 = "Friend1", -- เจ (ทรยศ 500K)
+	Interact_NPC_03 = "Friend2", -- ปาล์ม
+	Interact_NPC_04 = "CC1", -- ไคโตะ
 	Interact_NPC_05 = "Hater",
 }
+
+-- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด
+-- ไฟล์เก่าที่เป็น list ของ string ตรงๆ (ไม่มี key เฟส) ใช้ได้เหมือนเดิม
+function InteractBinder.pickLines(mod, state)
+	if type(mod) ~= "table" then return nil end
+	if type(mod[1]) == "string" then return mod end -- format เก่า
+	if state and state.flags and state.flags.betrayed and mod.after then return mod.after end
+	local phase = state and state.phase or 1
+	for p = phase, 1, -1 do
+		if mod["p" .. p] then return mod["p" .. p] end
+	end
+	return mod.p1 or mod.after
+end
 
 -- เตียงมี 2 ทาง (docs/02 §3): พักผ่อน = activity ฟื้นใจ | นอน = ข้ามเวลา 8/12 ชม. + ล้าง NoSleep
 local function openBedMenu(playerGui, fireAction)

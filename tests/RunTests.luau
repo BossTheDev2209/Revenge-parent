@@ -34,6 +34,10 @@ local EditQTE = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.EditQTE)
 	else require("../src/client/UI/Apps/EditQTE")
 
+local Config = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Config)
+	else require("../src/shared/Config")
+
 local CommentService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.CommentService)
 	else require("../src/server/Services/CommentService")
@@ -477,6 +481,41 @@ for _, name in { "Bad1", "Bad2", "Bad3", "Neutral1", "Neutral2", "Good1" } do
 	check("Content.Endings." .. name .. " validate ผ่าน", CutscenePlayer.validate(stepsMod) == true)
 end
 
+-- ===== Dialogue: เลือกบทตามเฟส/หลังทรยศ (docs/02 §9.4) =====
+local InteractBinder = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.InteractBinder)
+	else require("../src/client/InteractBinder")
+local sample = { p1 = { "หนึ่ง" }, p2 = { "สอง" }, after = { "หลังทรยศ" } }
+check("เฟส 1 ได้ p1", InteractBinder.pickLines(sample, { phase = 1, flags = {} })[1] == "หนึ่ง")
+check("เฟส 2 ได้ p2", InteractBinder.pickLines(sample, { phase = 2, flags = {} })[1] == "สอง")
+check("เฟส 3 ไม่มี p3 → ถอยลงมา p2", InteractBinder.pickLines(sample, { phase = 3, flags = {} })[1] == "สอง")
+check("betrayed = ใช้ after ทุกเฟส",
+	InteractBinder.pickLines(sample, { phase = 2, flags = { betrayed = true } })[1] == "หลังทรยศ")
+check("betrayed แต่ NPC ไม่มี after → บทเฟสปกติ",
+	InteractBinder.pickLines({ p1 = { "ปกติ" } }, { phase = 1, flags = { betrayed = true } })[1] == "ปกติ")
+check("format เก่า (list string) ใช้ได้เหมือนเดิม",
+	InteractBinder.pickLines({ "เก่า" }, { phase = 3, flags = {} })[1] == "เก่า")
+
+-- content จริง: ทุก NPC ที่ผูกใน binder ต้องมีบทให้ทุกเฟสที่เจอได้
+local DialogueFolder = if isStudio then game:GetService("ReplicatedStorage").Shared.Content.Dialogue else nil
+for _, name in { "Friend1", "Friend2", "CC1", "Hater", "Landlord" } do
+	local mod = if isStudio then require(DialogueFolder[name]) else require("../src/shared/Content/Dialogue/" .. name)
+	local got = InteractBinder.pickLines(mod, { phase = 3, flags = {} })
+	check("Dialogue." .. name .. " มีบทใช้ได้ที่เฟส 3", type(got) == "table" and type(got[1]) == "string")
+end
+local f1 = if isStudio then require(DialogueFolder.Friend1) else require("../src/shared/Content/Dialogue/Friend1")
+check("Friend1 มีครบ p1/p2/after (arc ทรยศ)", f1.p1 and f1.p2 and f1.after ~= nil)
+
+-- Canon event ทรยศต้องมีบทตรง milestone ที่ Config ชี้
+local Events = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.CanonEvents)
+	else require("../src/shared/Content/CanonEvents")
+for _, m in Config.StoryMilestones do
+	check(("CanonEvents มี milestone_%d"):format(m), Events["milestone_" .. m] ~= nil)
+end
+check("milestone ทรยศอยู่ใน StoryMilestones",
+	table.find(Config.StoryMilestones, Config.BetrayalMilestone) ~= nil)
+
 -- ===== DMs schema (docs/10 — เพื่อนทีม content แก้แล้ว format ต้องไม่พัง) =====
 local DMsContent = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
@@ -587,9 +626,6 @@ bu.money = 999_999
 bu.upgrades.storage = 6 -- ระดับสูงสุด (ซื้อครบ 5 ครั้ง)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
-local Config = if isStudio
-	then require(game:GetService("ReplicatedStorage").Shared.Config)
-	else require("../src/shared/Config")
 check("ladder 6 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 6
 	and #Config.StorageLadderGB == 6 and #Config.Record.footagePerClickGB == 6
 	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)

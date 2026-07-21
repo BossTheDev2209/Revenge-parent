@@ -81,8 +81,14 @@ local function startDialogue(dialogueName)
 		warn("[Main.client] ไม่มีบท:", dialogueName)
 		return
 	end
+	-- บทเปลี่ยนตามเฟส + หลังทรยศ (docs/02 §9.4)
+	local lines = InteractBinder.pickLines(require(mod), latestState)
+	if not lines then
+		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
+		return
+	end
 	fireAction({ type = "FreezeTime", on = true })
-	DialogueUI.show(playerGui, require(mod), function()
+	DialogueUI.show(playerGui, lines, function()
 		fireAction({ type = "FreezeTime", on = false })
 	end)
 end

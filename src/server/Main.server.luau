@@ -25,6 +25,12 @@ local function checkMilestones(s)
 			s.flags[key] = true
 			table.insert(s.pendingEvents, key)
 			MentalService.onCanonEvent(s)
+			-- ทรยศ (docs/02 §9.4): เสียเพื่อนคนแรก → บทเปลี่ยนเป็นชุด after + ใจร่วง
+			-- flags.betrayed = สัญญาณให้ระบบพนักงาน (สาย B) ถอด producer คุณภาพสูงสุดออก
+			if m == Config.BetrayalMilestone then
+				s.flags.betrayed = true
+				MentalService.applyDelta(s, Config.BetrayalMentalPenalty)
+			end
 		end
 	end
 end

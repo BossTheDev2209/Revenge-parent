@@ -53,9 +53,15 @@ Interact_Camera      ถ่าย/ตัดคลิป
 Interact_Bed         พักผ่อน   → mental +25
 Interact_Kitchen     กินข้าว   → mental +15
 Interact_Exercise    ออกกำลังกาย → mental +20
-Interact_NPC_Mom     คุยกับแม่
-Interact_NPC_01..06  คุยกับ NPC
+Interact_NPC_01      ป้าแดง เจ้าของห้องเช่า (เฟส 1-2)
+Interact_NPC_02      เจ — เพื่อนร่วมทางคนแรก (เฟส 1-2 + หลังทรยศ)
+Interact_NPC_03      ปาล์ม — เพื่อนร่วมทางคนสอง (เฟส 3)
+Interact_NPC_04      ไคโตะ — Content Creator คู่แข่ง (เฟส 2-3)
+Interact_NPC_05      เกรียน (เฟส 2)
+Interact_NPC_Mom     แม่ — **พักไว้** (พ่อแม่ขีดดำ docs/02 §9.4) ยังไม่ต้องวาง
 ```
+
+**บทเปลี่ยนเองตามเฟส** — NPC ตัวเดียววางครั้งเดียวพอ ระบบเลือกบทให้ตามเฟสปัจจุบัน + สถานะทรยศ (ทีมไม่ต้องทำอะไรเพิ่ม)
 
 - ทำเป็น Part โปร่งใส (Transparency 1) วางทับจุดนั้นก็ได้ ไม่ต้องสวย
 - **ห้องสวยแค่ไหน ถ้าไม่มี `Interact_` = ต่อ logic ไม่ได้**

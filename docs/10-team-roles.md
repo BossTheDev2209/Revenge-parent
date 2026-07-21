@@ -34,7 +34,7 @@
 
 **ไฟล์ที่แตะ:** `Services/{StaffService,CalendarService,MoneyService}`, `UI/Apps/{Manage,CalendarApp,Feedback,Upload,Bank}`, `Content/{DMs,ClipTitles}`
 
-### 📖 สาย C — "เรื่องราว & ฉากจบ"
+### 📖 สาย C — "เรื่องราว & ฉากจบ" — **บอส (รณกร)**
 
 | ชั้น | งาน |
 |------|-----|

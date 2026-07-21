@@ -1,7 +1,7 @@
-# 06 — Game Architecture (Roblox Studio, no Rojo)
+# 06 — Game Architecture (Roblox Studio)
 
-**ของจริงอยู่ใน Studio ทั้งหมด** — repo `src/` เป็นแค่ backup mirror (Claude sync ให้ตามกฎ CLAUDE.md ข้อ 7)
-ทีมทำงานใน Studio อย่างเดียว ไม่ต้องรู้จัก Rojo ไม่ต้องแตะ repo
+**ของจริงอยู่ใน Studio ทั้งหมด** — repo `src/` เป็นแค่ backup mirror (agent sync ให้ตามกฎ CLAUDE.md ข้อ 7)
+ทีมทำงานใน Studio อย่างเดียว ไม่มี sync tool ไม่ต้องแตะ repo
 
 **หลักการเดียวที่ต้องจำ:** แยก **ข้อมูล** (ตัวเลข + ข้อความ) ออกจาก **logic** (โค้ดคำนวณ)
 คนไม่โค้ดแก้ได้เฉพาะโฟลเดอร์ `Config` กับ `Content` — instance อื่นไม่ต้องแตะ ไม่ต้องอ่าน ไม่ต้องกลัว

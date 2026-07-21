@@ -87,7 +87,7 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
 CLAUDE.md                  ← นี่
 docs/                      ← design doc + กติกา + timeline + deliverables
 plans/                     ← superpowers plan ต่อ feature
-src/server|client|shared/  ← Luau (Rojo sync เข้า Studio)
+src/server|client|shared/  ← Luau (mirror ของ Studio — ไม่มี Rojo, agent เขียนตามหลังทุกครั้งที่แก้ Studio)
 tests/                     ← TestEZ spec
 assets/reference/          ← สไลด์เก่า, poster, กำหนดการทางการ (read-only)
 ```

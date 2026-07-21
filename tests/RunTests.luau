@@ -522,6 +522,26 @@ end
 check("milestone ทรยศอยู่ใน StoryMilestones",
 	table.find(Config.StoryMilestones, Config.BetrayalMilestone) ~= nil)
 
+-- ===== Comments pool schema (docs/02 §9.6 — ทีมเติม comment แล้ว format ต้องไม่พัง) =====
+local CommentsPool = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.Comments)
+	else require("../src/shared/Content/Comments")
+local poolCount = { neg = 0, neu = 0, pos = 0 }
+for i, c in CommentsPool do
+	check(("Comments[%d] sentiment ถูกต้อง"):format(i), poolCount[c.sentiment] ~= nil)
+	if poolCount[c.sentiment] then poolCount[c.sentiment] += 1 end
+	check(("Comments[%d] มีข้อความ"):format(i), type(c.text) == "string" and #c.text > 0)
+	if c.sentiment == "neg" then
+		check(("Comments[%d] (⊖) ต้องมี accept/sarcasm/insult ครบ"):format(i),
+			c.replies ~= nil and c.replies.accept and c.replies.sarcasm and c.replies.insult ~= nil)
+	elseif c.sentiment == "neu" then
+		check(("Comments[%d] (◎) ต้องมี accept/sarcasm"):format(i),
+			c.replies ~= nil and c.replies.accept and c.replies.sarcasm ~= nil)
+	end
+end
+check("pool ทุก sentiment ต้องมีอย่างน้อย 3 ใบ (ไม่งั้นซ้ำเร็วเกิน)",
+	poolCount.neg >= 3 and poolCount.neu >= 3 and poolCount.pos >= 3)
+
 -- ===== DMs schema (docs/10 — เพื่อนทีม content แก้แล้ว format ต้องไม่พัง) =====
 local DMsContent = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)

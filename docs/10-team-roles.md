@@ -3,29 +3,56 @@
 **ใครต้องอ่าน:** ทั้ง 3 คน อ่านให้จบก่อนเปิด Studio / เปิด agent
 **หลักการเดียวที่ทำให้ 3 agent ทำงานพร้อมกันได้:** แบ่งตาม container ใน Studio — **โซนใครโซนมัน ห้ามข้าม** เพราะ agent เขียนทับไฟล์กันได้โดยไม่มีตัวกัน (MCP ไม่ผ่าน script lock ของ Team Create)
 
----
-
-## 1. หน้าที่หลัก 3 คน
-
-| หน้าที่ | คนทำ | โซน Studio ที่แตะได้ | โซน repo |
-|---------|------|---------------------|----------|
-| **Cutscene** — วางมุมกล้อง + storyboard ending ×6 | เพื่อน 1 | `Workspace.CutsceneCams` + `ReplicatedStorage.Shared.Content.Endings` | `src/shared/Content/Endings/` |
-| **Dialogue** — เขียนบท NPC + DM + comment | เพื่อน 2 | `ReplicatedStorage.Shared.Content` (ยกเว้น Endings) | `src/shared/Content/` |
-| **UI + Engine** — โค้ดทั้งหมด สั่งผ่าน agent | บอส (รณกร) | `ServerScriptService`, `StarterPlayerScripts`, `Shared/Config`, `Formulas`, `UIAssets`, `Remotes` | `src/`, `tests/`, `docs/` |
-
-**บท NPC = ทางเดียว ไม่มี choice** (design doc §7 ล็อคแล้ว) — choice มีที่เดียว: DM ในแอป Message (เลือกได้แต่ NPC ตอบเหมือนเดิม) กับตอบ comment ⊕◎⊖
+**ทำไมไม่แบ่งเป็น "คนนึง script / คนนึง UI / คนนึงบท":** ทุกฟีเจอร์ต้องมีโค้ด คนถือ script จะกลายเป็นคอขวดคนเดียว ส่วนอีกสองคนรอ — และทุกคนมี agent เขียนโค้ดให้อยู่แล้ว **แบ่งเป็นฟีเจอร์แนวตั้งแทน: แต่ละคนถือฟีเจอร์ของตัวเองครบเส้น** (engine + UI + รูป + ส่วนแมพที่เกี่ยว + 1 deliverable)
 
 ---
 
-## 2. งานเหลือที่ยังไม่มีเจ้าของ (pool — หยิบแบ่งกันเอง)
+## 1. สามสาย — แต่ละสายถือครบเส้น
 
-- [ ] แมพห้องเช่า + props เฟส 1-2 (ตั้งชื่อตาม docs/05 §2)
-- [ ] วาง Part `Interact_NPC_Mom`, `Interact_NPC_01..05` (6 จุด — **คอขวด** ไม่มี = คุย NPC ไม่ได้)
-- [ ] โมเดล NPC 6 ตัว (R6, Anchored ยืนเฉยๆ พอ)
-- [ ] วาง `FilmSpot_*` ~6-10 จุด (ระบบอัดคลิป — รอ engine ก่อนก็ได้)
-- [ ] Tool 3 ชิ้น: `Tool_Camera` / `Tool_Phone` / `Tool_Selfie` (รอ engine)
-- [ ] วาดรูป UI 14+ ชิ้น (list เต็มถาม agent — "list HUD GUI ที่ต้องวาด")
-- [ ] เครื่อง PC เฟส 2 / เฟส 3 (จอ `Interact_pcMonitor` ขนาด 4×2.6 เท่าเครื่องเทส)
+### 🎥 สาย A — "ผลิตคลิป" (ระบบอัด/ตัด/อุปกรณ์)
+
+| ชั้น | งาน |
+|------|-----|
+| Engine | `RecordService` (footageGB, โซนสุ่มย้ายจุด 120 วิ, bonus 10%, เต็ม=FULL), Tool 3 ชิ้น, **ผูก resolution → VidQ** (ตอนนี้ซื้อกล้องยังไม่มีผลกับคุณภาพคลิป!) |
+| UI | HUD ทั้งชุด (progress bar 1M, delta popup, storage GB, hotbar, ปุ่ม setting), Edit app (slider footage + QTE บน timeline + ปุ่ม Edit more), Shop app (การ์ด 6 ระดับ 2 หมวด) |
+| แมพ | `FilmSpot_*` ~8 จุด, เครื่อง PC เฟส 2/3 (จอ `Interact_pcMonitor` 4×2.6) |
+| รูป | HUD 14 ชิ้น + Shop 12 ชิ้น |
+| ส่ง | วิดีโอ gameplay 3–5 นาที |
+
+**ไฟล์ที่แตะ:** `Services/RecordService`, `UI/HUD`, `UI/Apps/{EditQTE,Shop}`, `StarterPack`, `Workspace.FilmSpot_*`
+
+### 💼 สาย B — "ธุรกิจ & ทีมงาน"
+
+| ชั้น | งาน |
+|------|-----|
+| Engine | `StaffService` (**design ตัวเลขเองก่อน** — 2 สาย: เพื่อนร่วมทาง = คุณภาพสูง/story, พนักงานจ้าง = ปริมาณ, เงินเดือนตัดรอบ 7 วัน), `state.history[day]` + `clip.views` (ฐานกราฟ+income/week), sponsor offer สุ่ม 5%/วัน เฟส 2-3 |
+| UI | Manage app (จ้าง/ไล่), Calendar app (grid เดือน 7×5 + block 3 สี + กดเลือกย้าย + marker วันตัดรอบ), Feedback (กราฟ 7 วัน + list คลิปกดได้), Upload (2-pane + title 3 ช้อย) |
+| แมพ | ห้องเช่า + props + `Interact_Bed/Kitchen/Exercise` |
+| รูป | icon แอป 8 ชิ้น + wallpaper 3 ชิ้น |
+| Content | `DMs` (พนักงาน/sponsor/คู่แข่ง), `ClipTitles` |
+| ส่ง | สไลด์ PDF (Canva `DAHJLyI79DE`) |
+
+**ไฟล์ที่แตะ:** `Services/{StaffService,CalendarService,MoneyService}`, `UI/Apps/{Manage,CalendarApp,Feedback,Upload,Bank}`, `Content/{DMs,ClipTitles}`
+
+### 📖 สาย C — "เรื่องราว & ฉากจบ"
+
+| ชั้น | งาน |
+|------|-----|
+| Content | บท NPC 10 บทสนทนา (เฟส 1: 2 / เฟส 2: 4 / เฟส 3: 4), Canon Events ทุก milestone + **event ทรยศ ~500K**, comments pool ~24 ใบ (⊖/◎/⊕ อย่างละ 8), **บทหลังทรยศ** ของเพื่อนคนแรก |
+| Cutscene | Ending 6 อัน — **เต็ม 2 (Good1, Neutral2) / ย่อ 4** (จอเดียว + text 3-4 บรรทัด) |
+| Engine | flag บทหลังทรยศใน `InteractBinder` (เล็ก ~1 ชม.) |
+| แมพ | โมเดล NPC + `Interact_NPC_*`, `CutsceneCams` (Part มุมกล้อง) |
+| ส่ง | วิดีโอแนะนำ 3 นาที + Word doc (ลิงก์เกม/description/ตั้งค่า public+ปิด copy) |
+
+**ไฟล์ที่แตะ:** `Content/{Dialogue,CanonEvents,Comments,Endings}`, `UI/{DialogueUI,CutscenePlayer}`, `InteractBinder`, `Workspace.{NPC_*,CutsceneCams}`
+
+---
+
+## 1.5 ไฟล์กลาง — ห้ามแก้พร้อมกัน
+
+`Shared.Config` · `Services.GameState` · `ServerScriptService.Main` · `Tests.RunTests` — ทั้งสามสายต้องเติมของตัวเองลงไฟล์พวกนี้ (ตัวเลข balance / field ใน state / register action / เทส)
+
+**กติกา:** ประกาศในแชททีมก่อนแก้ → แก้ → commit+push ทันทีในนัดเดียว ห้ามค้างไว้ข้ามวัน ถ้าไม่แน่ใจให้บอสแก้ให้
 
 ---
 

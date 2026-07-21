@@ -1,43 +1,12 @@
 -- CanonEvents.luau — event บังคับเมื่อ follower ข้าม milestone (Config.StoryMilestones)
 -- key = "milestone_" .. ตัวเลข | dialogue = list บรรทัด (format เดียวกับ Dialogue/*)
 -- ทุก event หัก mental ผ่าน drain modifier 24 ชม. อัตโนมัติ (docs/02 §3)
--- milestone_500000 = **event ทรยศ** (docs/02 §9.4) — Main ตั้ง flags.betrayed + mental −25 เพิ่ม
+-- milestone_500000 = event ทรยศ (docs/02 §9.4) — Main ตั้ง flags.betrayed + mental −25 เพิ่ม
+-- ⚠️ [placeholder] — รอบทจริง เขียนแทนข้อความในลิสต์ได้เลย (key ห้ามลบ ต้องครบทุก milestone)
 return {
-	["milestone_1000"] = {
-		dialogue = {
-			"[fast]1,000 คนแล้ว!",
-			"[normal]พันคนนี่เท่ากับห้องประชุมใหญ่ของโรงเรียนเต็มห้องเลยนะ",
-			"[slow]...แล้วทำไมยังรู้สึกเหมือนพูดอยู่คนเดียวอยู่เลยวะ",
-		},
-	},
-	["milestone_10000"] = {
-		dialogue = {
-			"หนึ่งหมื่นแล้ว [normal]เริ่มมีคนทักตอนไปซื้อข้าวข้างล่าง",
-			"แม่โทรมาถามว่าไปทำอะไรมา [slow]ทำไมเพื่อนบ้านถึงเอามือถือมาให้ดู",
-			"[slow]...ยังไม่ได้บอกแม่ว่าเดือนนี้ยังไม่ได้จ่ายค่าห้อง",
-		},
-	},
-	["milestone_100000"] = {
-		dialogue = {
-			"[fast]แสนแล้ว! sponsor เริ่มทักมาในกล่องข้อความ",
-			"[normal]ห้องใหม่ อุปกรณ์ใหม่ มีคนช่วยทำงาน",
-			"[slow]แล้วทำไมนอนไม่หลับเหมือนตอนอยู่ห้องเก่าเลยวะ",
-		},
-	},
-	["milestone_500000"] = { -- ★ event ทรยศ (docs/02 §9.4)
-		dialogue = {
-			"[normal]เจไม่มาสามวันแล้ว",
-			"[fast]แล้วคลิปใหม่ของช่องไคโตะก็ขึ้นเมื่อเช้า",
-			"[slow]...คนตัดคลิปในเครดิต ชื่อเจ",
-			"[slow]สามปีที่นั่งตัดคลิปด้วยกันในห้องเช่าห้องนั้น",
-			"[normal]แล้วเราเคยถามมันบ้างไหมวะ [slow]ว่ามันอยากได้อะไร",
-		},
-	},
-	["milestone_1000000"] = {
-		dialogue = {
-			"[slow]หนึ่งล้าน...",
-			"[normal]ตัวเลขที่เคยพิมพ์ไว้ในกระดาษแผ่นนั้น ตอนที่ยังไม่มีใครเชื่อ",
-			"[slow]ถึงเวลากลับบ้านแล้ว",
-		},
-	},
+	["milestone_1000"] = { dialogue = { "[placeholder] ถึง 1,000 follower" } },
+	["milestone_10000"] = { dialogue = { "[placeholder] ถึง 10,000 follower" } },
+	["milestone_100000"] = { dialogue = { "[placeholder] ถึง 100,000 follower" } },
+	["milestone_500000"] = { dialogue = { "[placeholder] ★ event ทรยศ — เพื่อนคนแรกไปอยู่กับคู่แข่ง" } },
+	["milestone_1000000"] = { dialogue = { "[placeholder] ถึง 1,000,000 follower" } },
 }

@@ -479,6 +479,12 @@ local Endings = if isStudio
 for _, name in { "Bad1", "Bad2", "Bad3", "Neutral1", "Neutral2", "Good1" } do
 	local stepsMod = if isStudio then require(Endings[name]) else require("../src/shared/Content/Endings/" .. name)
 	check("Content.Endings." .. name .. " validate ผ่าน", CutscenePlayer.validate(stepsMod) == true)
+	-- กันลืมส่งงานทั้งที่ยังเป็น placeholder (docs/02 §9.4 — ending ต้องครบ 6 ของจริง)
+	local hasPlaceholder = false
+	for _, s in stepsMod do
+		if s.type == "text" and s.text:find("placeholder") then hasPlaceholder = true end
+	end
+	check("Content.Endings." .. name .. " ไม่ใช่ placeholder แล้ว", hasPlaceholder == false)
 end
 
 -- ===== Dialogue: เลือกบทตามเฟส/หลังทรยศ (docs/02 §9.4) =====

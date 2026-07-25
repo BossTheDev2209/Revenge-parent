@@ -64,6 +64,19 @@
 
 ---
 
+## 1.2 งานที่เพิ่งเพิ่ม 26 ก.ค. (เคยไม่มีเจ้าของ — audit เจอ)
+
+| งาน | สาย | รายละเอียด |
+|------|-----|------------|
+| **ระบบที่อยู่ + `Interact_Door`** | **B** | ปลดที่อยู่ตาม follower (10K/100K) กลับที่เก่าได้, ประตู teleport (Attribute `Target` + `MinFollower`) — docs/02 §9.9 |
+| **Bad End ① ขั้น "โดนไล่ที่"** | **B** | ค้างเช่าครั้งที่ 1 = ล็อกที่อยู่คืน + ส่งกลับ Map_Phase1 / ครั้งที่ 2 ค่อยจบเกม |
+| **ระบบ Tycoon เหยียบปุ่ม** | **B** | `Buy_<ชื่อ>` (Attribute Price) + `Item_<ชื่อ>` + จำลง save — convention docs/05 §3.5 |
+| **หน้า Main Menu เต็มรูปแบบ** | **A** | ตามร่าง user: Title + ปุ่ม 4 อันชิดซ้าย + ภาพตัวละครนั่งคอมฝั่งขวา + หน้า Setting จริง (graphic/language/audio) |
+| **ระบบเสียง** (BGM ตามโซน + blip ตอนพิมพ์บท + SFX) | **C** | โครงสร้าง `SoundService.BGM/Voice/SFX` + Part `Zone_<ชื่อ>` — docs/02 §9.9 |
+| **ตั้งค่าเกมตอนส่ง** | **C** | เผยแพร่ Public, ปิด Allow Copying, ใส่ description ตามกติกา, เปิด Studio API access (ให้ save ทำงาน) — docs/03 |
+
+---
+
 ## 1.5 ไฟล์กลาง — ห้ามแก้พร้อมกัน
 
 `Shared.Config` · `Services.GameState` · `ServerScriptService.Main` · `Tests.RunTests` — ทั้งสามสายต้องเติมของตัวเองลงไฟล์พวกนี้ (ตัวเลข balance / field ใน state / register action / เทส)

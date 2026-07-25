@@ -13,6 +13,7 @@ local MoneyService = require(SSS.Services.MoneyService)
 local CommentService = require(SSS.Services.CommentService)
 local CalendarService = require(SSS.Services.CalendarService)
 local EndingService = require(SSS.Services.EndingService)
+local StaffService = require(SSS.Services.StaffService)
 local Config = require(RS.Shared.Config)
 
 local state = GameState.newGame()
@@ -37,6 +38,7 @@ local function checkMilestones(s)
 			end
 		end
 	end
+	StaffService.syncCompanions(s) -- เพื่อนเข้า/โต/ออก ตาม follower+เฟส+ทรยศ (docs/02 §9.8)
 end
 
 -- เช็คจบเกมหลังทุกความเปลี่ยนแปลงสำคัญ — เจอแล้วหยุดเวลา รอ client เล่น cutscene
@@ -87,6 +89,12 @@ ActionRouter.register("AdjustSpending", function(s, a) -- ⊖⊕ ใน Bank
 end)
 ActionRouter.register("MoveBlock", function(s, a) -- ย้าย block ปฏิทิน (ทาง ก: กดเลือก+กดปลายทาง)
 	CalendarService.moveBlock(s, a.fromDay, a.toDay)
+end)
+ActionRouter.register("HireStaff", function(s, a) -- แอป Manage (docs/02 §9.8)
+	StaffService.hire(s, a.id)
+end)
+ActionRouter.register("FireStaff", function(s, a)
+	StaffService.fire(s, a.id)
 end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
@@ -157,9 +165,26 @@ TimeService.onHour(function(s)
 end)
 -- ทุกวันใหม่: ครบ 7 วันหักรายจ่าย — จ่ายไม่ไหวหัก mental ต่อ + block ปฏิทิน + เช็คจบเกม
 TimeService.onDay(function(s)
+	-- ทีมผลิตคลิป auto ก่อนตัดรอบเงิน (docs/02 §9.8) — คลิปทีมสร้าง comment ปกติ
+	for _, r in StaffService.produceDaily(s) do
+		CommentService.generate(s, r.tier)
+	end
+	checkMilestones(s)
+
 	local broke, billed = MoneyService.onDay(s)
 	if broke then
 		MentalService.apply(s, "rentMissed")
+	end
+	if billed then -- เงินเดือนทีม: จ่ายไม่ไหว = คนแพงสุดลาออกทีละคน
+		local salary = StaffService.weeklySalary(s)
+		if salary > 0 then
+			if s.money >= salary then
+				s.money -= salary
+			else
+				StaffService.resign(s, s.money)
+				s.money = math.max(0, s.money - StaffService.weeklySalary(s))
+			end
+		end
 	end
 	if billed then -- ผลใจไลฟ์สไตล์ (Bank ⊖⊕) เฉพาะวันตัดรอบ
 		local delta = MoneyService.lifestyleMental(s)

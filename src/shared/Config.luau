@@ -111,6 +111,38 @@ Config.WeeklyExpenses = {
 
 -- อุปกรณ์ 6 ระดับ (user lock 21 ก.ค. — เริ่มฟรีระดับ 1, ซื้อเพิ่ม 5 ครั้ง/สาย)
 -- ราคา: costs[ระดับปัจจุบัน] = ราคาซื้อระดับถัดไป
+-- ระบบพนักงาน (docs/02 §9.8 — lock 21 ก.ค.)
+-- คลิป auto: ไม่กิน footage, ไม่มี viral, ไม่คูณ mental | นับ VidQ% ครึ่งเดียว | สร้าง comment ปกติ
+Config.Staff = {
+	clipsPerDayPerSpeed = 20, -- คลิป/วัน = speed / 20
+	hireCap = 4,              -- จ้างพร้อมกันได้ 4 (companion ไม่นับ)
+	vidqWeight = 0.5,         -- คลิปพนักงานนับเข้า VidQ% ครึ่งเดียว (กัน ending ถูกทีมกลบ)
+
+	-- quality → โอกาสได้ tier (สุ่มทุกคลิป) — ช่วงเรียงจากน้อยไปมาก
+	tierChanceByQuality = {
+		{ maxQuality = 40, C = 0.60, B = 0.30, A = 0.10, S = 0.00 },
+		{ maxQuality = 70, C = 0.20, B = 0.45, A = 0.30, S = 0.05 },
+		{ maxQuality = 90, C = 0.05, B = 0.25, A = 0.45, S = 0.25 },
+		{ maxQuality = math.huge, C = 0.00, B = 0.10, A = 0.40, S = 0.50 },
+	},
+
+	-- roster จ้าง: ปลดต้องครบทั้ง phase และ follower | pool คงที่ ไม่สุ่ม stat
+	roster = {
+		{ id = "hire_1", phase = 2, follower = 15_000, speed = 20, quality = 35, salary = 8_000 },
+		{ id = "hire_2", phase = 2, follower = 40_000, speed = 35, quality = 45, salary = 15_000 },
+		{ id = "hire_3", phase = 3, follower = 150_000, speed = 50, quality = 60, salary = 30_000 },
+		{ id = "hire_4", phase = 3, follower = 450_000, speed = 70, quality = 80, salary = 60_000 },
+	},
+
+	-- เพื่อนร่วมทาง: auto มาตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap
+	-- companion_1 โต exponential ตอนเข้าเฟส 3 แล้วหายที่ 500K (ทรยศ)
+	companions = {
+		{ id = "companion_1", joinFollower = 10_000, speed = 20, quality = 30,
+			growAtPhase = 3, grownSpeed = 45, grownQuality = 75, leavesOnBetrayal = true },
+		{ id = "companion_2", joinFollower = 100_000, speed = 40, quality = 85 },
+	},
+}
+
 -- Bank ⊖⊕ (PDF หน้า 9 — user lock 21 ก.ค., step/ผลใจเลือกโดย agent — docs/02 §9.7)
 -- ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step | ผลใจคิดตอนตัดรอบ 7 วัน
 Config.Spending = {

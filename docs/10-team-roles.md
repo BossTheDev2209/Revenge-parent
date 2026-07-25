@@ -43,7 +43,7 @@
 📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
 - Bank ⊖⊕ (ตัวเลข step/ผลใจล็อกแล้ว) → **docs/02 §9.7** | Calendar (block ยาว/ย้าย = engine เสร็จแล้ว) → **docs/09 §3** | Feedback กราฟ → **§7** | Upload → **§6**
 - sponsor offer สุ่ม 5%/วัน เฟส 2-3, คลิป sponsor ไม่ได้ follower แต่เงิน ×2-4, block มี time unit (1 unit=1 ช่อง ไม่เกิน 3) → **docs/09 §3** (mechanic ยังไม่ implement — logic วางไว้ครึ่งเดียว)
-- 🔴 **`StaffService` = BLOCKED ยังไม่มี spec — ห้ามเขียนโค้ดจนกว่า design session เสร็จ** (docs/02 §9.8 ยังว่าง) ถ้า agent เจอ task นี้: หยุด บอก user ให้ทำ design กับ Claude ก่อน **ห้ามเดาตัวเลข speed/quality/salary เอง**
+- ✅ **`StaffService` = ทำเสร็จแล้ว 21 ก.ค.** (engine + Manage UI + เทส) — spec/ตัวเลขทั้งหมดอยู่ **docs/02 §9.8** แก้ตัวเลขที่ `Config.Staff` ที่เดียว
 
 ### 📖 สาย C — "เรื่องราว & ฉากจบ" — **บอส (รณกร)**
 

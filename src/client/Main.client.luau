@@ -10,6 +10,7 @@ local Bank = require(script.Parent.UI.Apps.Bank)
 local CalendarApp = require(script.Parent.UI.Apps.CalendarApp)
 local Shop = require(script.Parent.UI.Apps.Shop)
 local Message = require(script.Parent.UI.Apps.Message)
+local Manage = require(script.Parent.UI.Apps.Manage)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
@@ -58,15 +59,7 @@ local PC_APPS = {
 	{ id = "calendar", name = "ปฏิทิน", label = "📅 ปฏิทิน", create = CalendarApp.create },
 	{ id = "shop", name = "ร้านค้า", label = "🛒 Shop", create = Shop.create },
 	{ id = "message", name = "ข้อความ", label = "✉️ Message", create = Message.create },
-	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = function(frame)
-		local l = Instance.new("TextLabel")
-		l.Size = UDim2.new(1, 0, 1, 0)
-		l.BackgroundTransparency = 1
-		l.TextScaled = true
-		l.Text = "👥 จ้างพนักงาน\n(เร็วๆนี้)"
-		l.Parent = frame
-		return {}
-	end },
+	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create },
 }
 
 local pcDeps = {

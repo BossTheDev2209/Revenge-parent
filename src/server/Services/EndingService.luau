@@ -18,6 +18,12 @@ function EndingService.computeStats(state)
 		counts[clip.tier] += 1
 		n += 1
 	end
+	-- คลิปทีมนับครึ่งเดียว (docs/02 §9.8) — ทีมช่วยดันเกรดได้ แต่ ending ยังสะท้อนฝีมือ player
+	local w = Config.Staff.vidqWeight
+	for _, clip in state.staffClips or {} do
+		counts[clip.tier] += w
+		n += w
+	end
 	local vidq = {}
 	for tier, k in counts do
 		vidq[tier] = n > 0 and (k / n * 100) or 0

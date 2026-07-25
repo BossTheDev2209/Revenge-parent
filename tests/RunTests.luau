@@ -436,6 +436,100 @@ local doneBlk = CalendarService.onDay(cal3, rng0)
 check("วันจบงาน: จ่ายเงิน + เคลียร์",
 	doneBlk ~= nil and doneBlk.type == "Sponsor" and cal3.money > m0 and cal3.calendar[4] == nil)
 
+-- ===== StaffService (docs/02 §9.8 lock 21 ก.ค.) =====
+local StaffService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.StaffService)
+	else require("../src/server/Services/StaffService")
+
+check("speed 20 = 1 คลิป/วัน", StaffService.clipsPerDay(20) == 1)
+check("speed 70 = 3.5 คลิป/วัน", StaffService.clipsPerDay(70) == 3.5)
+-- rollTier: quality 35 → แถวแรก (C 60 / B 30 / A 10 / S 0)
+check("quality ต่ำ roll 0.5 = C", StaffService.rollTier(35, rngQueue({ 0.5 })) == "C")
+check("quality ต่ำ roll 0.8 = B", StaffService.rollTier(35, rngQueue({ 0.8 })) == "B")
+check("quality ต่ำ roll 0.99 = A (S เป็น 0%)", StaffService.rollTier(35, rngQueue({ 0.99 })) == "A")
+check("quality 95 roll 0.99 = S", StaffService.rollTier(95, rngQueue({ 0.99 })) == "S")
+check("quality 95 roll 0 = B (ไม่มี C)", StaffService.rollTier(95, rngQueue({ 0 })) == "B")
+
+-- ปลดล็อกต้องครบทั้ง phase และ follower
+local st = GameState.newGame()
+st.phase = 2
+st.follower = 14_000
+check("follower ไม่ถึง = ยังไม่ปลด", #StaffService.availableHires(st) == 0)
+st.follower = 15_000
+check("ครบทั้งคู่ = ปลด slot 1", #StaffService.availableHires(st) == 1)
+st.phase = 1
+check("เฟสไม่ถึงแม้ follower พอ = ไม่ปลด", #StaffService.availableHires(st) == 0)
+
+-- จ้าง/ไล่
+st.phase = 2
+check("จ้าง hire_1 ได้", StaffService.hire(st, "hire_1") == true and #st.staff == 1)
+check("จ้างซ้ำไม่ได้", StaffService.hire(st, "hire_1") == false)
+check("จ้างตัวที่ยังไม่ปลดไม่ได้", StaffService.hire(st, "hire_4") == false)
+check("ไล่ออกได้", StaffService.fire(st, "hire_1") == true and #st.staff == 0)
+check("ไล่คนที่ไม่มีไม่ได้", StaffService.fire(st, "hire_1") == false)
+-- cap 4
+local stCap = GameState.newGame()
+stCap.phase = 3
+stCap.follower = 500_000
+for _, r in Config.Staff.roster do StaffService.hire(stCap, r.id) end
+check("จ้างครบ 4 ตาม cap", #stCap.staff == Config.Staff.hireCap)
+
+-- companion: เข้าเอง โตตามเฟส หายตอนทรยศ
+local co = GameState.newGame()
+co.follower = 10_000
+co.phase = 2
+StaffService.syncCompanions(co)
+check("companion_1 เข้าที่ 10K (speed 20)", #co.companions == 1
+	and co.companions[1].id == "companion_1" and co.companions[1].speed == 20)
+co.follower = 100_000
+co.phase = 3
+StaffService.syncCompanions(co)
+check("เข้าเฟส 3: companion_1 โต + companion_2 เข้า", #co.companions == 2
+	and co.companions[1].speed == 45 and co.companions[1].quality == 75)
+co.flags.betrayed = true
+StaffService.syncCompanions(co)
+check("ทรยศ: companion_1 หาย เหลือ companion_2", #co.companions == 1
+	and co.companions[1].id == "companion_2")
+
+-- ผลิตรายวัน: เศษคลิปสะสมข้ามวัน
+local pr = GameState.newGame()
+pr.phase = 2
+pr.follower = 15_000
+StaffService.hire(pr, "hire_1") -- speed 20 = 1 คลิป/วัน
+local f0, m0 = pr.follower, pr.money
+local out = StaffService.produceDaily(pr, rngQueue({ 0.5 }))
+check("1 คลิป/วัน ได้ follower+เงิน", #out == 1 and pr.follower > f0 and pr.money > m0
+	and #pr.staffClips == 1)
+local half = GameState.newGame()
+half.phase = 2
+half.follower = 40_000
+StaffService.hire(half, "hire_2") -- speed 35 = 1.75 คลิป/วัน
+StaffService.produceDaily(half, rngQueue({ 0.5, 0.5 }))
+check("วันแรก 1.75 → ได้ 1 คลิป เศษ 0.75", #half.staffClips == 1)
+StaffService.produceDaily(half, rngQueue({ 0.5, 0.5, 0.5 }))
+check("วันสอง 0.75+1.75=2.5 → ได้อีก 2 คลิป", #half.staffClips == 3)
+check("ทีมว่าง = ไม่ผลิต", #StaffService.produceDaily(GameState.newGame(), rng0) == 0)
+
+-- เงินเดือน + ลาออก
+local sal = GameState.newGame()
+sal.phase = 3
+sal.follower = 500_000
+StaffService.hire(sal, "hire_1") -- 8k
+StaffService.hire(sal, "hire_4") -- 60k
+check("รวมเงินเดือน 68k", StaffService.weeklySalary(sal) == 68_000)
+local left = StaffService.resign(sal, 10_000)
+check("จ่ายไม่ไหว: คนแพงสุดออกก่อน", left[1] == "hire_4" and #sal.staff == 1
+	and sal.staff[1].id == "hire_1")
+check("เงินพอแล้วไม่ไล่เพิ่ม", StaffService.weeklySalary(sal) == 8_000)
+
+-- VidQ%: คลิปทีมนับครึ่งเดียว
+local vw = GameState.newGame()
+table.insert(vw.clips, { tier = "S", uploaded = true })
+table.insert(vw.staffClips, { tier = "C" })
+local stats = EndingService.computeStats(vw)
+check("คลิป player 1 (S) + ทีม 1 (C) → S 66.7% / C 33.3% (ทีมนับ 0.5)",
+	math.abs(stats.vidq.S - 200 / 3) < 0.1 and math.abs(stats.vidq.C - 100 / 3) < 0.1)
+
 -- ===== EndingService =====
 local es = GameState.newGame()
 check("เกมปกติยังไม่จบ", EndingService.check(es) == nil)

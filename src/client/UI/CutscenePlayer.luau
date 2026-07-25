@@ -1,7 +1,14 @@
 -- CutscenePlayer.luau — เล่น cutscene จาก script data (design doc §8, Genshin ref)
 -- step: {type="text",text=} | {type="wait",t=} | {type="camera",cam="ชื่อPart"} | {type="camera",pos={x,y,z},look={x,y,z}}
+--       | {type="bgm",name="ชื่อใน SoundService.BGM"}  (""/nil = เงียบ)
+--       | {type="sound",name="ชื่อใน SoundService.SFX"} (เสียงประกอบครั้งเดียว)
 -- cam = ชื่อ Part ใน Workspace.CutsceneCams (ทีมวาง Part หันหน้าไปทางที่อยากให้กล้องมอง — docs/10)
 -- pure: validate | glue: play() — content อยู่ Content/Endings/* ทีมแก้ได้ไม่แตะไฟล์นี้
+local isStudio = script ~= nil
+local Audio = if isStudio
+	then require(script.Parent.Parent.AudioService)
+	else require("../AudioService")
+
 local CutscenePlayer = {}
 CutscenePlayer.running = false
 
@@ -12,6 +19,8 @@ local VALID = {
 		if type(s.cam) == "string" then return true end
 		return type(s.pos) == "table" and #s.pos == 3 and type(s.look) == "table" and #s.look == 3
 	end,
+	bgm = function(s) return s.name == nil or type(s.name) == "string" end,
+	sound = function(s) return type(s.name) == "string" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -34,6 +43,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		return
 	end
 	CutscenePlayer.running = true
+	Audio.lockBGM(true) -- โซนหยุดสั่งเพลงระหว่าง cutscene
 
 	local camera = workspace.CurrentCamera
 	local savedType = camera.CameraType
@@ -69,6 +79,10 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 				task.wait(math.max(1.5, #step.text * 0.03))
 			elseif step.type == "wait" then
 				task.wait(step.t)
+			elseif step.type == "bgm" then
+				Audio.bgm(step.name)
+			elseif step.type == "sound" then
+				Audio.sfx(step.name)
 			elseif step.type == "camera" then
 				if step.cam then
 					local folder = workspace:FindFirstChild("CutsceneCams")
@@ -92,6 +106,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		camera.CameraType = savedType
 		gui:Destroy()
 		CutscenePlayer.running = false
+		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ
 		if onDone then onDone() end
 	end)
 end

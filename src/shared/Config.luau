@@ -195,6 +195,17 @@ Config.EndingThresholds = {
 -- Dialogue typewriter (design doc §7) — วิ/ตัวอักษร (เลขเลือกเอง ปรับได้)
 Config.Dialogue = { charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 } }
 
+-- ระบบเสียง (docs/02 §9.9) — ความดังปรับที่ Sound object ใน Studio ไม่ใช่ที่นี่
+Config.Audio = {
+	bgmFade = 1.2,            -- วินาที crossfade ตอนเปลี่ยนเพลง/บรรยากาศ
+	defaultBGM = "",          -- เพลงตอนไม่อยู่ในโซนไหน ("" = เงียบ)
+	zoneCheckInterval = 0.35, -- เช็คว่าอยู่โซนไหนทุกกี่วินาที
+	voiceMinGap = 0.045,      -- blip ตอนพิมพ์ห่างกันอย่างน้อยกี่วิ (กันถี่จนหูแตก)
+	voicePitchVary = 0.12,    -- สุ่ม pitch ±เท่าไหร่ ให้เสียงพูดไม่ซ้ำเป๊ะ
+	footstepInterval = 0.42,  -- ระยะห่างก้าวเดิน (ปรับตามความเร็วอัตโนมัติ)
+	footstepPitchVary = 0.08,
+}
+
 -- Comment ต่อคลิป (PDF หน้า 8 — user lock 21 ก.ค.): slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป
 -- แต้มไม่รวม 100 จงใจ — แต่ละช่องคือโอกาสของ slot ตัวเอง ไม่ออก = เงียบ (สูงสุด 3 ใบ/คลิป)
 Config.Comments = {

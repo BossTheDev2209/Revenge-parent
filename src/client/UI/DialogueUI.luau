@@ -4,6 +4,9 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local Audio = if isStudio
+	then require(script.Parent.Parent.AudioService)
+	else require("../AudioService")
 
 local DialogueUI = {}
 DialogueUI.running = false
@@ -30,7 +33,8 @@ end
 
 -- ===== UI glue (Studio เท่านั้น) =====
 -- แสดง lines ทีละบรรทัด typewriter — คลิกระหว่างพิมพ์ = โชว์ทั้งบรรทัด, คลิกอีกที = บรรทัดถัดไป
-function DialogueUI.show(playerGui, lines, onDone)
+-- voiceName = ชื่อ Sound ใน SoundService.Voice (blip ตอนพิมพ์) — ไม่ส่ง = ใช้ Default
+function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	if DialogueUI.running then return end
 	DialogueUI.running = true
 
@@ -65,6 +69,7 @@ function DialogueUI.show(playerGui, lines, onDone)
 				for _, code in utf8.codes(seg.text) do
 					if skip then break end
 					box.Text ..= utf8.char(code)
+					if code ~= 32 then Audio.voice(voiceName) end -- เว้นวรรคไม่ต้องมีเสียง
 					task.wait(delay)
 				end
 				if skip then break end
@@ -73,7 +78,10 @@ function DialogueUI.show(playerGui, lines, onDone)
 			conn:Disconnect()
 			-- รอคลิกไปบรรทัดถัดไป
 			local go = false
-			local conn2 = box.Activated:Connect(function() go = true end)
+			local conn2 = box.Activated:Connect(function()
+				go = true
+				Audio.sfx("ui_click")
+			end)
 			while not go do task.wait() end
 			conn2:Disconnect()
 		end

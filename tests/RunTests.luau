@@ -639,6 +639,29 @@ end
 check("pool ต้องมีครบทั้ง 3 sentiment (ไม่งั้น slot นั้นไม่มีอะไรโผล่)",
 	poolCount.neg >= 1 and poolCount.neu >= 1 and poolCount.pos >= 1)
 
+-- ===== AudioService (docs/02 §9.9) =====
+local Audio = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AudioService)
+	else require("../src/client/AudioService")
+local box10 = { x = 10, y = 10, z = 10 }
+check("จุดกลางกล่อง = อยู่ใน", Audio.insideBox({ x = 0, y = 0, z = 0 }, box10) == true)
+check("ขอบพอดี = อยู่ใน", Audio.insideBox({ x = 5, y = -5, z = 5 }, box10) == true)
+check("เลยขอบแกนเดียว = อยู่นอก", Audio.insideBox({ x = 5.1, y = 0, z = 0 }, box10) == false)
+check("ไม่มีโซน = nil", Audio.bestZone({}) == nil)
+check("โซนซ้อน เอา priority มากสุด", Audio.bestZone({
+	{ name = "a", priority = 0 }, { name = "b", priority = 5 }, { name = "c", priority = 2 },
+}).name == "b")
+check("priority เท่ากัน เอาตัวแรก", Audio.bestZone({
+	{ name = "a", priority = 1 }, { name = "b", priority = 1 },
+}).name == "a")
+check("ไม่ใส่ priority = 0", Audio.bestZone({ { name = "a" }, { name = "b", priority = 1 } }).name == "b")
+check("Config.Audio ครบ", Config.Audio.bgmFade > 0 and Config.Audio.voiceMinGap > 0
+	and Config.Audio.footstepInterval > 0 and Config.Audio.zoneCheckInterval > 0)
+-- cutscene step เสียงต้อง validate ผ่าน
+check("cutscene step bgm ผ่าน", CutscenePlayer.validate({ { type = "bgm", name = "Street" } }) == true)
+check("cutscene step bgm ไม่ใส่ชื่อ = เงียบ ผ่าน", CutscenePlayer.validate({ { type = "bgm" } }) == true)
+check("cutscene step sound ต้องมีชื่อ", CutscenePlayer.validate({ { type = "sound" } }) == false)
+
 -- ===== DMs schema (docs/10 — เพื่อนทีม content แก้แล้ว format ต้องไม่พัง) =====
 local DMsContent = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)

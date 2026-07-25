@@ -15,6 +15,7 @@ local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
+local Audio = require(script.Parent.AudioService)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -23,8 +24,11 @@ local Content = RS.Shared.Content
 local latestState = nil
 
 local function fireAction(action)
+	Audio.sfx("ui_click") -- ทุกการกดในเกมมีเสียงเดียวกัน (ไม่มีไฟล์ = เงียบ)
 	actionRemote:FireServer(action)
 end
+
+Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเดิน
 
 HUD.init(playerGui)
 MenuUI.open(playerGui, { fireAction = fireAction }) -- เกมเริ่มที่เมนู (freeze จนกดเล่น)
@@ -81,16 +85,32 @@ local function startDialogue(dialogueName)
 		return
 	end
 	fireAction({ type = "FreezeTime", on = true })
+	-- เสียงพิมพ์ใช้ SoundService.Voice.<ชื่อบท> (เช่น Voice.Friend1) — ไม่มี = Voice.Default
 	DialogueUI.show(playerGui, lines, function()
 		fireAction({ type = "FreezeTime", on = false })
-	end)
+	end, dialogueName)
 end
 
 -- state มาใหม่ทุกครั้ง: HUD + PC + menu + canon event + ending
 local endingPlayed = false
+local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
 	HUD.update(state)
+
+	-- เสียงเหตุการณ์: อัปคลิปสำเร็จ / ไวรัล (ดูจาก state ที่เปลี่ยน ไม่ต้องมี remote เพิ่ม)
+	local uploaded = 0
+	for _, c in state.clips do
+		if c.uploaded then uploaded += 1 end
+	end
+	if primed and uploaded > prevClips then
+		local last
+		for _, c in state.clips do
+			if c.uploaded then last = c end
+		end
+		Audio.sfx(last and last.viral and "viral" or "upload_done")
+	end
+	prevClips, primed = uploaded, true
 	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
 

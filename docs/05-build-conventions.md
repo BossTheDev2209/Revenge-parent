@@ -71,7 +71,11 @@ Interact_NPC_Mom     แม่ — **พักไว้** (พ่อแม่ข
 CutsceneCams (Folder ใน Workspace) → Cam_<ending>_<เลข>   มุมกล้อง cutscene (docs/10 §3)
 FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
 Tool_Camera / Tool_Phone / Tool_Selfie                     Tool อัดคลิปใน StarterPack
+Zone_<ชื่อ>                                               โซนเพลง (Attribute Music/Ambient/Priority)
+Buy_<ชื่อ> + Item_<ชื่อ>                                   ปุ่ม tycoon + ของที่โผล่ (§3.5)
 ```
+
+**`Zone_*` (โซนเพลง — docs/02 §9.9):** Part โปร่งใส Transparency 1, CanCollide ✗, Anchored ✓ ครอบพื้นที่ที่อยากให้เพลงนี้ดัง → ใส่ Attribute `Music` = ชื่อ Sound ใน `SoundService.BGM` (ทับซ้อนกันได้ ใส่ `Priority` ให้ตัวที่ควรชนะ)
 
 **⚠️ `Interact_pcMonitor` = จอคอม ต้องทำตามนี้เป๊ะ** (UI แปะบนหน้า part จริงด้วย SurfaceGui):
 - **ขนาด 4 × 2.6 × (หนาเท่าไหร่ก็ได้) studs** — ทุกเครื่องทุกเฟสต้องเท่ากัน ไม่งั้น UI ยืด/หด

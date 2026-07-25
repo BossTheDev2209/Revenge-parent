@@ -16,6 +16,7 @@
 | อยากรู้เรื่อง | อ่าน |
 |----------------|------|
 | กติกาแข่ง + กำหนดส่ง | `docs/01`, `docs/03`, `docs/04` |
+| **PDF ต้นฉบับ ถอดความละเอียดหน้าต่อหน้า** | `docs/12-pdf-source-of-truth.md` ← อ่านก่อนถ้าสงสัยว่า feature จริงคืออะไร |
 | ระบบเกมทุกตัวเลข (ล็อค) | `docs/02-game-design-locked.md` |
 | ตั้งชื่อ instance ใน Studio | `docs/05-build-conventions.md` |
 | architecture / แก้ X ไปไฟล์ไหน | `docs/06-architecture.md` |

@@ -1,0 +1,263 @@
+# 12 — PDF ต้นฉบับ ถอดความละเอียด (Source of Truth ระดับหน้า)
+
+**ใครต้องอ่าน:** ทุกคน + agent ทุกตัว ก่อนแตะระบบใดๆ
+**ไฟล์นี้คืออะไร:** ถอดความลายมือ PDF ออกแบบ 10 หน้า (`assets/reference/Getting 1M follower to prove parent wrong_final2 (1).pdf`) แบบซื่อตรงที่สุด หน้าต่อหน้า — เพื่อให้ทีม + agent เข้าใจ**ตรงกัน** ก่อนลงมือ
+**กฎอ่าน:** ✅ = ยืนยันตรงกับ engine/design แล้ว | ⚠️ = ขัดกับ docs ปัจจุบัน ต้องแก้ | ❌ = **ขีดดำ = ตัดชั่วคราว** (อาจทำไม่ทัน ตัดไปก่อน ไม่ลบจากไอเดีย) | ❓ = ยังไม่นิยาม
+
+> **หลักการที่ user ย้ำ:** phase (จาก follower) คือตัวขับหลักของทั้งเกม — ดู phase ก่อน แล้วดู follower เสมอ
+
+---
+
+## หน้า 1 — โครงเกม + gameplay ต่อเฟส
+
+**Main Menu:** Continue (เล่นจาก save ล่าสุด) / Save file (เลือกจาก list, max 4 save) / Setting (graphic, language, audio) / Credit ✅ (ทำแล้ว MenuUI)
+
+**Main game = 4 ส่วน:**
+- **tycoon → 3 level:** (1) Homeless (2) Cheap Apartment (3) House ⚠️ **เฟส = ระดับที่อยู่** ไม่ใช่แค่ตัวเลข — docs/02 เขียนเฟส 1 เป็น "ห้องเช่าโทรม" ผิด ที่ถูก = **ไร้บ้าน อยู่ข้างถนน**
+- **story → 3 routes:** Bad end (①②③) — Neutral end (①②) — Happy/Good end (①)
+- **mini-event → เนื้อในเรื่อง** (การทำกอนเทนต์)
+- **gameplay** (ล่าง)
+
+**gameplay ต่อเฟส (ฝั่งขวา PDF):**
+
+| เฟส 1 — Homeless (ไม่มีคนรู้จัก, รู้กับ irl, ไม่มีเงิน) | เฟส 2 — Cheap Apartment (เริ่มมีคนรู้จัก, ยังรู้กับ irl, บริหารเงินเดือนชนเดือน) | เฟส 3 — House (ดังเต็มตัว, รู้กับ irl ห้องคน) |
+|---|---|---|
+| อัดคลิป / ตัดคลิป / ย้ายที่อยู่ / โดนไล่ที่ | อัดคลิป → good q / ตัดคลิป / อัปคลิป / อ่าน comment→ตอบ / บริหารเงิน (เงินพอ/ไม่พอ) / sponsor / บริหารสุขภาพจิต→คุยกับ NPC / **รับคนร่วมงาน** | อัดคลิป (good/bad q) / ตัดคลิป (⊕⊖) / อัปคลิป (แพงขึ้น)(⊕⊖) / อ่าน+ตอบ comment / บริหารเงิน (Easier) / ออก Event (has sponsor)(⊕⊖) / **จ้างคน** (⊕⊖) / **รับคนร่วมงาน** (⊕⊖) / จัดตารางเวลา / บริหารสุขภาพจิต |
+
+→ ⚠️ **ข้อสังเกตสำคัญ:** เฟส 1 มีแค่ อัด/ตัด/ย้าย/โดนไล่ — **ยังไม่มี** upload, comment, เงิน, mental, staff. ทุกอย่างเริ่มเฟส 2. เฟส 3 เน้น**บริหาร/ตอบโต้** (comment, event, จ้างคน, จัดเวลา) มากกว่าอัดเอง → **นี่คือเหตุผลที่ staff auto ผลิต + สร้าง comment ให้ player ไป "ตอบโต้ผู้ชม"**
+
+**gameplay รายละเอียด (ซ้ายล่าง):**
+- อัดคลิป: ถือ tools (phone, cam, ไม้เซลฟี่) ไปกดที่จุดต่างๆ **+ลูกน้อง +เพื่อนๆ** ช่วยอัดได้
+- ตัดคลิป: กด QTE ที่งาน (หน้าคอม) → เพิ่ม view/ยอด (Accuracy)
+- อัปคลิป: ตั้งชื่อคลิป (choices) +ลูกน้อง +template
+- อ่าน comment/อ่าน DM → ดี/แย่ → เรา React ผ่าน choices / +ปิด comment / +รับงาน event, sponsor
+- ออก event, sponsor → อัปคลิปได้โบนัส
+- **รับคน** → มีผลต่อ story, ไม่เชี่ยวดี & passionate → good q, interact ต่ำ, **มีผลต่อ story (เริ่มรู้แนว)(exponential)** ← companion โตแบบทวีคูณ
+- **จ้างคน** → มีผลต่อ story น้อยกว่า, เงินกิน & not passionate, รับได้เยอะ, ปั่นไว, interact ต่ำ, ดังเร็ว
+- บริหารสุขภาพจิต → มี Mental Bar เพื่อลดการ interaction: 70-100% งานดี (โบนัสเมื่อใกล้ 100%), 40-69% งานปกติ, 1-39% งานแย่, 0% Bad End ②
+- จัดตารางเวลา: แต่ละงานมี time unit ต่างกัน เลือกมาใส่ Maximize the value ใน Block ปฏิทิน GUI
+- ย้ายที่อยู่: เลือกที่อยู่ได้ (เพิ่ม/ลด speed — Bonus ใน homeless phase)
+- โดนไล่ที่: เงินไม่พอจ่ายที่นึงทางเกินไป ใน Homeless/Apartment phase = **BAD END ①** (กลับไปย้ายที่แบบ homeless)
+
+❌ **ขีดดำ (ตัด):** เพิ่มเติม Debate (nightmare ref) — บางคับบทสนทนาจากไปไม่รอยกัน ทำให้ต้องเลือกช้อยใหม่ ช้อยไม่ได้ = NPC / เพิ่มเติม: พ่อแม่โทรมา [phase 1-3] เป็นการ Debate กับพ่อแม่ เลือกไม่ได้ = โดน Bad End
+→ **แต่ "พ่อแม่โทรมา" ที่เป็น canon event เฉยๆ (ไม่มี debate) ยังอยู่** (ดู timeline หน้า 4)
+
+❌ **ขีดดำ:** งานเสริม minievent (รับตัดคลิป, ล้างจาน, รับทายบอล — หน้ากอง/special place)
+
+---
+
+## หน้า 2 — Endings + ตัวละคร player/แม่
+
+**Ending = cutscene ยาว**
+
+**Bad End Variants:**
+- ① เงินไม่พอโดนไล่ที่ → กลับไปหาพ่อแม่ + โดนด่า → กลับไปเป็นทาสตลาดแรงงาน (phase 1, 2)
+- ② หมดไฟ/หมดใจโหมกระหน่ำ mental bar น้อยกว่าหรือเท่ากับ 0% (phase 2, 3)
+- ③ โดนสังคมประณามเพราะเลือก choices ⊖ เยอะเกินไป และหายจากวงการ (phase 3)
+
+**Neutral End Variants:**
+- ① follower ถึงโดย choices ⊕/⊖ ไม่ต่างกันมาก
+- ② follower ถึงโดยเลือก choices ⊖ เยอะ (ห่วงกว่า Bad end)
+
+**Good End:**
+- ① follower ถึงโดย choice ⊕ เยอะ + เข้าใจพ่อแม่ว่าเขาไม่ได้ต้องการอะไรยิ่งใหญ่ แค่อยากให้ลูกตาอยู่ดีมีสุข มีลุง จะเป็นใคร ทำอะไรก็ทั้งสุดท้ายก็เปิดลูกพ่อแม่อยู่ดี
+
+✅ สูตร ending ทั้งหมดตรงกับ docs/02 §5 + Config.EndingThresholds
+
+**ตัวละครหลัก (ยังไม่ตั้งชื่อ):**
+- **1. player:** ชายวัย 25 ฝึกเขียนโค้ด/hardcore gamer โดนไล่ออกเพราะ AI แบ่งงาน → ผันตัวเป็น streamer เกม แต่พ่อแม่ไม่เชื่อ → ตัดสินใจออกจากบ้านพิสูจน์ตัวเอง. weight 65, height 180, อายุ 25, male, อาชีพ CC
+- **2. แม่:** ทำอาชีพ marketing, จะคอยทำให้บ้านเป็นที่ที่เงินดู player + เป็นห่วง, โรคประจำตัว migraine, อายุ 48, female, ผู้จัดการตลาดของบริษัทนึง
+
+---
+
+## หน้า 3-4 — ตัวละคร (ต่อ) + Timeline + Map
+
+**ตัวละคร:**
+- **3. พ่อ:** เคยอยู่ทีม marketing กับแม่ แต่รถชนทำให้เดินไม่ได้ปกติ เลยออกมาเป็น freelance, รับปรึกษาธุรกิจ. weight 70, height 175, อายุ 55, male, freelancer
+- **4. เพื่อนร่วมทาง 1:** freshie ปี 1, เคยให้อาหารเราตอน [phase 1] เป็นคนจิตใจดี ไฟแรง → **เข้าร่วมตอน [phase 2]**. weight 60, height 165, อายุ 19, female, นักศึกษา
+- **5. เพื่อนร่วมทาง 2:** เคยทำงานให้กับ CC (คนเดียวกับคู่แข่ง) ดูแล้วแต่แรงงานออกมาเพราะงานเยอะเกิน + วงการนี้แข่งอำเภอเกิน → **เข้าร่วมตอน [phase 3]** เพราะเห็นภาพที่ CC ทำนี้เคยเป็นในตัวเรา. weight 80, height 170, อายุ 27, male, **Video editor**
+- **6. Content Creator 1 (คู่แข่ง):** เคยมีเพื่อนร่วมทาง 2 ทำงานให้ แรกๆเป็นคนไฟแบบ player แต่โดนพลังเงินตรากลืนกิน เลยเน้นแต่เงินและสูญเสียตัวตน. weight 70, height 165, อายุ 35, male, CC
+
+→ ⚠️ **companion timing (จาก character sheet + timeline):** เพื่อน 1 เข้าเฟส 2 / เพื่อน 2 เข้าเฟส 3 — docs/02 §9.4 เขียนเพื่อน 1 เข้าเฟส 1 **ผิด** ที่ถูก: เพื่อน 1 รู้จัก player ตั้งแต่เฟส 1 (เคยให้อาหาร) แต่ **recruit เฟส 2**
+
+**Timeline (หน้า 4) — ลำดับ canon event จริงทั้งเกม:**
+1. ออกจากบ้าน → **เข้า phase 1 (Homeless)**
+2. เตรียด/เครียดเป็น Homeless
+3. Hit 1K follower
+4. **พ่อแม่โทรมา 1** — Canon Event
+5. ❌ เลือกงานเสริม — Canon Event *(ขีด/ตัดตาม user)*
+6. Hit 10K follower → **เข้า phase 2**
+7. **Recruit เพื่อนร่วมทาง 1**
+8. รับงานร่วมทำได้
+9. **พ่อแม่โทรมา 2** — Canon Event
+10. **มีเรื่องกับ Hater** — Canon Event
+11. Hit 100K follower → **เข้า phase 3**
+12. **Recruit เพื่อนร่วมทาง 2**
+13. ออก Event ได้
+14. Hit 500K
+15. **เพื่อนร่วมทาง Issue** ← จุดปัญหาเพื่อน (user กำหนด: เพื่อน 1 ทรยศไปอยู่กับ CC คู่แข่ง)
+16. **มีเรื่องกับ CC** — Canon Event
+17. 1M follower
+18. ร่วมงาน BCA (Best Creator Award)
+19. cutscene (เล่น ending 1, 2, หรือ 1)
+20. กลับไปหาพ่อแม่
+
+→ ⚠️ **canon event เยอะกว่า 5 milestone ใน engine ปัจจุบัน** (ตอนนี้มีแค่ follower 1K/10K/100K/500K/1M) — ขาด: พ่อแม่โทร 1, พ่อแม่โทร 2, Hater, CC beef, BCA, กลับหาพ่อแม่. บางอันผูก follower บางอันผูกลำดับ (หลัง recruit ฯลฯ)
+
+**Map:**
+- **phase 1:** เมืองกลางแจ้ง — Some office / Restaurant / Supermarket / House / BTS, จุดถ่ายคลิป (M ฟ้า) กระจาย, จุดที่อยู่ (แดง), สะพานลอย
+- **phase 2:** ย่านตึกแถว — บ้านเช่า / ตึกตราว / ร้านแผงลอย / สวนสาธารณะ (กันไม้เขียว) / ป้ายรถเมล์
+- **phase 3:** บ้าน + รถ + สวนในบ้าน. ❌ **"mini siam" Studio 1/2/3 = backlog (ตัด)** — ทำ studio เดียว
+- หมายเหตุ: "ถ่ายได้ → หมด unlock phase 3 มาได้ผ่าน BTS" — จุดถ่ายทยอยปลดล็อก, เข้าเฟส 3 ผ่าน BTS
+- สัญลักษณ์: กันไม้ (เขียว) / จุดถ่ายคลิป (M ฟ้า = FilmSpot) / จุดที่อยู่ (แดง) / ❌ งานเสริม (M ม่วง = ตัด)
+
+---
+
+## หน้า 5 — เชิงเทคนิค (สูตร + HUD + PC)
+
+**Phase progress bar:** แบ่งสัดส่วน **10% / 40% / 45% / +5%** (เฟส 1 | 2 | 3 | ช่วงท้าย) เพื่อถึง % follower — 100% = 1M follower ✅ (ยังไม่ทำ progress bar UI)
+
+**จำนวนรวมทั้งเกม:**
+- **อัปคลิป/ออกอีเวนต์ รวม ~150** (เฟส 1: 10, เฟส 2: 40, เฟส 3: 45+5) — ใช้เป็นฐาน VidQ% (150 คลิป)
+- **คุยกับ NPC รวม 10** (เฟส 1: 2, เฟส 2: 4, เฟส 3: 4) ✅ ตรง 2/4/4 — แต่หลายบทในผัง PDF มี ❌ (debate) กำกับ = ตัด
+- **จำนวน comment (ครอบ choice ⊕◎⊖):** เฟส 1: 6, เฟส 2: 8, เฟส 3: 26 *(handwriting — โดยรวมทั้งเกม)*
+
+**Trigger Ending:** VidQ C/B/A/S + choices ⊕/◎/⊖ | "ตอนแรกใช้ 150 คลิป แล้วเปลี่ยนเป็น %" (VidQ% = สัดส่วนจาก 150 คลิป) ✅ สูตร ending ตรง Config
+
+**HUD (UI ทั้งหมด):** ✅ spec นี้ = docs/09 §1
+- บนซ้าย: follower "1,024 +300" | เงิน "8,374฿ +20" (มี delta popup)
+- บนขวา: นาฬิกา 15:24 + วันที่ 24 (ปฏิทิน)
+- แถบ progress เฟส (แบ่ง 10-40-45-5)
+- ซ้าย: storage "790 GB / 1T" + "1080p ×2.5" + ปุ่ม setting/เสียง
+- ขวา: mental bar แนวตั้ง 100→0 หัวใจบน-ล่าง
+- ล่างกลาง: hotbar 3 ช่อง (tool อัด)
+
+**UI PC:** เข้าโดยไปนั่งที่ seat ผ่าน proximity prompt (**กด E ค้าง**). 8 แอป: upgrade, edit, upload, feedback, bank, calendar, manage, message ✅ (docs/09 §2)
+- upgrade – อัปเกรดที่เก็บ, กล้อง (ความชัด) | edit – QTE ตัดต่อ | upload – เลือกชื่อคลิป | feedback – อ่านคอมเม้นแต่ละคลิป + ผลประกอบการ (กราฟ) | bank – แบ่งเงินจ่ายค่าอาหาร/ค่าเช่า/ค่าจ้าง (เชื่อม Calendar) | calendar – เลือก block เหตุการณ์ใส่ปฏิทิน | message – บทคุย NPC + อ่าน DM
+
+---
+
+## หน้า 6 — Time system + Calendar + Mental bar
+
+**เวลา:** ✅ ตรง Config
+- 1 playthrough ~90-120 นาที | 1 วัน = 3 นาที (1.5 เช้า + 1.5 กลางคืน)
+- นอน 8 Hr เมื่อนอนในช่วง 18:00-6:00 | นอก range นั้น = 12 Hr
+
+**Block ปฏิทิน 3 ประเภท:** ✅ (engine CalendarService รองรับ length + move แล้ว)
+1. **Canon Event** (lock วัน — สีแดง)
+2. **Select Event** (ยัดใส่เอง — สีม่วง)
+3. **Schedule Event** (ตาม mechanic เกม — ไม่เกิน 3)
+- แต่ละ Block มี time unit ต่างกัน, **1 unit = 1 ช่องปฏิทิน**
+- ตัวอย่างในผัง: "คุยกับพ่อแม่" (แดง), "มีเรื่องกับ Hater" (แดง, ยาว 3 วัน 15-17), "Marathon ตัดต่อ" (ม่วง, ยาว 2), "พักผ่อน" (ม่วง, 1), "จ่ายค่าเช่า ผันเดือน" (วัน 31)
+
+**Sponsor** (มุมขวาบน): ✅ lock — **โอกาส 5%** ในเฟส 2,3 ได้ sponsor ให้เลือกใส่ในปฏิทิน. **คลิป sponsor ไม่ได้ follower แต่ได้เงินเยอะแทน ×2-4 เท่า** (⚠️ engine ยังกดรับได้ตลอด ต้องเปลี่ยนเป็นสุ่ม 5%)
+
+**Mental bar:** ✅ ตรง Config + docs/02 §3
+- 70-100%: follower ×1-1.25 | 40-69%: none | 1-39%: follower ×0.6-1.0 | 0%: Bad End ②
+- default 80%, ลด 1% ทุก 4.5 sec (นอน 450 sec = 7.5 min = 100%)
+- **ลด:** ตัดคลิป −20 / เลือกช้อยคุย NPC แย่ −10 / เลือกช้อยตอบ comment แย่ −5 / จ่ายค่าเช่าไม่ทัน [phase 2] −15 / ❌ คุยกับพ่อแม่เลือกช้อยไม่ได้ −25 *(debate ตัด → dormant)*
+- **เพิ่ม:** เลือกช้อยคุย NPC ดี +15 / เลือกช้อยตอบ comment ดี +10 / คลิปไวรัล +25 / ❌ คุยกับพ่อแม่เลือกช้อยดี +40 *(ตัด)*
+- **ตัวเร่งลด (drain mult):** อดนอน ×1.5 (จนกว่านอน) / Canon event ×1.25 (1 วัน) / ตัดคลิปต่อเนื่อง 5 อัน ×1.5 (จนทำ activity) / เลือกช้อยคุย NPC แย่ 3 ติด ×2 / เลือกช้อยตอบ comment แย่ 3 ติด ×2
+- **ตัวเร่งเพิ่ม (recover mult):** คุย NPC ดี 3 ติด ×1.5 (1 วัน) / ตอบ comment ดี 3 ติด ×1.25 (1 วัน) / คลิปไวรัล 2 วันติด ×2 (1.5 วัน)
+- **หมายเหตุ:** NPC-choice mods = dormant เพราะ dialogue ทางเดียวไม่มี choice (§7 + debate ตัด)
+
+**Activity** (cutscene 5-10 sec [AO awakening], ทำติดกันไม่เกิน 3 → cooldown 1 วัน): ✅ ตรง Config
+- ออกกำลังกาย +20 | พักผ่อน +25 | กินข้าว +15
+- เป็น zone ในห้อง (tycoon) ที่กด proximity prompt → cutscene
+
+---
+
+## หน้า 7 — Record (อัดคลิป) + Edit (ตัดคลิป)
+
+**อัดคลิป:** ✅ (แต่ resolution dropdown ถูกแทนแล้ว)
+- ถือ Tools (กล้อง/โทรศัพท์/ไม้เซลฟี่) ไปกด click ที่จุดๆ → เพิ่มทีละ +1 และ +Bonus (เช่น +2.4)
+- multiply base เพิ่มเร็วได้ กดจนเต็มความจุอุปกรณ์ [กระเป๋า]
+- ⚠️ PDF โชว์ dropdown เลือกความชัด (1080p ×1.5, 720p, 1440p ×2, 2160p ×3, 4320p ×4) → **user ตัด dropdown ทิ้ง 21 ก.ค. (docs/02 §9.5): resolution ผูกกับระดับกล้องตายตัว 6 ระดับ, GB/คลิก 1/2/4/8/16/32**
+- เต็ม = "1T/1T FULL" อัดต่อไม่ได้
+
+**ตัดคลิป (Edit):** ✅ spec = docs/09 §5
+- ไปนั่งที่ seat (กด E ค้าง) → UI เด้ง QTE **20 อัน** ให้กดทัน
+- Accuracy (Osu! style): กดตอนวงใกล้หายมากแค่ไหน, 4 ระดับ
+- **คะแนนเต็ม 200, 1 วง = 5 คะแนน** *(หมายเหตุ: 20 วง × สูงสุด 10 = 200)* | tier: 0-50 **C**, 51-100 **B**, 101-150 **A**, 151-200 **S!**
+- **tier mult: C ×0.5, B ×1, A ×1.5, S ×2** ✅ ตรง Config
+- ปุ่มสุ่ม: Q W E A S D Z X C | แต่ละวงขึ้น 1.5 วินาที ∴ 20 วง = 30 วินาที
+- **จอ 1:** "How much footage for this video?" slider 0-1TB + footage left: 650GB + "Let's go!"
+- **จอ 2:** static Background GUI + ภาพสุ่มจาก pool (ใช้เป็นปกคลิปด้วย) + QTE บน timeline + โชว์ Accuracy อันล่าสุด (S!)
+- **จอ 3:** Score 182/200, Video Quality B, stats: 3 bad / 5 normal / 8 good / 4 awesome *(= จำนวนวงที่กดได้แต่ละระดับ ไม่ใช่ tier คลิป)*, footage left, ปุ่ม "Edit more" / "Done"
+
+---
+
+## หน้า 8 — Upload + สูตร follower + Feedback
+
+**Upload:** ✅ spec = docs/09 §6 — Storage list (thumbnail) ซ้าย / preview กลาง / **title 3 ช้อย + description 3 ช้อย** (กรอบแดง = เลือก) / ปุ่ม upload / "Select video to upload first!"
+
+**สูตร follower (นับ follower):** ✅ ตรง Config เป๊ะ
+- **follower ที่ได้ = random(base ของ phase) × VidQ Multiplier × mental%**
+- viral: **โอกาส 12%, ×4-8 เท่า**
+- base ต่อเฟส: [1] random(400,900) | [2] random(1.4k, 2.6k) | [3] random(9k, 15k)
+- **เงินได้ต่อคลิป = follower ที่ได้ × อัตราเงิน:** [1] 0.8฿/follower | [2] 1.2 | [3] 1.5
+- ยอดวิวต่อคลิป = ❓ (ไม่ระบุ)
+- หมายเหตุ: เงิน/follower/วิว เพิ่มหลังอัปคลิปแล้วค่อยๆ นิ่ง (ไม่ได้พุ่งทันที)
+
+**Feedback:** ✅ spec = docs/09 §7 + docs/02 §9.6
+- Latest upload list (มี views ต่อคลิป) / กราฟ follower + กราฟ Earn (last 7 days) / Comment from [title] ×2 / กระแสช่องนี้ (trend tags: ร้านอาหาร/สยาม/ธรรมชาติ)
+- **สัดส่วน comment ตาม VidQ (ยืนยัน §9.6):**
+
+  | tier | ⊖ | ◎ | ⊕ |
+  |---|---|---|---|
+  | C | 40% | 25% | 10% |
+  | B | 40% | 36% | 40% |
+  | A | 20% | 30% | 40% |
+  | S | 5% | 40% | 50% |
+
+- คลิปไม่มี comment ไม่ต้องแสดง, 1 คลิปมากสุด 3 comment, มี pool variation
+- **respond 3 แบบ:** ✅ ตรง engine
+  - ① กดใจ: ⊕ +10 mental / ⊖ −10 mental
+  - ② ช้อย (⊖): ยอมรับปัญหา +10 / ประชด −5 / ด่า −10
+  - ③ ช้อย (◎): ยอมรับปัญหา +10 / ประชด −5
+- **trend (กระแสช่องนี้):** ไปอัดตาม tag สถานที่แนะนำ → **+Bonus การอัด random 20% per click** (กันอัดที่เดิมซ้ำ) — ⚠️ ยังไม่ทำ (งานเฟสหลัง core)
+
+---
+
+## หน้า 9 — Bank + Manage (STAFF) + Message + Shop
+
+**Bank:** ✅ spec = docs/02 §9.7 (ปุ่ม ⊖⊕ lock แล้ว)
+- phase 1 เงินตั้งต้น 2500฿
+- 3 กล่องบน: ยอดคงเหลือ / income per week / All รายจ่ายต่อ week (แดง)
+- 3 การ์ด ⊖⊕: ค่าอาหาร/week, ค่าพนักงาน/week, ค่าเช่า/week + ปุ่ม "manage"
+
+**Manage (STAFF) — ตัวเลขจาก PDF (ใช้เป็นฐาน design §9.8):**
+- **ซ้าย = สรุปทีม:** Video per day **10/20** (ปัจจุบัน/cap) | speed 36/100 (bar) | Quality 100 (bar) | Salary 40k (bar)
+- **ขวา = การ์ดพนักงาน:** แต่ละใบ speed 18, Quality 50, Salary 20k | ปุ่ม **hire** (hirable=แดง) → **Active** (เขียว) + ปุ่ม **fire**
+- → อนุมาน: staff 1 คน speed ~18 → ~5 คลิป/วัน, cap 20/วัน = ~4 คน, salary 20k/คน/สัปดาห์, quality 50 → tier กลางๆ
+
+**DM message:** ✅ spec = docs/09 §9 — HSR style, list คนซ้าย (พนักงาน1, sponsor) / แชท bubble / choice 3 ตัวเลือกล่าง (เลือกได้แต่ไม่มีผล คำตอบ NPC fix ตาม set)
+
+**Upgrade (Shop):** ✅ spec = docs/09 §10 — Shop, 2 หมวด Camera / Storage, แถวละ 4 การ์ด (price + quality + Buy)
+
+---
+
+## หน้า 10 — Game engine (Dialogue / Cutscene / Debate)
+
+**Dialogue:** ✅ ตรง engine — Undertale-like, ไดอาล็อกขึ้นทีละตัว, **Dynamic speed (ช้า-เร็ว-หยุด)**, **ไม่มี choice ไม่ส่งผลต่อ mental**
+
+**Cutscene:** ✅ ตรง CutscenePlayer — เขียนเป็น script, วาง Part ตามจุดต่างๆ (ตำแหน่ง + หันหน้าไปทางไหน), idle animation preset (genshin ref) → **นี่คือ CutsceneCams part-based ที่ทำแล้ว**
+
+❌ **ระบบ Debate (nightmare ref) = ขีดดำ = ตัด:** ทุกประโยค NPC พูดมาเรามีมากขึ้นกด charge, charge ถูก = ช้อยถัดไป, ผลแต่ละ debate อยู่ที่ player จบตรงไหน, charge ผิด 10 ที่ = แพ้ debate
+
+---
+
+## สรุปสิ่งที่ต้องแก้ (docs/engine ปัจจุบัน ↔ PDF)
+
+| # | เรื่อง | ปัจจุบัน (ผิด/ขาด) | ที่ถูกตาม PDF | ไฟล์ที่ต้องแก้ |
+|---|--------|---------------------|----------------|----------------|
+| 1 | เฟส = ที่อยู่ | เฟส 1 = ห้องเช่าโทรม | เฟส 1 = **Homeless**, 2 = Apartment, 3 = House | docs/02 |
+| 2 | companion timing | เพื่อน 1 เข้าเฟส 1 | เพื่อน 1 เข้า**เฟส 2**, เพื่อน 2 เฟส 3 | docs/02 §9.4 |
+| 3 | พ่อแม่ | ลบทิ้งหมด | อยู่เป็น **canon event โทรมา 2 ครั้ง** + กลับหาพ่อแม่ตอนจบ (debate เท่านั้นที่ตัด) | docs/02, CanonEvents |
+| 4 | canon events | มีแค่ 5 follower milestone | +พ่อแม่โทร1/2, Hater, CC beef, BCA, กลับบ้าน (บางอันผูกลำดับ) | CanonEvents, Main |
+| 5 | 500K | "ทรยศ" ตรงๆ | timeline = "เพื่อนร่วมทาง Issue" (user กำหนด: ทรยศไป CC) | docs/02 §9.4 (โอเคแล้ว) |
+| 6 | resolution dropdown | — | ตัดทิ้ง (ผูกระดับกล้อง) แล้ว §9.5 | ✅ ทำแล้ว |
+| 7 | sponsor 5% | กดรับได้ตลอด | สุ่ม 5%/วัน เฟส 2-3 | CalendarService (ยังไม่ทำ) |
+| 8 | ตัดถาวร | — | debate (ทั้งหมด), เลือกงานเสริม, mini-siam 3 studios | docs ทุกที่ |
+
+**หมายเหตุ:** engine แกน (follower/VidQ/viral/money/mental/comment/calendar/ending) = **ตรง PDF หมดแล้ว** ที่ผิดคือ **story layer** (เฟสชื่อ, companion timing, canon list, พ่อแม่) — ต้อง reconcile docs/02 + CanonEvents ก่อนเขียน StaffService (§9.8)

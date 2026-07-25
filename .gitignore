@@ -1,2 +1,11 @@
 *.rbxl
 *.rbxlx.lock
+
+# caveman rule files — เฉพาะเครื่องบอส ไม่ push ให้ทีม
+.clinerules/
+.cursor/
+.windsurf/
+.opencode/
+.github/copilot-instructions.md
+.antigravity/
+.codex/

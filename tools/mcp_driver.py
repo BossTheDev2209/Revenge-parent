@@ -57,7 +57,9 @@ try:
         tool = step["tool"]
         args = step.get("args", {})
         if "luau_file" in step:
-            args = {"code": open(step["luau_file"], encoding="utf-8").read()}
+            # merge ไม่ทับ — execute_luau ต้องมี datamodel_type มาด้วยเสมอ
+            args = dict(args, code=open(step["luau_file"], encoding="utf-8").read())
+            args.setdefault("datamodel_type", "Edit")
         deadline = time.time() + (60 if i == 0 else 0)
         while True:
             rid += 1

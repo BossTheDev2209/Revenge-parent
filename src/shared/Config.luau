@@ -13,10 +13,23 @@ Config.PhaseGates = {
 	{ phase = 2, min = 10_000, max = 100_000 },
 	{ phase = 3, min = 100_000, max = 1_000_000 },
 }
--- 500K = event ทรยศของเพื่อนคนแรก (docs/02 §9.4) — Main มีผลพิเศษเพิ่มนอกจาก drain 24 ชม.
-Config.StoryMilestones = { 1_000, 10_000, 100_000, 500_000, 1_000_000 }
+-- Canon event ทั้งหมด (docs/02 §9.4 — ตาม timeline PDF หน้า 4 หลังตัดพ่อแม่โทรมา/งานเสริม)
+-- ทุกตัวยิง dialogue จาก Content.CanonEvents["milestone_"..เลข] + drain mod ×1.25 24 ชม.
+Config.StoryMilestones = {
+	1_000, -- ยังอยู่เฟส 1 (Homeless)
+	10_000, -- เข้าเฟส 2 + recruit เพื่อน 1
+	30_000, -- มีเรื่องกับ Hater
+	100_000, -- เข้าเฟส 3 + recruit เพื่อน 2
+	500_000, -- เพื่อนร่วมทาง Issue = ทรยศ
+	700_000, -- มีเรื่องกับ CC
+	1_000_000, -- ถึงเป้า
+}
 Config.BetrayalMilestone = 500_000
 Config.BetrayalMentalPenalty = -25
+-- BCA (Bangkok Creator Award) — คิวต่อท้ายทันทีหลัง milestone 1M ก่อน ending cutscene
+-- ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี follower ไม่มีทางเกิน
+Config.BCAEventId = "bca"
+Config.BCAAfterMilestone = 1_000_000
 
 -- §2 Follower ต่อคลิป = base(สุ่ม) × VidQ × mental, มีโอกาส viral
 Config.FollowerBase = {

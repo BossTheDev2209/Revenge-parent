@@ -115,8 +115,9 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		end
 	end
 
-	-- จบเกม → เล่น cutscene ending (ครั้งเดียว)
-	if state.flags.ending and not endingPlayed then
+	-- จบเกม → เล่น cutscene ending (ครั้งเดียว) — รอ canon event ค้างให้จบก่อน (เช่น BCA หลัง 1M)
+	if state.flags.ending and not endingPlayed
+		and #state.pendingEvents == 0 and not DialogueUI.running then
 		endingPlayed = true
 		local steps = require(Content.Endings[state.flags.ending])
 		CutscenePlayer.play(playerGui, steps, function()

@@ -516,6 +516,14 @@ for _, m in Config.StoryMilestones do
 end
 check("milestone ทรยศอยู่ใน StoryMilestones",
 	table.find(Config.StoryMilestones, Config.BetrayalMilestone) ~= nil)
+check("BCA มีบท + ผูกหลัง 1M (docs/02 §9.4)", Events[Config.BCAEventId] ~= nil
+	and table.find(Config.StoryMilestones, Config.BCAAfterMilestone) ~= nil)
+check("milestone เรียงจากน้อยไปมาก (event ยิงตามลำดับเรื่อง)", (function()
+	for i = 2, #Config.StoryMilestones do
+		if Config.StoryMilestones[i] <= Config.StoryMilestones[i - 1] then return false end
+	end
+	return true
+end)())
 
 -- ===== Comments pool schema (docs/02 §9.6 — ทีมเติม comment แล้ว format ต้องไม่พัง) =====
 local CommentsPool = if isStudio

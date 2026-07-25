@@ -31,6 +31,10 @@ local function checkMilestones(s)
 				s.flags.betrayed = true
 				MentalService.applyDelta(s, Config.BetrayalMentalPenalty)
 			end
+			-- BCA ต่อท้าย 1M ทันที (docs/02 §9.4) — เวลาหยุดที่ 1M follower ไม่มีทางเกิน
+			if m == Config.BCAAfterMilestone then
+				table.insert(s.pendingEvents, Config.BCAEventId)
+			end
 		end
 	end
 end

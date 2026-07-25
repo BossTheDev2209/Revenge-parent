@@ -21,6 +21,12 @@
 
 **ไฟล์ที่แตะ:** `Services/RecordService`, `UI/HUD`, `UI/Apps/{EditQTE,Shop}`, `StarterPack`, `Workspace.FilmSpot_*`
 
+📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
+- ระบบอัดคลิป + อุปกรณ์ 6 ระดับ + โซน + bonus + cooldown → **docs/02 §9.5** (ตัวเลขล็อกครบ)
+- HUD ทุกชิ้น + Record UI → **docs/09 §1, §4** | Edit → **§5** | Shop การ์ด → **§10**
+- ตัวเลข balance ทั้งหมด (`Config.Record`, `UpgradeCosts`, `ResolutionLadder`, `StorageLadderGB`) → `Shared.Config`
+- ⚠️ resolution→VidQ **ยังไม่มีสูตร** — เสนอ user ก่อน implement (docs/09 §1 หมายเหตุ)
+
 ### 💼 สาย B — "ธุรกิจ & ทีมงาน"
 
 | ชั้น | งาน |
@@ -34,6 +40,11 @@
 
 **ไฟล์ที่แตะ:** `Services/{StaffService,CalendarService,MoneyService}`, `UI/Apps/{Manage,CalendarApp,Feedback,Upload,Bank}`, `Content/{DMs,ClipTitles}`
 
+📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
+- Bank ⊖⊕ (ตัวเลข step/ผลใจล็อกแล้ว) → **docs/02 §9.7** | Calendar (block ยาว/ย้าย = engine เสร็จแล้ว) → **docs/09 §3** | Feedback กราฟ → **§7** | Upload → **§6**
+- sponsor offer สุ่ม 5%/วัน เฟส 2-3, คลิป sponsor ไม่ได้ follower แต่เงิน ×2-4, block มี time unit (1 unit=1 ช่อง ไม่เกิน 3) → **docs/09 §3** (mechanic ยังไม่ implement — logic วางไว้ครึ่งเดียว)
+- 🔴 **`StaffService` = BLOCKED ยังไม่มี spec — ห้ามเขียนโค้ดจนกว่า design session เสร็จ** (docs/02 §9.8 ยังว่าง) ถ้า agent เจอ task นี้: หยุด บอก user ให้ทำ design กับ Claude ก่อน **ห้ามเดาตัวเลข speed/quality/salary เอง**
+
 ### 📖 สาย C — "เรื่องราว & ฉากจบ" — **บอส (รณกร)**
 
 | ชั้น | งาน |
@@ -46,6 +57,11 @@
 
 **ไฟล์ที่แตะ:** `Content/{Dialogue,CanonEvents,Comments,Endings}`, `UI/{DialogueUI,CutscenePlayer}`, `InteractBinder`, `Workspace.{NPC_*,CutsceneCams}`
 
+📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
+- NPC 2/4/4 + arc เพื่อนร่วมทาง/ทรยศ 500K + ending 2 เกรด → **docs/02 §9.4** | comment ตามเกรด → **§9.6**
+- format ไฟล์บท/canon/ending/comment + วิธีเลือกบทตามเฟส → **§3, §4 ด้านล่าง** (engine เสร็จหมด เหลือเติมข้อความ)
+- **เนื้อเรื่องทั้งหมด = งาน user เขียน** agent มีหน้าที่จัด format ลงไฟล์ + เทส ไม่แต่งเรื่องเอง
+
 ---
 
 ## 1.5 ไฟล์กลาง — ห้ามแก้พร้อมกัน
@@ -56,7 +72,7 @@
 
 ---
 
-## 3. คู่มือ Cutscene (เพื่อน 1)
+## 3. คู่มือ Cutscene (สาย C)
 
 Cutscene = list ของ step เล่นตามลำดับ อยู่ใน `ReplicatedStorage.Shared.Content.Endings/<ชื่อ ending>` (ModuleScript 6 ไฟล์: Bad1 Bad2 Bad3 Neutral1 Neutral2 Good1)
 
@@ -100,7 +116,7 @@ return {
 
 ---
 
-## 4. คู่มือ Dialogue (เพื่อน 2)
+## 4. คู่มือ Dialogue (สาย C)
 
 ทุกไฟล์อยู่ `ReplicatedStorage.Shared.Content` — แก้ **เฉพาะข้อความในเครื่องหมายคำพูด** ห้ามลบ comma/วงเล็บ
 

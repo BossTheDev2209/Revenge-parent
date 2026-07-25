@@ -59,7 +59,7 @@
 
 📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
 - NPC 2/4/4 + arc เพื่อนร่วมทาง/ทรยศ 500K + ending 2 เกรด → **docs/02 §9.4** | comment ตามเกรด → **§9.6**
-- format ไฟล์บท/canon/ending/comment + วิธีเลือกบทตามเฟส → **§3, §4 ด้านล่าง** (engine เสร็จหมด เหลือเติมข้อความ)
+- format ไฟล์บท/canon/ending/comment + วิธีเลือกบทตามเฟส → **`docs/engines/`** (engine เสร็จหมด เหลือเติมข้อความ)
 - **เนื้อเรื่องทั้งหมด = งาน user เขียน** agent มีหน้าที่จัด format ลงไฟล์ + เทส ไม่แต่งเรื่องเอง
 
 ---
@@ -72,7 +72,7 @@
 | **Bad End ① ขั้น "โดนไล่ที่"** | **B** | ค้างเช่าครั้งที่ 1 = ล็อกที่อยู่คืน + ส่งกลับ Map_Phase1 / ครั้งที่ 2 ค่อยจบเกม |
 | **ระบบ Tycoon เหยียบปุ่ม** | **B** | `Buy_<ชื่อ>` (Attribute Price) + `Item_<ชื่อ>` + จำลง save — convention docs/05 §3.5 |
 | **หน้า Main Menu เต็มรูปแบบ** | **A** | ตามร่าง user: Title + ปุ่ม 4 อันชิดซ้าย + ภาพตัวละครนั่งคอมฝั่งขวา + หน้า Setting จริง (graphic/language/audio) |
-| **ระบบเสียง** (BGM ตามโซน + blip ตอนพิมพ์บท + SFX) | **C** | โครงสร้าง `SoundService.BGM/Voice/SFX` + Part `Zone_<ชื่อ>` — docs/02 §9.9 |
+| **ระบบเสียง** — ✅ engine เสร็จ 26 ก.ค. เหลือหาไฟล์เสียงมาวาง | **C** | คู่มือ `docs/engines/audio.md` |
 | **ตั้งค่าเกมตอนส่ง** | **C** | เผยแพร่ Public, ปิด Allow Copying, ใส่ description ตามกติกา, เปิด Studio API access (ให้ save ทำงาน) — docs/03 |
 
 ---
@@ -85,75 +85,13 @@
 
 ---
 
-## 3. คู่มือ Cutscene (สาย C)
+## 3. คู่มือ engine — ย้ายไป `docs/engines/` แล้ว
 
-Cutscene = list ของ step เล่นตามลำดับ อยู่ใน `ReplicatedStorage.Shared.Content.Endings/<ชื่อ ending>` (ModuleScript 6 ไฟล์: Bad1 Bad2 Bad3 Neutral1 Neutral2 Good1)
-
-**step มี 3 ชนิด:**
-
-```lua
-return {
-	{ type = "camera", cam = "Cam_Bad1_01" },        -- ตัดกล้องไปที่ Part ชื่อนี้
-	{ type = "text", text = "[slow]ข้อความขึ้นจอ" }, -- ขึ้นข้อความ (อยู่จนข้อความถัดไป)
-	{ type = "wait", t = 2 },                         -- หน่วง 2 วินาที
-	{ type = "camera", cam = "Cam_Bad1_02" },
-	{ type = "text", text = "ประโยคต่อไป" },
-}
-```
-
-**วิธีวางมุมกล้อง — ไม่ต้องพิมพ์พิกัดเลย:**
-1. สร้าง Folder ชื่อ `CutsceneCams` ใน Workspace (ครั้งเดียว)
-2. สร้าง Part เล็กๆ ตั้งชื่อ `Cam_<ending>_<เลข>` เช่น `Cam_Bad1_01` — ตั้ง Anchored ✓, Transparency 1, CanCollide ✗
-3. **หันหน้า Part (แกนลูกศร Front ตอนกด F ดู) ไปทางที่อยากให้กล้องมอง** — ตำแหน่ง Part = ตำแหน่งกล้อง
-4. เขียน step `{ type = "camera", cam = "ชื่อPart" }` ในไฟล์ ending
-
-ทริค: กดมุมมองในเกมให้สวยก่อน แล้วสร้าง Part ตรงตำแหน่งกล้องปัจจุบันก็ได้
-
-**Part กล้องที่บทเรียกใช้อยู่ตอนนี้ (ต้องมีครบก่อนส่ง — ไม่มี = warn แล้วกล้องไม่ขยับ):**
-
-| Part | ใช้ใน | ฉาก |
-|------|-------|-----|
-| `Cam_Good1_01` | Good1 | ห้องเช่าเดิม ว่างเปล่า |
-| `Cam_Good1_02` | Good1 | สตูดิโอใหม่ ปาล์มนั่งตัดคลิป |
-| `Cam_Good1_03` | Good1 | หน้าประตูสตูดิโอ (เจมาขอโทษ) |
-| `Cam_Good1_04` | Good1 | หน้าบ้านพ่อแม่ |
-| `Cam_Good1_05` | Good1 | โต๊ะกินข้าวที่บ้าน |
-| `Cam_Neutral2_01` | Neutral2 | จอคอม เลข 1,000,000 |
-| `Cam_Neutral2_02` | Neutral2 | สตูดิโอกลางดึก ไม่มีใคร |
-| `Cam_Neutral2_03` | Neutral2 | มือถือ หน้าแชทครอบครัว |
-| `Cam_Neutral2_04` | Neutral2 | หน้าต่าง แสงเช้า |
-| `Cam_Neutral1_01` | Neutral1 | โต๊ะทำงานตอนกลางวัน |
-| `Cam_BadShared_01` | Bad1/2/3 | ห้องเช่า มุมหม่น (ใช้ร่วม 3 ending) |
-
-**เช็คงานตัวเอง:** ผิด format เกมไม่พัง — จะขึ้น warn ใน Output ว่า step ไหนพัง / ถ้าพิมพ์ชื่อ Part ผิด จะ warn "ไม่เจอ Part กล้อง"
-
----
-
-## 4. คู่มือ Dialogue (สาย C)
-
-ทุกไฟล์อยู่ `ReplicatedStorage.Shared.Content` — แก้ **เฉพาะข้อความในเครื่องหมายคำพูด** ห้ามลบ comma/วงเล็บ
-
-**บท NPC** (`Content.Dialogue/Mom, Dad, Friend1, Friend2, CC1, Hater`):
-```lua
-return {
-	"แม่: กลับมาทำไม... [slow]ไม่มีเงินใช่ไหมล่ะ",  -- 1 บรรทัด = 1 กล่องข้อความ
-	"แม่: [fast]บอกกี่ครั้งแล้ว!",                    -- tag คุมความเร็ว: [slow] [fast] [normal]
-}
-```
-
-**DM มีช้อย** (`Content.DMs`) — เลือกได้แต่ NPC ตอบเหมือนเดิมทุกช้อย (ตาม design §6):
-```lua
-{ from = "Sponsor", exchanges = {
-	{ npc = "NPC ทัก", choices = { "ช้อย 1", "ช้อย 2", "ช้อย 3" }, reply = "NPC ตอบ" },
-	{ npc = "คุยต่อ...", choices = { "ก", "ข", "ค" }, reply = "..." },
-} },
-```
-
-**Comment + ช้อยตอบ** (`Content.Comments`): แต่ละ comment มี replies 3 อัน tag `pos/neu/neg` — tag มีผลต่อ ending จริง ห้ามสลับมั่ว
-
-**Canon Event** (`Content.CanonEvents`): บทตอน follower ถึง milestone — format เดียวกับบท NPC
-
-**เช็คงานตัวเอง:** บอกบอสให้ agent รันเทส — format พังเทสจะฟ้องทันทีว่าไฟล์ไหนบรรทัดไหน
+| Engine | คู่มือ |
+|--------|-------|
+| 🗣️ Dialogue (บท NPC) | `docs/engines/dialogue.md` |
+| 🎬 Cutscene (ending + มุมกล้อง) | `docs/engines/cutscene.md` |
+| 🔊 Audio (เพลง/เสียงพูด/SFX) | `docs/engines/audio.md` |
 
 ---
 

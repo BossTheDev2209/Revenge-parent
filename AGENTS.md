@@ -25,3 +25,4 @@
 | โซนหน้าที่ 3 คน + คู่มือเขียนบท/วางกล้อง | `docs/10-team-roles.md` |
 | กฎ Studio + GitHub (บังคับอ่าน) | `docs/11-workflow-rules.md` |
 | รูปที่ต้องวาด + ขนาด + คีย์ UIAssets | `docs/13-art-assets.md` |
+| **คู่มือ engine (Dialogue/Cutscene/Audio)** สำหรับคนเติมเนื้อหา | `docs/engines/` |

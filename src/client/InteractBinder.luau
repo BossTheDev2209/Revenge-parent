@@ -64,8 +64,8 @@ end
 function InteractBinder.init(deps)
 	local function onTriggered(name, part)
 		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
-			-- part ส่งต่อให้กล้อง zoom เข้าจอ (universal ทุกเครื่องที่มี Interact_pcMonitor)
-			deps.openPC(name == "Interact_pcMonitor" and part or nil)
+			-- part = จอจริง: UI แปะบนหน้า part นี้ (SurfaceGui) + กล้อง zoom เข้าหา
+			deps.openPC(part)
 		elseif name == "Interact_Bed" then
 			openBedMenu(deps.playerGui, deps.fireAction)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then

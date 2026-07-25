@@ -40,9 +40,20 @@
 | hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
 | ปุ่ม setting/เสียง | 🔴 | ปุ่มเปิด panel volume (placeholder ได้) |
 
-## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ เกือบครบ
+## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ ครบ (เปลี่ยนเป็น SurfaceGui 21 ก.ค.)
 
-icon 8 แอป + wallpaper + Exit + zoom กล้อง = มีแล้ว. เหลือ: รูป icon จริงจาก UIAssets (ทีมวาด), ตำแหน่ง icon ร่างเป็นคอลัมน์ซ้าย ✅ ตรง
+**UI อยู่บนหน้าจอ part จริงในโลก (SurfaceGui) ไม่ใช่ overlay เต็มจอ** — ตาม ref ที่ user ส่ง (จอคอมในเกมมี UI อยู่บนจอ + ปุ่ม RETURN ลอยข้างบน)
+
+| ค่า | รายละเอียด |
+|-----|------------|
+| Part จอ | `Interact_pcMonitor` **ขนาด 4 × 2.6 studs** (ทุกเครื่องเท่ากัน) หน้าจอ = ด้าน **Front** |
+| SurfaceGui | อยู่ใน PlayerGui, `Adornee` = part นั้น, `Active = true` (ปุ่มกดได้), `LightInfluence = 0` (จอเรืองแสงเอง) |
+| **Canvas** | `PixelsPerStud = 250` → **1000 × 650 px** |
+| กล้อง | zoom เข้าหน้าจอ 0.4 วิ (คำนวณระยะจาก FOV) แล้วคืนตำแหน่งเดิมตอนออก |
+| ปุ่มออก | **ScreenGui แยก** ลอยกลางบนจอผู้เล่น (ตาม ref ปุ่ม RETURN) |
+| icon แอป | คอลัมน์ซ้าย 5 แถว/คอลัมน์ แสดง **80×80** + ชื่อใต้ |
+
+→ ขนาดรูปทุกใบที่อยู่บนจอคอมต้องอิง canvas 1000×650 นี้ (docs/13 §ที่มาของขนาด)
 
 ## 3. Calendar app (PDF หน้า 6)
 

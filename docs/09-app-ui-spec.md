@@ -35,7 +35,7 @@
 | **delta popup** (+300 เด้งข้างตัวเลข) | 🔴 | client เทียบ state เก่า-ใหม่ → TextLabel เด้งจางหาย 1.5 วิ |
 | **แถบ progress สู่ 1M** | 🔴 | bar ยาวบนจอ: fill = follower/1M, ขีด milestone 1K/10K/100K, สีต่างตามเฟส |
 | storage GB | 🔴 | ผูกกับระบบอัดคลิป (§4) — โชว์ `footageGB / capacity` |
-| resolution ×mult | 🟡 | โชว์ 1080p แล้ว — เพิ่มตัวคูณ (รอสูตร resolution→VidQ ❓) |
+| resolution ×mult | 🟡 | โชว์ 1080p แล้ว — เพิ่มตัวคูณข้างๆ. **✅ lock 26 ก.ค.: ตัวคูณนี้คือ GB/คลิกตอนอัด ไม่เกี่ยวกับคุณภาพคลิป (VidQ)** อ่านจาก `Config.Record.footagePerClickGB[ระดับกล้อง]` ที่มีอยู่แล้ว |
 | mental bar | ✅ | มีสีโซนแล้ว — เพิ่มหัวใจบน/ล่างเมื่อได้รูปจาก UIAssets |
 | hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
 | ปุ่ม setting/เสียง | 🔴 | ปุ่มเปิด panel volume (placeholder ได้) |
@@ -160,3 +160,4 @@
 | 8 | Trend tag ×4 | เฟสหลัง core |
 
 **คำถามรอ user ตอบ (สรุป ❓ ทั้งหมด):** ① ความจุ storage 5 ระดับ + GB/click + ตัวคูณ tool ② ตาราง % comment ตาม tier ③ ปุ่ม ⊖⊕ ใน Bank คืออะไร ④ ตัวเลขระบบพนักงาน ⑤ วิธีย้าย block ปฏิทิน (กดเลือก vs ลากจริง) ⑥ สูตร resolution → VidQ multiplier
+→ **ทั้ง 6 ข้อตอบครบแล้ว 21–26 ก.ค.** (ข้อ ⑥ = ไม่มีสูตร กล้องคูณแค่ GB/คลิก ไม่แตะ VidQ)

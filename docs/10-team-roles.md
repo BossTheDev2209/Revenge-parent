@@ -13,7 +13,7 @@
 
 | ชั้น | งาน |
 |------|-----|
-| Engine | `RecordService` (footageGB, โซนสุ่มย้ายจุด 120 วิ, bonus 10%, เต็ม=FULL), Tool 3 ชิ้น, **ผูก resolution → VidQ** (ตอนนี้ซื้อกล้องยังไม่มีผลกับคุณภาพคลิป!) |
+| Engine | `RecordService` (footageGB, โซนสุ่มย้ายจุด 120 วิ, bonus 10%, เต็ม=FULL), Tool 3 ชิ้น |
 | UI | HUD ทั้งชุด (progress bar 1M, delta popup, storage GB, hotbar, ปุ่ม setting), Edit app (slider footage + QTE บน timeline + ปุ่ม Edit more), Shop app (การ์ด 6 ระดับ 2 หมวด) |
 | แมพ | `FilmSpot_*` ~8 จุด, เครื่อง PC เฟส 2/3 (จอ `Interact_pcMonitor` 4×2.6) |
 | รูป | HUD 14 ชิ้น + Shop 12 ชิ้น |
@@ -25,7 +25,7 @@
 - ระบบอัดคลิป + อุปกรณ์ 6 ระดับ + โซน + bonus + cooldown → **docs/02 §9.5** (ตัวเลขล็อกครบ)
 - HUD ทุกชิ้น + Record UI → **docs/09 §1, §4** | Edit → **§5** | Shop การ์ด → **§10**
 - ตัวเลข balance ทั้งหมด (`Config.Record`, `UpgradeCosts`, `ResolutionLadder`, `StorageLadderGB`) → `Shared.Config`
-- ⚠️ resolution→VidQ **ยังไม่มีสูตร** — เสนอ user ก่อน implement (docs/09 §1 หมายเหตุ)
+- ✅ **ระดับกล้องไม่แตะ VidQ เลย** (lock 26 ก.ค.) — คุณภาพคลิปมาจาก QTE อย่างเดียว กล้องคูณแค่ **GB ต่อคลิกตอนอัด** (`Config.Record.footagePerClickGB`) **ห้ามไปผูกกับ tier คลิป**
 
 ### 💼 สาย B — "ธุรกิจ & ทีมงาน"
 

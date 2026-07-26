@@ -57,7 +57,7 @@ end)
 -- PC Screen (PDF หน้า 5 "UI PC") — id ตรง key ใน UIAssets ("app_"..id)
 local PC_APPS = {
 	{ id = "edit", name = "ตัดคลิป", label = "✂️ ตัดคลิป", external = function()
-		EditQTE.start(playerGui, fireAction)
+		EditQTE.start(playerGui, fireAction, function() return latestState end)
 	end },
 	{ id = "upload", name = "อัปโหลด", label = "⬆️ อัปโหลด", create = Upload.create },
 	{ id = "feedback", name = "feedback", label = "📊 Feedback", create = Feedback.create },

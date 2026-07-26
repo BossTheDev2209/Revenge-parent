@@ -170,6 +170,9 @@ Config.Record = {
 	-- โซนถ่าย (จุดแดง PDF หน้า 4): อัดนอกโซนได้ base rate, ในโซน × ตัวคูณตามเฟส
 	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
 	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
+	-- ตัด 1 คลิปกิน footage เท่านี้ (lock 27 ก.ค.) — คงที่ ไม่ผูก VidQ เพราะ VidQ รู้หลังตัดจบ
+	-- กล้อง L1: 32 คลิก/คลิป, storage L1 เก็บได้ 4 คลิป | กล้อง L6: 1 คลิก/คลิป = เหตุผลที่ต้องอัปกล้อง
+	footagePerClipGB = 32,
 	zoneRadiusStuds = 18, -- รัศมีวงโซน (agent เลือก — ปรับได้ ไม่มีใน PDF)
 	toolNames = { "Tool_Camera", "Tool_Phone", "Tool_Selfie" }, -- hotbar 3 ช่อง (PDF หน้า 5)
 }

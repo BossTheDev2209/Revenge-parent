@@ -319,6 +319,22 @@ check("เต็มแล้ว = isFull", RecordService.isFull(rf) == true)
 local rAfter = RecordService.record(rf, { now = 20, rng = noBonus })
 check("เต็มแล้วอัดต่อไม่ได้", rAfter.ok == false and rAfter.reason == "full")
 
+-- วงจรปิด: footage → คลิป (lock 27 ก.ค. — 32 GB/คลิป คงที่ ไม่ผูก VidQ)
+local rce = GameState.newGame()
+check("footage 0 = ตัดไม่ได้", RecordService.canEdit(rce) == false)
+check("ตัดไม่ได้ = ไม่หัก footage", RecordService.spendForClip(rce) == false and rce.footageGB == 0)
+rce.footageGB = 31.9
+check("ขาดนิดเดียวก็ยังไม่ได้", RecordService.canEdit(rce) == false)
+rce.footageGB = 70
+check("ครบ 32 = ตัดได้", RecordService.canEdit(rce) == true)
+check("ตัดแล้วหัก 32", RecordService.spendForClip(rce) == true and rce.footageGB == 38)
+check("ตัดรอบ 2 ได้", RecordService.spendForClip(rce) == true and rce.footageGB == 6)
+check("เหลือ 6 GB ตัดรอบ 3 ไม่ได้", RecordService.spendForClip(rce) == false and rce.footageGB == 6)
+check("EditQTE.canEdit ตรงกับ server", EditQTE.canEdit(rce) == RecordService.canEdit(rce))
+rce.footageGB = 32
+check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == true)
+check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
+
 -- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
 local rz = GameState.newGame()
 local spots = { "FilmSpot_A", "FilmSpot_B", "FilmSpot_C" }

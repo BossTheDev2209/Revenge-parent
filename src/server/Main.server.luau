@@ -68,6 +68,8 @@ ActionRouter.register("RecordFootage", function(s, a)
 	RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
 end)
 ActionRouter.register("FinishEdit", function(s, a)
+	-- footage ไม่พอ = ไม่ได้คลิป ไม่เสียใจ (client กันไว้แล้วชั้นนึง นี่คือชั้นตัดสิน)
+	if not RecordService.spendForClip(s) then return end
 	FollowerService.finishEdit(s, a)
 	MentalService.onEdit(s) -- นับ streak ตัดคลิป 5 ติด
 	MentalService.apply(s, "clipEdit")

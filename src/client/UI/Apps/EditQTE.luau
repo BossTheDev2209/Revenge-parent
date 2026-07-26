@@ -30,10 +30,38 @@ function EditQTE.pickKeys(count: number, keys, rng)
 	return out
 end
 
+-- footage พอตัด 1 คลิปไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
+function EditQTE.canEdit(state): boolean
+	return state ~= nil and (state.footageGB or 0) >= Config.Record.footagePerClipGB
+end
+
+-- ข้อความเตือนกลางจอ 2 วิ (ใช้ตอน footage ไม่พอ)
+function EditQTE.toast(playerGui, text: string)
+	local g = Instance.new("ScreenGui")
+	g.ResetOnSpawn = false
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(0, 520, 0, 50)
+	l.Position = UDim2.new(0.5, -260, 0.35, 0)
+	l.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	l.TextColor3 = Color3.new(1, 1, 1)
+	l.TextScaled = true
+	l.Text = text
+	l.Parent = g
+	g.Parent = playerGui
+	task.delay(2, function() g:Destroy() end)
+end
+
 -- ===== UI glue (Studio เท่านั้น) =====
 -- fireAction = function(actionTable) ยิงเข้า Remotes.Action (Main.client ส่งมา)
-function EditQTE.start(playerGui, fireAction)
+-- getState = function() คืน state ล่าสุด (ใช้เช็ค footage ก่อนตัดทุกรอบ)
+function EditQTE.start(playerGui, fireAction, getState)
 	if EditQTE.running then return end
+	getState = getState or function() return nil end
+	if not EditQTE.canEdit(getState()) then
+		EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมี %d GB — ออกไปอัดคลิปก่อน")
+			:format(Config.Record.footagePerClipGB))
+		return
+	end
 	EditQTE.running = true
 
 	local UIS = game:GetService("UserInputService")
@@ -128,6 +156,11 @@ function EditQTE.start(playerGui, fireAction)
 		close.Parent = dim
 
 		more.Activated:Connect(function()
+			if not EditQTE.canEdit(getState()) then
+				EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมี %d GB — ออกไปอัดคลิปก่อน")
+					:format(Config.Record.footagePerClipGB))
+				return
+			end
 			more:Destroy()
 			close:Destroy()
 			keyLabel.TextColor3 = Color3.new(1, 1, 1)

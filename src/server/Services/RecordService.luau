@@ -62,6 +62,18 @@ function RecordService.record(state, o)
 	return { ok = true, gained = gained, bonus = bonus, full = RecordService.isFull(state), reason = nil }
 end
 
+-- ===== วงจรปิด: footage → คลิป (lock 27 ก.ค.) =====
+function RecordService.canEdit(state): boolean
+	return (state.footageGB or 0) >= Config.Record.footagePerClipGB
+end
+
+-- หัก footage เพื่อตัด 1 คลิป — ไม่พอ = false (Main ไม่สร้างคลิป ไม่หักใจ)
+function RecordService.spendForClip(state): boolean
+	if not RecordService.canEdit(state) then return false end
+	state.footageGB -= Config.Record.footagePerClipGB
+	return true
+end
+
 -- สุ่มจุดถ่ายถัดไป เลี่ยงจุดเดิม (กันโซน spawn ที่เดิมซ้ำ)
 function RecordService.pickSpot(spots, rng, current): string?
 	if #spots == 0 then return nil end

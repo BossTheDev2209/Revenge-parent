@@ -11,9 +11,10 @@ local Config = if isStudio
 local ToolService = {}
 
 -- Tool ที่ควรอยู่ในมือ ณ state นี้ (ชื่อ = ชื่อโมเดลใน ToolModels)
+-- อุปกรณ์ถ่ายมีสายเดียว: Camera_1..6 (ระดับ 1 = มือถือ) — ไม่มี Tool มือถือ/ไม้เซลฟี่แยก
 function ToolService.desiredTools(state)
 	local lv = math.clamp(state.upgrades and state.upgrades.camera or 1, 1, #Config.ResolutionLadder)
-	local out = { "Camera_" .. lv, "Selfie" }
+	local out = { "Camera_" .. lv }
 	-- โน้ตบุ๊คมีเฉพาะเฟส 1 และเฉพาะตอนยังไม่ได้วางลงพื้น
 	if state.phase == 1 and not state.notebookPlaced then
 		table.insert(out, "Notebook")
@@ -27,7 +28,7 @@ function ToolService.displayName(source: string): string
 		local lv = tonumber(source:match("%d+")) or 1
 		return ("กล้อง (%s)"):format(Config.ResolutionLadder[lv] or "?")
 	end
-	return source == "Selfie" and "ไม้เซลฟี่" or source == "Notebook" and "โน้ตบุ๊ค" or source
+	return source == "Notebook" and "โน้ตบุ๊ค" or source
 end
 
 -- ===== Roblox glue =====

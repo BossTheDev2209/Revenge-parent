@@ -174,7 +174,6 @@ Config.Record = {
 	-- กล้อง L1: 32 คลิก/คลิป, storage L1 เก็บได้ 4 คลิป | กล้อง L6: 1 คลิก/คลิป = เหตุผลที่ต้องอัปกล้อง
 	footagePerClipGB = 32,
 	zoneRadiusStuds = 18, -- รัศมีวงโซน (agent เลือก — ปรับได้ ไม่มีใน PDF)
-	toolNames = { "Tool_Camera", "Tool_Phone", "Tool_Selfie" }, -- hotbar 3 ช่อง (PDF หน้า 5)
 }
 
 Config.SponsorUnlockFollowers = 10_000

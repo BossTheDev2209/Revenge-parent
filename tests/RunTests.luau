@@ -346,8 +346,8 @@ local function toolSet(state)
 end
 local ts = GameState.newGame()
 local t1 = toolSet(ts)
-check("เฟส 1 เริ่มเกม: กล้อง L1 + ไม้เซลฟี่ + โน้ตบุ๊ค", t1.Camera_1 and t1.Selfie and t1.Notebook)
-check("ไม่มี Tool_Phone แยก (มือถือ = กล้องระดับ 1)", t1.Phone == nil)
+check("เฟส 1 เริ่มเกม: กล้อง L1 + โน้ตบุ๊ค", t1.Camera_1 and t1.Notebook)
+check("ไม่มี Tool มือถือ/ไม้เซลฟี่แยก (อุปกรณ์ถ่ายมีสายเดียว)", t1.Phone == nil and t1.Selfie == nil)
 ts.upgrades.camera = 4
 check("อัปกล้อง = เปลี่ยนโมเดลเป็น Camera_4", toolSet(ts).Camera_4 and toolSet(ts).Camera_1 == nil)
 ts.notebookPlaced = true
@@ -358,8 +358,7 @@ check("เฟส 2 ไม่มีโน้ตบุ๊ค (ห้องมี�
 ts.upgrades.camera = 99
 check("ระดับกล้องเกินตาราง = clamp ที่ 6", toolSet(ts).Camera_6 == true)
 check("ชื่อบน hotbar โชว์ resolution ไม่ใช่ key", ToolService.displayName("Camera_3") == "กล้อง (1080p)")
-check("ชื่อ Selfie/Notebook เป็นไทย", ToolService.displayName("Selfie") == "ไม้เซลฟี่"
-	and ToolService.displayName("Notebook") == "โน้ตบุ๊ค")
+check("ชื่อ Notebook เป็นไทย", ToolService.displayName("Notebook") == "โน้ตบุ๊ค")
 
 -- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
 local rz = GameState.newGame()

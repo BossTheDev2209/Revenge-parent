@@ -69,9 +69,13 @@ function EditQTE.start(playerGui, fireAction)
 	info.Parent = dim
 	gui.Parent = playerGui
 
-	task.spawn(function()
+	-- best = คะแนนดีสุดที่ทำได้ในเซสชันนี้ (server เก็บ max ให้อยู่แล้ว — โชว์ให้ตรงกัน)
+	local best = 0
+	local round
+	round = function(isRedo)
 		local seq = EditQTE.pickKeys(QTE_COUNT, QTE_KEYS)
 		local total = 0
+		bar.Visible = true
 		for i, key in seq do
 			keyLabel.Text = key
 			info.Text = ("ปุ่มที่ %d/%d | คะแนน %d"):format(i, QTE_COUNT, total)
@@ -99,24 +103,44 @@ function EditQTE.start(playerGui, fireAction)
 			keyLabel.TextColor3 = Color3.new(1, 1, 1)
 		end
 
-		fireAction({ type = "FinishEdit", score = total })
+		fireAction({ type = "FinishEdit", score = total, redo = isRedo or nil })
+		best = math.max(best, total)
 
-		-- จอสรุป (PDF จอ 3) — ไม่มีปุ่มอัปโหลดที่นี่ ต้องไปอัปที่แอป Upload
-		keyLabel.Text = Formulas.vidqTier(total)
+		-- จอสรุป (PDF จอ 3): Edit more / Done — ไม่มีปุ่มอัปโหลด ต้องไปอัปที่แอป Upload
+		keyLabel.Text = Formulas.vidqTier(best)
 		bar.Visible = false
-		info.Text = ("เสร็จ! คะแนน %d/200 = tier %s — ไปอัปที่แอป Upload"):format(total, Formulas.vidqTier(total))
+		info.Text = ("รอบนี้ %d/200 | ดีสุด %d = tier %s — ตัดซ้ำเสียใจอีก %d"):format(
+			total, best, Formulas.vidqTier(best), math.abs(Config.Mental.deltas.clipEdit))
+
+		local more = Instance.new("TextButton")
+		more.Size = UDim2.new(0, 200, 0, 44)
+		more.Position = UDim2.new(0.5, -210, 0.78, 0)
+		more.Text = "Edit more"
+		more.TextScaled = true
+		more.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+		more.Parent = dim
+
 		local close = Instance.new("TextButton")
 		close.Size = UDim2.new(0, 200, 0, 44)
-		close.Position = UDim2.new(0.5, -100, 0.78, 0)
+		close.Position = UDim2.new(0.5, 10, 0.78, 0)
 		close.Text = "Done"
 		close.TextScaled = true
 		close.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
 		close.Parent = dim
+
+		more.Activated:Connect(function()
+			more:Destroy()
+			close:Destroy()
+			keyLabel.TextColor3 = Color3.new(1, 1, 1)
+			task.spawn(round, true)
+		end)
 		close.Activated:Connect(function()
 			gui:Destroy()
 			EditQTE.running = false
 		end)
-	end)
+	end
+
+	task.spawn(round, false)
 end
 
 return EditQTE

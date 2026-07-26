@@ -10,13 +10,34 @@ local Formulas = if isStudio
 
 local FollowerService = {}
 
+-- คลิปล่าสุดที่ยังไม่อัป (เป้าของ "Edit more")
+function FollowerService.latestUnuploaded(state)
+	for i = #state.clips, 1, -1 do
+		if not state.clips[i].uploaded then return state.clips[i], i end
+	end
+	return nil, nil
+end
+
 -- client จบ QTE ส่งคะแนนมา (คะแนนไว้ใจ client ได้ — singleplayer)
+-- action.redo = "Edit more" (PDF จอ 3): ตัดคลิปเดิมซ้ำ **ไม่สร้างคลิปใหม่** เก็บคะแนนสูงสุด
+-- ราคาของการตัดซ้ำ = mental clipEdit -20 + นับ EditStreak5 อีกรอบ (Main ยิงให้ทุกครั้ง)
 function FollowerService.finishEdit(state, action)
 	local score = math.clamp(tonumber(action.score) or 0, 0, Config.MaxClipAccuracy)
+	if action.redo then
+		local clip = FollowerService.latestUnuploaded(state)
+		if clip then
+			clip.score = math.max(clip.score, score)
+			clip.tier = Formulas.vidqTier(clip.score)
+			clip.edits = (clip.edits or 1) + 1
+			return
+		end
+		-- ไม่มีคลิปค้าง = ตัดใหม่ปกติ (กัน redo ลอย)
+	end
 	table.insert(state.clips, {
 		tier = Formulas.vidqTier(score),
 		score = score,
 		uploaded = false,
+		edits = 1,
 	})
 end
 

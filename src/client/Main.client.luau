@@ -16,6 +16,7 @@ local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
+local RecordTool = require(script.Parent.RecordTool)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -29,6 +30,7 @@ local function fireAction(action)
 end
 
 Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเดิน
+RecordTool.init(Players.LocalPlayer, fireAction, function() return latestState end) -- Tool อัดคลิป + วงโซน
 
 HUD.init(playerGui)
 MenuUI.open(playerGui, { fireAction = fireAction }) -- เกมเริ่มที่เมนู (freeze จนกดเล่น)

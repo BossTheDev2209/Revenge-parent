@@ -78,7 +78,27 @@
 | sponsor spawn 5%/วัน (เฟส 2-3) | ✅ 27 ก.ค. | `rollSponsorOffer` ยิงใน `TimeService.onDay` — `Config.SponsorOfferChance/.SponsorOfferMinPhase`. เหลือแค่ (optional) เอา offer ไปโชว์ในแอป Message ด้วย |
 | งานให้ลูกน้องทำแทน | ❓ | ผูกระบบ staff (§8) — รอตัวเลข staff ก่อน |
 
-## 4. ระบบอัดคลิป — Record (PDF หน้า 7 บน) 🔴 ยังไม่มีทั้งระบบ
+## 4. ระบบอัดคลิป — Record (PDF หน้า 7 บน) 🟡 engine เสร็จ 27 ก.ค. เหลืองานแมพ + UI
+
+**สถานะจริง (27 ก.ค.):**
+
+| ชิ้น | สถานะ |
+|------|-------|
+| `RecordService` (สูตร/cooldown/cap/โซน) + เทส 20 ข้อ | ✅ |
+| `state.footageGB` / `lastRecordAt` / `filmZone` | ✅ |
+| action `RecordFootage` + โซนย้ายเองทุก 120 วิ ใน Main | ✅ |
+| Tool 3 ชิ้นใน StarterPack (`Tool_Camera/Phone/Selfie`) | ✅ สร้างใน Studio แล้ว (Handle กล่องเปล่า รอทีมเปลี่ยนเป็นโมเดลจริง) |
+| `RecordTool` client: ผูก Tool + วงโซนแดง + ป้าย ×มัลติ/เวลาเหลือ | ✅ |
+| HUD ช่อง storage อ่าน `footageGB` จริง | ✅ |
+| **Part `FilmSpot_*` ในแมพ** | 🔴 **ยังไม่มีสักจุด** — ไม่มี = ไม่มีโซน อัดได้ base rate เฉยๆ (ไม่พัง) |
+| popup "+N GB" เด้งตอนคลิก | 🔴 |
+| ❓ **ตัดคลิปกิน footage เท่าไหร่** | ยังไม่ lock — ตอนนี้ตัดได้ฟรี วงจรยังไม่ปิด |
+
+**ที่ agent เลือกเอง (ไม่มีใน PDF ปรับได้):** `zoneRadiusStuds = 18` · ปัด GB เป็น 2 ตำแหน่ง · คลิกสุดท้ายตัดให้พอดี cap ไม่ล้น · `inZone` เชื่อ client (singleplayer เหมือนคะแนน QTE) server คุมสูตร/cooldown/cap เอง
+
+---
+
+**ร่างเดิมใน PDF (เก็บไว้อ้างอิง):**
 
 **ร่างใน PDF:** ถือ tool (กล้อง/มือถือ/ไม้เซลฟี่) เดินในแมพ กด click ที่จุดต่างๆ → ได้ footage ทีละ +1 (มีจุด "+2.4 Bonus!") สะสมจนเต็มความจุ [กระเป๋า] / มุมขวา: resolution ladder โชว์ตัวคูณ ×1.5/×2/×3/×4 ตามระดับกล้อง / storage เต็ม = "1T/1T FULL" อัดต่อไม่ได้
 

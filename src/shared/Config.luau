@@ -170,6 +170,8 @@ Config.Record = {
 	-- โซนถ่าย (จุดแดง PDF หน้า 4): อัดนอกโซนได้ base rate, ในโซน × ตัวคูณตามเฟส
 	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
 	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
+	zoneRadiusStuds = 18, -- รัศมีวงโซน (agent เลือก — ปรับได้ ไม่มีใน PDF)
+	toolNames = { "Tool_Camera", "Tool_Phone", "Tool_Selfie" }, -- hotbar 3 ช่อง (PDF หน้า 5)
 }
 
 Config.SponsorUnlockFollowers = 10_000

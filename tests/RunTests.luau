@@ -278,6 +278,67 @@ FollowerService.finishEdit(re, { score = 150 })
 check("Edit more: ได้คลิปใหม่ทุกรอบ", #re.clips == 2)
 check("Edit more: คลิปแยกกัน คะแนนไม่ทับ", re.clips[1].score == 80 and re.clips[2].score == 150)
 
+-- ===== RecordService (docs/02 §9.5 — ตัวเลขทุกตัวจาก Config.Record) =====
+local RecordService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.RecordService)
+	else require("../src/server/Services/RecordService")
+
+local noBonus = function() return 0.99 end -- >= bonusChance 0.1
+local yesBonus = function() return 0.01 end
+
+local rc = GameState.newGame()
+check("ความจุเริ่มต้น = 128 GB", RecordService.capacity(rc) == 128)
+rc.upgrades.storage = 6
+check("ความจุระดับ 6 = 8192 GB", RecordService.capacity(rc) == 8192)
+rc.upgrades.storage = 1
+
+check("gainFor กล้อง 1 ไม่มีอะไร = 1 GB", RecordService.gainFor(1, false, 1) == 1)
+check("gainFor กล้อง 6 = 32 GB", RecordService.gainFor(6, false, 1) == 32)
+check("gainFor bonus ×2.4", RecordService.gainFor(1, true, 1) == 2.4)
+check("gainFor bonus ซ้อนโซนได้ (1 ×2.4 ×1.5)", RecordService.gainFor(1, true, 1.5) == 3.6)
+check("zoneMult เฟส 1/2/3 = 1.5/2/2.5", RecordService.zoneMult(1) == 1.5
+	and RecordService.zoneMult(2) == 2 and RecordService.zoneMult(3) == 2.5)
+
+local r1 = RecordService.record(rc, { now = 100, rng = noBonus })
+check("คลิกแรก: ได้ 1 GB", r1.ok and r1.gained == 1 and rc.footageGB == 1)
+local r2 = RecordService.record(rc, { now = 100.3, rng = noBonus })
+check("คลิกซ้ำใน 0.6 วิ = cooldown ไม่ได้ GB", r2.ok == false and r2.reason == "cooldown" and rc.footageGB == 1)
+local r3 = RecordService.record(rc, { now = 100.6, rng = noBonus })
+check("พ้น cooldown 0.6 วิ = อัดได้", r3.ok and rc.footageGB == 2)
+local r4 = RecordService.record(rc, { now = 102, rng = yesBonus })
+check("bonus proc = 2.4 GB + flag", r4.ok and r4.bonus == true and r4.gained == 2.4)
+local r5 = RecordService.record(rc, { now = 103, inZone = true, rng = noBonus })
+check("ในโซน เฟส 1 = 1 ×1.5", r5.gained == 1.5)
+
+-- เต็มความจุ
+local rf = GameState.newGame()
+rf.footageGB = 127.5
+local rFull = RecordService.record(rf, { now = 10, rng = noBonus })
+check("คลิกสุดท้ายตัดให้พอดี cap ไม่ล้น", rFull.gained == 0.5 and rf.footageGB == 128)
+check("เต็มแล้ว = isFull", RecordService.isFull(rf) == true)
+local rAfter = RecordService.record(rf, { now = 20, rng = noBonus })
+check("เต็มแล้วอัดต่อไม่ได้", rAfter.ok == false and rAfter.reason == "full")
+
+-- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
+local rz = GameState.newGame()
+local spots = { "FilmSpot_A", "FilmSpot_B", "FilmSpot_C" }
+check("ไม่มีจุดในแมพ = ไม่ตั้งโซน", RecordService.tickZone(rz, 0, {}, rngQueue({ 0 })) == false)
+check("ตั้งโซนครั้งแรก", RecordService.tickZone(rz, 0, spots, rngQueue({ 0 })) == true)
+check("โซนมี spot + หมดอายุที่ 120", rz.filmZone.spot == "FilmSpot_A" and rz.filmZone.expiresAt == 120)
+check("โซนยังไม่หมดอายุ = ไม่ย้าย", RecordService.tickZone(rz, 119, spots, rngQueue({ 0 })) == false)
+check("หมดอายุ = ย้าย", RecordService.tickZone(rz, 120, spots, rngQueue({ 0 })) == true)
+check("ย้ายแล้วต้องไม่ใช่จุดเดิม", rz.filmZone.spot ~= "FilmSpot_A")
+check("จุดเดียวในแมพ = อยู่ที่เดิมได้", RecordService.pickSpot({ "FilmSpot_A" }, rngQueue({ 0 }), "FilmSpot_A") == "FilmSpot_A")
+
+local RecordTool = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.RecordTool)
+	else require("../src/client/RecordTool")
+check("อยู่กลางวง = ในโซน", RecordTool.inZone({ X = 0, Z = 0 }, { X = 0, Z = 0 }, 18) == true)
+check("ขอบวงพอดี = ในโซน", RecordTool.inZone({ X = 18, Z = 0 }, { X = 0, Z = 0 }, 18) == true)
+check("เลยขอบ = นอกโซน", RecordTool.inZone({ X = 0, Z = 18.1 }, { X = 0, Z = 0 }, 18) == false)
+check("ความสูงไม่นับ (เช็คแค่ระนาบ XZ)", RecordTool.inZone({ X = 3, Z = 3 }, { X = 0, Z = 0 }, 18) == true)
+check("ไม่มีโซน = นอกโซนเสมอ", RecordTool.inZone({ X = 0, Z = 0 }, nil, 18) == false)
+
 -- ===== MoneyService (design doc §4 — หักราย 7 วัน + Bank ⊖⊕ lock 21 ก.ค.) =====
 local mo = GameState.newGame()
 check("รวมรายจ่าย phase 1 = 2200", MoneyService.weeklyTotal(mo) == 2_200)

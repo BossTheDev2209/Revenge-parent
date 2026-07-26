@@ -14,6 +14,7 @@ local CommentService = require(SSS.Services.CommentService)
 local CalendarService = require(SSS.Services.CalendarService)
 local EndingService = require(SSS.Services.EndingService)
 local StaffService = require(SSS.Services.StaffService)
+local RecordService = require(SSS.Services.RecordService)
 local Config = require(RS.Shared.Config)
 
 local state = GameState.newGame()
@@ -50,7 +51,22 @@ local function checkEnding(s)
 	end
 end
 
+-- ===== โซนถ่าย: หา FilmSpot_* ในแมพ แล้วสุ่มย้ายทุก 120 วิ (docs/02 §9.5) =====
+local function filmSpots()
+	local names = {}
+	for _, d in workspace:GetDescendants() do
+		if d:IsA("BasePart") and d.Name:sub(1, 9) == "FilmSpot_" then
+			table.insert(names, d.Name)
+		end
+	end
+	return names
+end
+
 -- ทุกการกระทำของผู้เล่น — service ไม่เรียก push เอง Main push หลัง route สำเร็จ
+ActionRouter.register("RecordFootage", function(s, a)
+	-- inZone มาจาก client (singleplayer เชื่อ client เหมือนคะแนน QTE) — server คุมสูตร/cooldown/cap เอง
+	RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
+end)
 ActionRouter.register("FinishEdit", function(s, a)
 	FollowerService.finishEdit(s, a)
 	MentalService.onEdit(s) -- นับ streak ตัดคลิป 5 ติด
@@ -195,6 +211,16 @@ TimeService.onDay(function(s)
 	checkEnding(s)
 end)
 TimeService.start(state)
+
+-- โซนถ่ายย้ายจุดเอง (กัน AFK จุดเดิม) — เช็คทุก 2 วิ ย้ายจริงเมื่อครบ 120 วิ
+task.spawn(function()
+	while true do
+		if RecordService.tickZone(state, os.clock(), filmSpots(), math.random) then
+			GameState.push(state)
+		end
+		task.wait(2)
+	end
+end)
 
 game:BindToClose(function()
 	local player = Players:GetPlayers()[1]

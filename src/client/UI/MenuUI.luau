@@ -60,8 +60,86 @@ local UIAssets = require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 local CAM_TIME = 1.2
 local FLASH_IN, FLASH_HOLD, FLASH_OUT = 0.35, 2.4, 0.6
 
+-- client เริ่มก่อน workspace replicate เสร็จ → ต้องรอ ไม่ใช่ FindFirstChild เฉยๆ
 local function scene()
-	return workspace:FindFirstChild("MenuScene")
+	local r = workspace:FindFirstChild("MenuScene") or workspace:FindFirstChild("MenuScreen")
+	if r then return r end
+	local t0 = os.clock()
+	while os.clock() - t0 < 8 do
+		task.wait(0.1)
+		r = workspace:FindFirstChild("MenuScene") or workspace:FindFirstChild("MenuScreen")
+		if r then return r end
+	end
+	return nil
+end
+
+-- ชื่อสำรองของแต่ละชิ้น: ชื่อตามสเปกก่อน ไม่เจอค่อยเดาจากชื่อที่ทีมตั้งเอง
+-- (ทีมปั้นห้องมาก่อนสเปกจะนิ่ง — โค้ดยอมปรับตามของจริง ดีกว่าให้ไปไล่เปลี่ยนชื่อทั้งห้อง)
+local ALIAS = {
+	pc = { "MenuScreen_PC", "PC", "Monitor", "Computer" },
+	book = { "MenuScreen_Book", "Open Book", "Book", "Notebook" },
+	setting = { "MenuScreen_Setting", "setting", "Setting", "Settings" },
+	credit = { "MenuScreen_Credit", "MenuScreen_Credits", "credit", "Credit", "Credits" },
+}
+local CAM_ALIAS = {
+	home = { "MenuCam_Home" },
+	book = { "MenuCam_Book" },
+	setting = { "MenuCam_Setting", "MenuCam_Settings" },
+	credit = { "MenuCam_Credit", "MenuCam_Credits" },
+	launching = { "MenuCam_PC", "MenuCam_Computer" },
+}
+
+local function findAny(root, names)
+	for _, n in names do
+		local f = root:FindFirstChild(n, true)
+		if f then return f end
+	end
+	return nil
+end
+
+-- หน้าจอที่ใช้แปะ UI = BasePart ที่มี "หน้ากว้างสุด" ในกลุ่มนั้น
+-- (ถ้าชี้มาที่ Model เช่น PC หรือ Open Book ก็ไล่หาชิ้นที่เป็นจอ/หน้ากระดาษให้เอง)
+local function faceAreas(p)
+	local s = p.Size
+	return {
+		{ Enum.NormalId.Front, s.X * s.Y }, { Enum.NormalId.Back, s.X * s.Y },
+		{ Enum.NormalId.Left, s.Z * s.Y }, { Enum.NormalId.Right, s.Z * s.Y },
+		{ Enum.NormalId.Top, s.X * s.Z }, { Enum.NormalId.Bottom, s.X * s.Z },
+	}
+end
+
+local function biggestFaceArea(p)
+	local best = 0
+	for _, f in faceAreas(p) do best = math.max(best, f[2]) end
+	return best
+end
+
+local function screenPartOf(inst)
+	if not inst then return nil end
+	if inst:IsA("BasePart") then return inst end
+	local best, bestArea = nil, -1
+	for _, d in inst:GetDescendants() do
+		if d:IsA("BasePart") then
+			local a = biggestFaceArea(d)
+			if a > bestArea then best, bestArea = d, a end
+		end
+	end
+	return best
+end
+
+-- หน้าไหนของ Part ที่หันเข้าหากล้อง (ทีมหมุน Part ทางไหนก็ได้ โค้ดหาเอง)
+local function faceToward(part, camPos)
+	local toCam = (camPos - part.Position)
+	if toCam.Magnitude < 1e-3 then return Enum.NormalId.Front end
+	toCam = toCam.Unit
+	local best, bestScore = Enum.NormalId.Front, -math.huge
+	for _, f in faceAreas(part) do
+		local n = part.CFrame:VectorToWorldSpace(Vector3.FromNormalId(f[1]))
+		-- เอาหน้าที่ทั้ง "หันเข้าหากล้อง" และ "กว้าง" (กันเลือกขอบบางๆ ของจอ)
+		local score = n:Dot(toCam) * f[2]
+		if score > bestScore then best, bestScore = f[1], score end
+	end
+	return best
 end
 
 -- ล็อกตัวละครไว้ระหว่างอยู่ในเมนู (ไม่งั้นเดินได้ตั้งแต่ยังไม่กดเล่น)
@@ -86,25 +164,71 @@ end
 
 -- tween ใส่ CFrameValue ไม่ใช่ camera ตรงๆ — camGuard เป็นคนคัดลอกลงกล้องทุกเฟรม
 -- (ถ้า tween ลงกล้องตรงๆ default camera script ของ Roblox จะเขียนทับตอนตัวละครเกิด)
-local function tweenCamTo(holder, part, time: number)
-	if not part then return end
+local function tweenCamTo(holder, goalCF, time: number)
+	if not goalCF then return end
 	TweenService:Create(holder, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Value = cfOf(part) }):Play()
+		{ Value = goalCF }):Play()
 end
 
-local function surfaceOn(part, playerGui, name)
-	if not part then return nil end
+-- ★ ไม่แปะ SurfaceGui บนของที่ทีมปั้นตรงๆ — สร้าง "แผ่น canvas ล่องหน" ลอยหน้าของแทน
+-- เหตุผล: ของจริงเป็น MeshPart/Model หมุนมั่วทางไหนก็ได้ เดาว่าหน้าไหนคือหน้าที่เห็นไม่ได้ 100%
+-- และผิวจริงของ mesh มักนูนกว่ากล่อง bounding box ทำให้ UI จมหายเข้าไปในเนื้อโมเดล
+-- แผ่นลอยหน้า = หันเข้ากล้องเป๊ะเสมอ ตัวหนังสือตั้งตรงเสมอ ไม่ว่าทีมจะวางของท่าไหน
+-- camCF = CFrame ของกล้อง "ตอนดูหน้านั้นจริงๆ" (ผ่าน cfOf แล้ว = ไม่มี roll)
+-- ห้ามส่ง CFrame ของ Part กล้องดิบๆ มา — ทีมหมุน Part เอียงได้ ตัวหนังสือจะเอียงตาม
+local function makeCanvas(target, camCF, playerGui, name, marginScale)
+	if not target or not camCF then return nil end
+	local center, size
+	if target:IsA("BasePart") then
+		center, size = target.Position, target.Size
+	else
+		local cf, s = target:GetBoundingBox()
+		center, size = cf.Position, s
+	end
+
+	local n = (camCF.Position - center)
+	if n.Magnitude < 1e-3 then return nil end
+	local dist = n.Magnitude
+	n = n.Unit
+
+	-- ใช้หน้า Front + CFrame.lookAt เหมือน PCScreen: LookVector = หน้าจอ, +Y = ด้านบน canvas
+	-- (หน้า Top เคยลองแล้ว mapping ของ canvas ไม่ตรงกับที่คิด ตัวหนังสือหมุน 90°)
+	-- ใช้แกน Y ของโลกเป็น "ด้านบน" ไม่ใช่ UpVector ของ Part กล้อง — ทีมหมุน Part เอียงได้
+	local up = camCF.UpVector -- ด้านบนของภาพที่ผู้เล่นเห็นจริง (กล้องมองก้ม/เงยเท่าไหร่ก็ตรงเสมอ)
+	local pos = center + n * math.min(0.15, dist * 0.15)
+	local cf = CFrame.lookAt(pos, pos + n, up)
+
+	-- ขนาดแผ่น = 2 ด้านที่ใหญ่สุดของของชิ้นนั้น (เรียงมาก→น้อย)
+	local dims = { size.X, size.Y, size.Z }
+	table.sort(dims, function(a, b) return a > b end)
+	local h, w = dims[1], dims[2]
+	local m = marginScale or 0.92
+
+	local p = Instance.new("Part")
+	p.Name = "MenuCanvas_" .. name
+	p.Size = Vector3.new(w * m, h * m, 0.05)
+	p.CFrame = cf
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Transparency = 1
+	p.Parent = workspace
+
 	local sg = Instance.new("SurfaceGui")
 	sg.Name = name
-	sg.Adornee = part
+	sg.Adornee = p
 	sg.Face = Enum.NormalId.Front
-	sg.PixelsPerStud = 250
+	-- canvas ยาว ~1000 px เสมอ (ของชิ้นเล็กอย่างสมุดถ้าใช้ 250 คงที่ ตัวหนังสือจะเละ)
+	sg.PixelsPerStud = math.clamp(1000 / math.max(p.Size.X, p.Size.Y, 0.1), 100, 2000)
 	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	sg.LightInfluence = 0
+	sg.AlwaysOnTop = false
 	sg.Active = true
 	sg.ResetOnSpawn = false
 	sg.Parent = playerGui
-	return sg
+	sg:SetAttribute("CanvasPart", true)
+	return sg, p
 end
 
 local function textButton(parent, text, pos, size, color)
@@ -135,8 +259,8 @@ function MenuUI.open(playerGui, deps)
 	-- client จะได้แต่ Model เปล่าๆ ไม่มี Part ข้างใน (docs/05 §3.7)
 	local home = root and root:WaitForChild("MenuCam_Home", 5)
 	if not root or not home then
-		warn("[MenuUI] " .. (root and "MenuScene ไม่มี MenuCam_Home (ตั้ง ModelStreamingMode = Persistent หรือยัง?)"
-			or "ไม่มี Workspace.MenuScene") .. " — ใช้เมนูปุ่มลอยแทน (docs/05 §3.7)")
+		warn("[MenuUI] " .. (root and "ห้องเมนูไม่มี MenuCam_Home (ตั้ง ModelStreamingMode = Persistent หรือยัง?)"
+			or "ไม่มี Workspace.MenuScene / MenuScreen") .. " — ใช้เมนูปุ่มลอยแทน (docs/05 §3.7)")
 		return MenuUI.openFallback(playerGui, deps)
 	end
 
@@ -164,13 +288,44 @@ function MenuUI.open(playerGui, deps)
 	MenuUI.running = true
 	MenuUI.busy = false
 
-	-- ซ่อน HUD ระหว่างอยู่ในเมนู (ไม่งั้นหลอดใจ/ตัวเลขลอยทับฉาก)
+	-- ซ่อน HUD + วงโซนถ่าย ระหว่างอยู่ในเมนู (ไม่งั้นลอยทับฉาก)
 	local hud = playerGui:FindFirstChild("Gui_HUD")
 	if hud then hud.Enabled = false end
-
-	local function part(name)
-		return root:FindFirstChild(name, true)
+	local ring = workspace:FindFirstChild("FilmZoneRing")
+	if ring then
+		ring.Transparency = 1
+		for _, b in ring:GetDescendants() do
+			if b:IsA("BillboardGui") then b.Enabled = false end
+		end
 	end
+
+	-- ===== หาของในห้อง (ยอมรับทั้งชื่อตามสเปกและชื่อที่ทีมตั้งเอง) =====
+	local pcScreen = screenPartOf(findAny(root, ALIAS.pc))
+	local bookPart = screenPartOf(findAny(root, ALIAS.book))
+	local setPart = screenPartOf(findAny(root, ALIAS.setting))
+	local credPart = screenPartOf(findAny(root, ALIAS.credit))
+
+	local camParts = {}
+	for key, names in CAM_ALIAS do camParts[key] = findAny(root, names) end
+
+	-- ไม่มี Part กล้องหน้าจอคอม → คำนวณเอง: ลอยหน้าจอพอดีเฟรม (ทีมไม่ต้องวางเพิ่ม)
+	local pcCamCF = nil
+	if not camParts.launching and pcScreen then
+		local face = faceToward(pcScreen, (camParts.home or home).Position)
+		local n = pcScreen.CFrame:VectorToWorldSpace(Vector3.FromNormalId(face))
+		local span = math.max(pcScreen.Size.X, pcScreen.Size.Y, pcScreen.Size.Z)
+		local dist = (span / 2) / math.tan(math.rad(camera.FieldOfView / 2)) * 1.1
+		local eye = pcScreen.Position + n * dist
+		pcCamCF = CFrame.lookAt(eye, pcScreen.Position)
+	end
+
+	local function camCFFor(screenName)
+		local p = camParts[screenName]
+		if p then return cfOf(p) end
+		if screenName == "launching" and pcCamCF then return pcCamCF end
+		return cfOf(camParts.home or home)
+	end
+
 	camHolder.Value = cfOf(home)
 	camera.CFrame = camHolder.Value
 
@@ -216,15 +371,22 @@ function MenuUI.open(playerGui, deps)
 
 	local back = textButton(gui, "◀ ย้อนกลับ", UDim2.new(0, 40, 1, -80), UDim2.new(0, 200, 0, 52),
 		Color3.fromRGB(60, 60, 80))
+	back.Name = "Btn_Back"
 	back.Visible = false
 
 	gui.Parent = playerGui
 
 	-- ===== SurfaceGui บนของจริง =====
-	local bookGui = surfaceOn(part("MenuScreen_Book"), playerGui, "Gui_MenuBook")
-	local setGui = surfaceOn(part("MenuScreen_Setting"), playerGui, "Gui_MenuSetting")
-	local credGui = surfaceOn(part("MenuScreen_Credit"), playerGui, "Gui_MenuCredit")
-	local pcPart = part("MenuScreen_PC")
+	local canvasParts = {}
+	local function canvasFor(target, screenKey, name)
+		local sg, p = makeCanvas(target, camCFFor(screenKey), playerGui, name)
+		if p then table.insert(canvasParts, p) end
+		return sg
+	end
+	local bookGui = canvasFor(findAny(root, ALIAS.book), "book", "Gui_MenuBook")
+	local setGui = canvasFor(setPart, "setting", "Gui_MenuSetting")
+	local credGui = canvasFor(credPart, "credit", "Gui_MenuCredit")
+	local pcPart = pcScreen
 
 	local slotBtns = {}
 	if bookGui then
@@ -237,9 +399,11 @@ function MenuUI.open(playerGui, deps)
 			img.ScaleType = Enum.ScaleType.Crop
 			img.Parent = bookGui
 		end
+		-- ทุกตำแหน่งเป็น scale ล้วน: ของแต่ละชิ้นในห้องสัดส่วนไม่เท่ากัน
+		-- (สมุดเป็น MeshPart แนวตั้ง จอเป็นแนวนอน) ใช้ pixel ตายตัวแล้วจะหลุดกรอบ
 		local head = Instance.new("TextLabel")
-		head.Size = UDim2.new(1, -40, 0, 90)
-		head.Position = UDim2.new(0, 20, 0, 10)
+		head.Size = UDim2.new(0.9, 0, 0.1, 0)
+		head.Position = UDim2.new(0.05, 0, 0.02, 0)
 		head.BackgroundTransparency = 1
 		head.TextColor3 = Color3.fromRGB(40, 35, 30)
 		head.TextScaled = true
@@ -247,7 +411,7 @@ function MenuUI.open(playerGui, deps)
 		head.Parent = bookGui
 		for i = 1, 4 do
 			local b = textButton(bookGui, MenuUI.slotLine(i, nil),
-				UDim2.new(0, 20, 0, 100 + (i - 1) * 110), UDim2.new(1, -40, 0, 96),
+				UDim2.new(0.05, 0, 0.15 + (i - 1) * 0.2, 0), UDim2.new(0.9, 0, 0.17, 0),
 				Color3.fromRGB(245, 240, 225))
 			b.TextColor3 = Color3.fromRGB(40, 35, 30)
 			b.BackgroundTransparency = 0.1
@@ -257,8 +421,8 @@ function MenuUI.open(playerGui, deps)
 
 	if credGui then
 		local l = Instance.new("TextLabel")
-		l.Size = UDim2.new(1, -40, 1, -40)
-		l.Position = UDim2.new(0, 20, 0, 20)
+		l.Size = UDim2.new(0.9, 0, 0.9, 0)
+		l.Position = UDim2.new(0.05, 0, 0.05, 0)
 		l.BackgroundTransparency = 1
 		l.TextColor3 = Color3.new(1, 1, 1)
 		l.TextScaled = true
@@ -268,8 +432,8 @@ function MenuUI.open(playerGui, deps)
 
 	if setGui then
 		local head = Instance.new("TextLabel")
-		head.Size = UDim2.new(1, -40, 0, 80)
-		head.Position = UDim2.new(0, 20, 0, 10)
+		head.Size = UDim2.new(0.9, 0, 0.1, 0)
+		head.Position = UDim2.new(0.05, 0, 0.03, 0)
 		head.BackgroundTransparency = 1
 		head.TextColor3 = Color3.new(1, 1, 1)
 		head.TextScaled = true
@@ -277,24 +441,24 @@ function MenuUI.open(playerGui, deps)
 		head.Parent = setGui
 
 		local volLabel = Instance.new("TextLabel")
-		volLabel.Size = UDim2.new(1, -40, 0, 60)
-		volLabel.Position = UDim2.new(0, 20, 0, 100)
+		volLabel.Size = UDim2.new(0.9, 0, 0.08, 0)
+		volLabel.Position = UDim2.new(0.05, 0, 0.18, 0)
 		volLabel.BackgroundTransparency = 1
 		volLabel.TextColor3 = Color3.new(1, 1, 1)
 		volLabel.TextScaled = true
 		volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
 		volLabel.Parent = setGui
 		local function vol(text, x, dir)
-			local b = textButton(setGui, text, UDim2.new(0, x, 0, 165), UDim2.new(0, 90, 0, 70))
+			local b = textButton(setGui, text, UDim2.new(x, 0, 0.29, 0), UDim2.new(0.4, 0, 0.11, 0))
 			b.Activated:Connect(function()
 				Audio.setVolume(Audio.getVolume() + dir * 0.1)
 				volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
 			end)
 		end
-		vol("⊖", 20, -1)
-		vol("⊕", 130, 1)
+		vol("⊖", 0.05, -1)
+		vol("⊕", 0.55, 1)
 
-		local shadow = textButton(setGui, "", UDim2.new(0, 20, 0, 255), UDim2.new(1, -40, 0, 70))
+		local shadow = textButton(setGui, "", UDim2.new(0.05, 0, 0.45, 0), UDim2.new(0.9, 0, 0.11, 0))
 		local function shadowText()
 			shadow.Text = "🌓 เงา: " .. (game:GetService("Lighting").GlobalShadows and "เปิด" or "ปิด")
 		end
@@ -321,7 +485,7 @@ function MenuUI.open(playerGui, deps)
 		homePanel.Visible = name == "home"
 		back.Visible = name ~= "home"
 		showSurface(name)
-		tweenCamTo(camHolder, part(MenuUI.camFor(name)), CAM_TIME)
+		tweenCamTo(camHolder, camCFFor(name), CAM_TIME)
 	end
 	back.Activated:Connect(function() goto_("home") end)
 
@@ -332,13 +496,20 @@ function MenuUI.open(playerGui, deps)
 		homePanel.Visible = false
 		back.Visible = false
 		showSurface(nil)
-		tweenCamTo(camHolder, part("MenuCam_PC"), CAM_TIME)
+		tweenCamTo(camHolder, camCFFor("launching"), CAM_TIME)
 
 		task.delay(CAM_TIME, function()
 			if action then deps.fireAction(action) end
 			if pcPart then -- จอสว่างเองด้วย ไม่ใช่แค่แผ่นขาวทับจอผู้เล่น
+				local mat, col = pcPart.Material, pcPart.Color
 				pcPart.Material = Enum.Material.Neon
 				pcPart.Color = Color3.new(1, 1, 1)
+				-- คืนสภาพจอหลังวาบจบ (เป็นของที่ทีมปั้น ห้ามทิ้งไว้ขาวถาวร)
+				task.delay(FLASH_IN + FLASH_HOLD + FLASH_OUT, function()
+					if pcPart.Parent then
+						pcPart.Material, pcPart.Color = mat, col
+					end
+				end)
 			end
 			flash.Visible = true
 			TweenService:Create(flash, TweenInfo.new(FLASH_IN), { BackgroundTransparency = 0 }):Play()
@@ -354,12 +525,19 @@ function MenuUI.open(playerGui, deps)
 				camera.CameraType = Enum.CameraType.Custom
 				freezeCharacter(player, false)
 				if hud then hud.Enabled = true end
+				if ring then
+					ring.Transparency = 0.7
+					for _, b in ring:GetDescendants() do
+						if b:IsA("BillboardGui") then b.Enabled = true end
+					end
+				end
 				deps.fireAction({ type = "FreezeTime", on = false })
 				MenuUI.running = false
 				MenuUI.updateSlots = nil
 				if bookGui then bookGui:Destroy() end
 				if setGui then setGui:Destroy() end
 				if credGui then credGui:Destroy() end
+				for _, p in canvasParts do p:Destroy() end
 
 				local out = TweenService:Create(flash, TweenInfo.new(FLASH_OUT), { BackgroundTransparency = 1 })
 				out:Play()
@@ -372,16 +550,19 @@ function MenuUI.open(playerGui, deps)
 	local latest = nil
 	local continueBtn = textButton(homePanel, "▶ เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
 		Color3.fromRGB(45, 95, 175))
+	continueBtn.Name = "Btn_Continue"
 	continueBtn.Parent = homePanel
 	continueBtn.Activated:Connect(function()
 		launch(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
 	end)
-	textButton(homePanel, "📖 สมุดบันทึก (โหลดเซฟ)", UDim2.new(0, 40, 0, 284), UDim2.new(0, 340, 0, 62))
-		.Activated:Connect(function() goto_("book") end)
-	textButton(homePanel, "⚙️ ตั้งค่า", UDim2.new(0, 40, 0, 358), UDim2.new(0, 340, 0, 62))
-		.Activated:Connect(function() goto_("setting") end)
-	textButton(homePanel, "👥 เครดิต", UDim2.new(0, 40, 0, 432), UDim2.new(0, 340, 0, 62))
-		.Activated:Connect(function() goto_("credit") end)
+	local function navBtn(label, y, target)
+		local b = textButton(homePanel, label, UDim2.new(0, 40, 0, y), UDim2.new(0, 340, 0, 62))
+		b.Name = "Btn_" .. target
+		b.Activated:Connect(function() goto_(target) end)
+	end
+	navBtn("📖 สมุดบันทึก (โหลดเซฟ)", 284, "book")
+	navBtn("⚙️ ตั้งค่า", 358, "setting")
+	navBtn("👥 เครดิต", 432, "credit")
 
 	for i = 1, 4 do
 		local b = slotBtns[i]

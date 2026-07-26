@@ -77,7 +77,7 @@ end
 -- (ทีมปั้นห้องมาก่อนสเปกจะนิ่ง — โค้ดยอมปรับตามของจริง ดีกว่าให้ไปไล่เปลี่ยนชื่อทั้งห้อง)
 local ALIAS = {
 	pc = { "MenuScreen_PC", "PC", "Monitor", "Computer" },
-	book = { "MenuScreen_Book", "Open Book", "Book", "Notebook" },
+	book = { "MenuScreen_Book", "OpenBook", "Open Book", "Book", "Notebook" },
 	setting = { "MenuScreen_Setting", "setting", "Setting", "Settings" },
 	credit = { "MenuScreen_Credit", "MenuScreen_Credits", "credit", "Credit", "Credits" },
 }
@@ -93,6 +93,15 @@ local function findAny(root, names)
 	for _, n in names do
 		local f = root:FindFirstChild(n, true)
 		if f then return f end
+	end
+	-- ไม่เจอชื่อเป๊ะ → เดาจากชื่อที่มีคำนั้นอยู่ (ทีมเปลี่ยนชื่อของแล้วเมนูไม่พัง)
+	for _, n in names do
+		local key = n:lower():gsub("%s+", "")
+		for _, d in root:GetDescendants() do
+			if d:IsA("BasePart") or d:IsA("Model") then
+				if d.Name:lower():gsub("%s+", ""):find(key, 1, true) then return d end
+			end
+		end
 	end
 	return nil
 end
@@ -158,8 +167,13 @@ local function freezeCharacter(player, on: boolean)
 	end
 end
 
+-- กล้อง = ตำแหน่ง + ทิศที่ Part หันหน้า
+-- มองตรงลง/ตรงขึ้น: lookAt กับ up โลกจะ degenerate (roll มั่ว) → ใช้ UpVector ของ Part แทน
+-- แปลว่าทีมหมุน Part กล้องที่มองลง = หมุนภาพที่เห็นได้จริง (เช่นให้สมุดวางขวางจอ)
 local function cfOf(part)
-	return CFrame.lookAt(part.Position, part.Position + part.CFrame.LookVector)
+	local look = part.CFrame.LookVector
+	local up = math.abs(look.Y) > 0.99 and part.CFrame.UpVector or Vector3.yAxis
+	return CFrame.lookAt(part.Position, part.Position + look, up)
 end
 
 -- tween ใส่ CFrameValue ไม่ใช่ camera ตรงๆ — camGuard เป็นคนคัดลอกลงกล้องทุกเฟรม
@@ -178,13 +192,13 @@ end
 -- ห้ามส่ง CFrame ของ Part กล้องดิบๆ มา — ทีมหมุน Part เอียงได้ ตัวหนังสือจะเอียงตาม
 local function makeCanvas(target, camCF, playerGui, name, marginScale)
 	if not target or not camCF then return nil end
-	local center, size
+	local boxCF, size
 	if target:IsA("BasePart") then
-		center, size = target.Position, target.Size
+		boxCF, size = target.CFrame, target.Size
 	else
-		local cf, s = target:GetBoundingBox()
-		center, size = cf.Position, s
+		boxCF, size = target:GetBoundingBox()
 	end
+	local center = boxCF.Position
 
 	local n = (camCF.Position - center)
 	if n.Magnitude < 1e-3 then return nil end
@@ -195,13 +209,41 @@ local function makeCanvas(target, camCF, playerGui, name, marginScale)
 	-- (หน้า Top เคยลองแล้ว mapping ของ canvas ไม่ตรงกับที่คิด ตัวหนังสือหมุน 90°)
 	-- ใช้แกน Y ของโลกเป็น "ด้านบน" ไม่ใช่ UpVector ของ Part กล้อง — ทีมหมุน Part เอียงได้
 	local up = camCF.UpVector -- ด้านบนของภาพที่ผู้เล่นเห็นจริง (กล้องมองก้ม/เงยเท่าไหร่ก็ตรงเสมอ)
-	local pos = center + n * math.min(0.15, dist * 0.15)
-	local cf = CFrame.lookAt(pos, pos + n, up)
+	local pos, cf
 
-	-- ขนาดแผ่น = 2 ด้านที่ใหญ่สุดของของชิ้นนั้น (เรียงมาก→น้อย)
-	local dims = { size.X, size.Y, size.Z }
-	table.sort(dims, function(a, b) return a > b end)
-	local h, w = dims[1], dims[2]
+	-- ขนาดแผ่น = "เงา" ของวัตถุจริงบนแกนขวา/บนของกล้อง
+	-- คำนวณจากมุมทั้ง 8 ของทุก Part ฉายลงแกนกล้องตรงๆ — ไม่ต้องเดาว่า bounding box หันทางไหน
+	-- (เคยลองใช้แกนโลก/แกน box แล้วพลาดทั้งคู่: โปสเตอร์ติดผนังกับสมุดวางโต๊ะถูกหมุนคนละแบบ)
+	local right = up:Cross(n).Unit
+	local parts = {}
+	if target:IsA("BasePart") then
+		parts[1] = target
+	else
+		for _, d in target:GetDescendants() do
+			if d:IsA("BasePart") then table.insert(parts, d) end
+		end
+	end
+	local minR, maxR, minU, maxU = math.huge, -math.huge, math.huge, -math.huge
+	for _, pt in parts do
+		local hx, hy, hz = pt.Size.X / 2, pt.Size.Y / 2, pt.Size.Z / 2
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					local wp = pt.CFrame * Vector3.new(sx * hx, sy * hy, sz * hz)
+					local r, u2 = wp:Dot(right), wp:Dot(up)
+					minR, maxR = math.min(minR, r), math.max(maxR, r)
+					minU, maxU = math.min(minU, u2), math.max(maxU, u2)
+				end
+			end
+		end
+	end
+	if minR == math.huge then return nil end
+	local w, h = maxR - minR, maxU - minU
+	-- จัดกึ่งกลางให้ตรงกับเงาจริง (bounding box อาจเบี้ยวจากชิ้นส่วนที่ยื่นออกมา)
+	center = center + right * ((minR + maxR) / 2 - center:Dot(right))
+		+ up * ((minU + maxU) / 2 - center:Dot(up))
+	pos = center + n * math.min(0.15, dist * 0.15)
+	cf = CFrame.lookAt(pos, pos + n, up)
 	local m = marginScale or 0.92
 
 	local p = Instance.new("Part")

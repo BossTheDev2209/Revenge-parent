@@ -750,6 +750,20 @@ hudS.footageGB = 0
 hudS.upgrades.storage = 4
 check("ความจุ ≥1024 โชว์เป็น T", HUD.storageText(hudS) == "💾 0 GB / 1T")
 
+check("comma: หลักเดียว", HUD.comma(7) == "7")
+check("comma: 1024 = 1,024", HUD.comma(1024) == "1,024")
+check("comma: 1000000 = 1,000,000", HUD.comma(1_000_000) == "1,000,000")
+check("comma: 100 ไม่ใส่ comma", HUD.comma(100) == "100")
+
+-- progress bar แบ่ง 10/40/50 ตามเฟส ไม่ linear (docs/09 §0)
+check("progress 0 = 0%", HUD.progressPct(0) == 0)
+check("progress 10K = 10% พอดี (จบเฟส 1)", math.abs(HUD.progressPct(10_000) - 0.10) < 1e-9)
+check("progress 100K = 50% พอดี (จบเฟส 2)", math.abs(HUD.progressPct(100_000) - 0.50) < 1e-9)
+check("progress 1M = 100%", math.abs(HUD.progressPct(1_000_000) - 1) < 1e-9)
+check("progress 5K = 5% (กลางเฟส 1)", math.abs(HUD.progressPct(5_000) - 0.05) < 1e-9)
+check("progress เกิน 1M ไม่ล้น", HUD.progressPct(5_000_000) == 1)
+check("progress ติดลบ = 0", HUD.progressPct(-100) == 0)
+
 -- ===== AudioService (docs/02 §9.9) =====
 local Audio = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AudioService)

@@ -43,6 +43,28 @@ end
 local SoundService = if isStudio then game:GetService("SoundService") else nil
 local warned = {}
 
+-- SoundService ไม่มี property Volume — คุมระดับเสียงรวมต้องผ่าน SoundGroup
+local masterGroup = nil
+local function master()
+	if not masterGroup then
+		masterGroup = SoundService:FindFirstChild("Master")
+		if not masterGroup then
+			masterGroup = Instance.new("SoundGroup")
+			masterGroup.Name = "Master"
+			masterGroup.Parent = SoundService
+		end
+	end
+	return masterGroup
+end
+
+function AudioService.getVolume(): number
+	return master().Volume
+end
+
+function AudioService.setVolume(v: number)
+	master().Volume = math.clamp(v, 0, 1)
+end
+
 local function findSound(folderName: string, soundName: string)
 	if not soundName or soundName == "" then return nil end
 	local folder = SoundService:FindFirstChild(folderName)
@@ -66,6 +88,7 @@ function AudioService.sfx(name: string, pitchVary: number?)
 	if pitchVary and pitchVary > 0 then
 		s.PlaybackSpeed = src.PlaybackSpeed + (math.random() * 2 - 1) * pitchVary
 	end
+	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
 	s.Ended:Once(function() s:Destroy() end)
@@ -82,6 +105,7 @@ function AudioService.voice(npcName: string?)
 	if not src then return end
 	local s = src:Clone()
 	s.PlaybackSpeed = src.PlaybackSpeed + (math.random() * 2 - 1) * Config.Audio.voicePitchVary
+	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
 	s.Ended:Once(function() s:Destroy() end)
@@ -106,6 +130,7 @@ function AudioService.bgm(name: string?, fadeTime: number?)
 	s.Looped = true
 	local target = src.Volume
 	s.Volume = 0
+	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
 	game:GetService("TweenService"):Create(s, TweenInfo.new(t), { Volume = target }):Play()
@@ -124,6 +149,7 @@ function AudioService.ambient(name: string?)
 	s.Looped = true
 	local target = src.Volume
 	s.Volume = 0
+	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
 	game:GetService("TweenService"):Create(s, TweenInfo.new(Config.Audio.bgmFade), { Volume = target }):Play()

@@ -789,6 +789,25 @@ check("progress 5K = 5% (กลางเฟส 1)", math.abs(HUD.progressPct(5_0
 check("progress เกิน 1M ไม่ล้น", HUD.progressPct(5_000_000) == 1)
 check("progress ติดลบ = 0", HUD.progressPct(-100) == 0)
 
+-- ===== MenuUI แบบฉากจริง (plans/2026-07-27-menu-scene.md) =====
+local MenuUI = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.MenuUI)
+	else require("../src/client/UI/MenuUI")
+check("หน้า home → กล้อง Home", MenuUI.camFor("home") == "MenuCam_Home")
+check("หน้าสมุด → กล้อง Book", MenuUI.camFor("book") == "MenuCam_Book")
+check("ตอนเข้าเกม → กล้อง PC", MenuUI.camFor("launching") == "MenuCam_PC")
+check("ชื่อหน้ามั่ว → ตกกลับ Home ไม่ error", MenuUI.camFor("อะไรไม่รู้") == "MenuCam_Home")
+check("ช่องว่าง = ยังไม่เขียน", MenuUI.slotLine(2, nil):find("ยังว่าง") ~= nil)
+check("ช่องมี save โชว์ วัน/follower/เฟส", (function()
+	local t = MenuUI.slotLine(1, { day = 12, follower = 5400, phase = 2 })
+	return t:find("12") and t:find("5400") and t:find("เฟส 2") ~= nil
+end)())
+check("latestSlot: ไม่มี save เลย = nil", MenuUI.latestSlot({}) == nil)
+check("latestSlot: เลือกช่องที่เซฟล่าสุด", MenuUI.latestSlot({
+	[1] = { savedAt = 100 }, [3] = { savedAt = 900 }, [4] = { savedAt = 500 },
+}) == 3)
+check("latestSlot: savedAt หาย = ถือว่า 0 ไม่ crash", MenuUI.latestSlot({ [2] = {} }) == 2)
+
 -- ===== AudioService (docs/02 §9.9) =====
 local Audio = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AudioService)

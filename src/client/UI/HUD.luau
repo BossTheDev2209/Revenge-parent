@@ -132,7 +132,8 @@ function HUD.init(playerGui)
 
 	local panel = box(gui, { 0, 8 }, { 1, -230 }, 220, 88) -- เหนือช่อง storage ไม่ทับอะไร
 	panel.Visible = false
-	local volLabel = label(panel, "🔊 เสียง 100%")
+	local Audio = require(script.Parent.Parent.AudioService)
+	local volLabel = label(panel, ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5)))
 	volLabel.Size = UDim2.new(1, -12, 0, 34)
 	local function volBtn(text, x, dir)
 		local b = Instance.new("TextButton")
@@ -144,9 +145,8 @@ function HUD.init(playerGui)
 		b.Text = text
 		b.Parent = panel
 		b.Activated:Connect(function()
-			local sound = game:GetService("SoundService")
-			sound.Volume = math.clamp(sound.Volume + dir * 0.1, 0, 1)
-			volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(sound.Volume * 100 + 0.5))
+			Audio.setVolume(Audio.getVolume() + dir * 0.1)
+			volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
 		end)
 	end
 	volBtn("⊖", 10, -1)

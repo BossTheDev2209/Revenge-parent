@@ -271,19 +271,12 @@ local upOk2, upViral2 = FollowerService.uploadClip(fs, { clip = 1 }, 50, rngQueu
 check("clip S viral: base 400 ×2 ×4 = 3200", upOk2 and upViral2 and fs.follower == 9_900 + 3_200)
 check("ข้าม gate → phase 2", fs.phase == 2)
 
--- Edit more: ตัดซ้ำคลิปเดิม ไม่สร้างคลิปใหม่ เก็บคะแนนสูงสุด (docs/09 §5)
+-- Edit more = ตัดคลิปใหม่ต่อเลย: ทุกรอบ QTE ได้คลิปใหม่ 1 อัน (mental -20 ต่อรอบ Main จัดการ)
 local re = GameState.newGame()
 FollowerService.finishEdit(re, { score = 80 })
-FollowerService.finishEdit(re, { score = 150, redo = true })
-check("redo: ไม่เพิ่มคลิปใหม่", #re.clips == 1)
-check("redo: คะแนนดีขึ้น = อัปเดต tier", re.clips[1].score == 150 and re.clips[1].tier == Formulas.vidqTier(150))
-check("redo: นับจำนวนรอบตัด", re.clips[1].edits == 2)
-FollowerService.finishEdit(re, { score = 10, redo = true })
-check("redo: ตัดแย่ลง คะแนนไม่ลด", re.clips[1].score == 150 and re.clips[1].edits == 3)
-re.clips[1].uploaded = true
-FollowerService.finishEdit(re, { score = 60, redo = true })
-check("redo: ไม่มีคลิปค้าง = ตัดใหม่ปกติ", #re.clips == 2 and re.clips[2].score == 60 and re.clips[2].edits == 1)
-check("latestUnuploaded: ข้ามคลิปที่อัปแล้ว", select(2, FollowerService.latestUnuploaded(re)) == 2)
+FollowerService.finishEdit(re, { score = 150 })
+check("Edit more: ได้คลิปใหม่ทุกรอบ", #re.clips == 2)
+check("Edit more: คลิปแยกกัน คะแนนไม่ทับ", re.clips[1].score == 80 and re.clips[2].score == 150)
 
 -- ===== MoneyService (design doc §4 — หักราย 7 วัน + Bank ⊖⊕ lock 21 ก.ค.) =====
 local mo = GameState.newGame()

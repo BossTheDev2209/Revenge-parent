@@ -69,10 +69,9 @@ function EditQTE.start(playerGui, fireAction)
 	info.Parent = dim
 	gui.Parent = playerGui
 
-	-- best = คะแนนดีสุดที่ทำได้ในเซสชันนี้ (server เก็บ max ให้อยู่แล้ว — โชว์ให้ตรงกัน)
-	local best = 0
+	local made = 0 -- ตัดไปกี่คลิปในการนั่งครั้งนี้
 	local round
-	round = function(isRedo)
+	round = function()
 		local seq = EditQTE.pickKeys(QTE_COUNT, QTE_KEYS)
 		local total = 0
 		bar.Visible = true
@@ -103,14 +102,14 @@ function EditQTE.start(playerGui, fireAction)
 			keyLabel.TextColor3 = Color3.new(1, 1, 1)
 		end
 
-		fireAction({ type = "FinishEdit", score = total, redo = isRedo or nil })
-		best = math.max(best, total)
+		fireAction({ type = "FinishEdit", score = total })
+		made += 1
 
-		-- จอสรุป (PDF จอ 3): Edit more / Done — ไม่มีปุ่มอัปโหลด ต้องไปอัปที่แอป Upload
-		keyLabel.Text = Formulas.vidqTier(best)
+		-- จอสรุป (PDF จอ 3): Edit more = ตัดคลิปใหม่ต่อเลย | Done = ออก (อัปที่แอป Upload)
+		keyLabel.Text = Formulas.vidqTier(total)
 		bar.Visible = false
-		info.Text = ("รอบนี้ %d/200 | ดีสุด %d = tier %s — ตัดซ้ำเสียใจอีก %d"):format(
-			total, best, Formulas.vidqTier(best), math.abs(Config.Mental.deltas.clipEdit))
+		info.Text = ("คลิปที่ %d: %d/200 = tier %s | ตัดอีกคลิปเสียใจอีก %d"):format(
+			made, total, Formulas.vidqTier(total), math.abs(Config.Mental.deltas.clipEdit))
 
 		local more = Instance.new("TextButton")
 		more.Size = UDim2.new(0, 200, 0, 44)
@@ -132,7 +131,7 @@ function EditQTE.start(playerGui, fireAction)
 			more:Destroy()
 			close:Destroy()
 			keyLabel.TextColor3 = Color3.new(1, 1, 1)
-			task.spawn(round, true)
+			task.spawn(round)
 		end)
 		close.Activated:Connect(function()
 			gui:Destroy()
@@ -140,7 +139,7 @@ function EditQTE.start(playerGui, fireAction)
 		end)
 	end
 
-	task.spawn(round, false)
+	task.spawn(round)
 end
 
 return EditQTE

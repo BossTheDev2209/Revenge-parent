@@ -95,7 +95,19 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 	appFrame.Parent = screen
 
 	local currentApp = nil
-	local function openApp(app)
+	local openApp
+	-- แอปในแอป (เช่น Bank → Manage): แอปเรียก deps.openApp("manage") ได้
+	deps.openApp = function(id)
+		for _, a in apps do
+			if a.id == id then
+				if a.external then a.external() else openApp(a) end
+				return
+			end
+		end
+		warn("[PCScreen] ไม่รู้จักแอป: " .. tostring(id))
+	end
+
+	function openApp(app)
 		appFrame:ClearAllChildren()
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0, 10)
@@ -107,7 +119,11 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 
 	-- desktop icon คอลัมน์ซ้าย (ตามภาพร่าง PDF) — ไอคอน 80×80 + ชื่อใต้
 	local ICON, LABEL_H, GAP = 80, 22, 8
-	for i, app in apps do
+	local desktopApps = {}
+	for _, a in apps do
+		if not a.hidden then table.insert(desktopApps, a) end
+	end
+	for i, app in desktopApps do
 		local col = math.floor((i - 1) / 5)
 		local row = (i - 1) % 5
 		local x = 24 + col * (ICON + 40)

@@ -173,6 +173,8 @@ Config.Record = {
 }
 
 Config.SponsorUnlockFollowers = 10_000
+Config.SponsorOfferChance = 0.05 -- PDF หน้า 6: offer เด้งเอง 5%/วัน (เฟส 2-3) ไม่ใช่ปุ่มกดเรียก
+Config.SponsorOfferMinPhase = 2
 
 -- §5 Ending resolver — priority order สำคัญ เช็คแย่สุด→ดีสุด return ทันทีที่ match
 -- ห้ามสลับลำดับ เงื่อนไข overlap กัน

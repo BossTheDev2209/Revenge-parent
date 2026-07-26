@@ -24,6 +24,24 @@ payload ใหญ่ (sync ทั้งชุด) ใช้ driver สะดว�
 python tools/mcp_driver.py steps.json
 ```
 
+### ⭐ sync ทั้งโปรเจกต์ในคำสั่งเดียว (ท่ามาตรฐาน — เร็วกว่ายิงทีละไฟล์มาก)
+
+```bash
+python tools/gen_sync.py /tmp/sync_all.luau
+python tools/mcp_driver.py /tmp/steps.json
+```
+
+`tools/gen_sync.py` **สแกน `src/` + `tests/` จากดิสก์เอง** (ไม่มี list ให้ลืมอัปเดต) แล้ว gen เป็น luau ก้อนเดียว
+ที่ `folder()` สร้างโฟลเดอร์ที่ขาด + `put(parent, name, class, [=====[...]=====])` ทุกไฟล์
+`steps.json` ใช้ step แบบ `luau_file` ชี้ไปที่ไฟล์ที่ gen มา — ไม่ต้อง inline โค้ดในแชท:
+
+```json
+[{"tool": "execute_luau", "luau_file": "C:/.../sync_all.luau", "args": {"datamodel_type": "Edit"}}]
+```
+
+แผนที่ path: `src/shared/**` → `RS.Shared` · `src/server/Services/**` → `SSS.Services` · `src/client/**` → `SPS`
+· `src/server/Main.server.luau` → `SSS.Main` (Script) · `src/client/Main.client.luau` → `SPS.Main` (LocalScript) · `tests/RunTests.luau` → `SSS.Tests.RunTests`
+
 ข้อเท็จจริงที่เจ็บมาแล้ว (อ่านก่อนใช้):
 - **`execute_luau` ต้องส่ง `"datamodel_type": "Edit"` เสมอ** ไม่งั้น error
 - **StudioMCP.exe = WS host ที่ Studio ต่อเข้ามา** — รันได้ทีละตัว (bind port 13469)

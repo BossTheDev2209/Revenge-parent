@@ -76,6 +76,19 @@ function Bank.create(frame, deps)
 		rows[def.key] = { name = nameLabel, hint = hint }
 	end
 
+	-- ทางเข้าเดียวของแอป Manage (PDF desktop มี 7 icon ไม่มี manage)
+	local manageBtn = Instance.new("TextButton")
+	manageBtn.Position = UDim2.new(0, 8, 0, 140 + #CARDS * 62)
+	manageBtn.Size = UDim2.new(1, -16, 0, 44)
+	manageBtn.BackgroundColor3 = Color3.fromRGB(70, 90, 160)
+	manageBtn.TextColor3 = Color3.new(1, 1, 1)
+	manageBtn.TextScaled = true
+	manageBtn.Text = "👥 จัดการพนักงาน"
+	manageBtn.Parent = frame
+	manageBtn.Activated:Connect(function()
+		if deps.openApp then deps.openApp("manage") end
+	end)
+
 	local app = {}
 	function app.refresh(state)
 		local w = Config.WeeklyExpenses[state.phase]

@@ -63,7 +63,8 @@ local PC_APPS = {
 	{ id = "calendar", name = "ปฏิทิน", label = "📅 ปฏิทิน", create = CalendarApp.create },
 	{ id = "shop", name = "ร้านค้า", label = "🛒 Shop", create = Shop.create },
 	{ id = "message", name = "ข้อความ", label = "✉️ Message", create = Message.create },
-	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create },
+	-- hidden = ไม่มี icon บน desktop (PDF มี 7 icon) — เข้าผ่านปุ่มในแอป Bank เท่านั้น
+	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
 }
 
 local pcDeps = {

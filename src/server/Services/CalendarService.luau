@@ -45,10 +45,23 @@ function CalendarService.moveBlock(state, fromDay: number, toDay: number): boole
 	return false
 end
 
--- รับงาน sponsor: ปลดล็อคที่ 10K follower (design doc §4)
-function CalendarService.acceptSponsor(state, day: number): boolean
+-- สุ่ม offer รายวัน (PDF หน้า 6): เฟส 2-3 + ปลดล็อค 10K → 5%/วัน มีค้างได้ทีละใบ
+function CalendarService.rollSponsorOffer(state, rng): boolean
+	if state.sponsorOffer then return false end
+	if state.phase < Config.SponsorOfferMinPhase then return false end
 	if state.follower < Config.SponsorUnlockFollowers then return false end
-	return CalendarService.place(state, day, { type = "Sponsor" })
+	if rng() >= Config.SponsorOfferChance then return false end
+	state.sponsorOffer = true
+	return true
+end
+
+-- วาง offer ที่ได้มาลงปฏิทิน — ไม่มี offer ค้าง = กดไม่ได้ (กันปั๊มเงิน)
+function CalendarService.acceptSponsor(state, day: number): boolean
+	if not state.sponsorOffer then return false end
+	if state.follower < Config.SponsorUnlockFollowers then return false end
+	if not CalendarService.place(state, day, { type = "Sponsor" }) then return false end
+	state.sponsorOffer = false
+	return true
 end
 
 -- ถึงวันที่มี block: Sponsor = เงินเข้า (คลิปวันนั้นไม่ได้ follower — trade-off ตาม design)

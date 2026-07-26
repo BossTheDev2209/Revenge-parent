@@ -25,6 +25,7 @@ function GameState.newGame()
 		upgrades = { camera = 1, storage = 1 },
 		spending = { food = 0, rent = 0, staff = 0 }, -- ⊖⊕ ใน Bank เป็น offset step (Config.Spending)
 		calendar = {}, -- [day] = {type=..., id=...}
+		sponsorOffer = false, -- มี offer ค้างรอวางในปฏิทินไหม (สุ่มรายวัน — CalendarService.rollSponsorOffer)
 		-- ระบบพนักงาน (docs/02 §9.8)
 		staff = {},          -- พนักงานจ้าง {id=, speed=, quality=, salary=}
 		companions = {},     -- เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง ไม่มี salary)

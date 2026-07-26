@@ -399,9 +399,22 @@ check("วางวันอนาคตได้", CalendarService.place(cal, 7
 check("วางวันนี้/อดีตไม่ได้", CalendarService.place(cal, 5, { type = "Schedule" }) == false)
 cal.calendar[9] = { type = "Canon", id = "Hater", locked = true }
 check("ทับ Canon ไม่ได้", CalendarService.place(cal, 9, { type = "Schedule" }) == false)
-check("sponsor ก่อน 10K ไม่ได้", CalendarService.acceptSponsor(cal, 8) == false)
+check("sponsor: ไม่มี offer ค้าง กดไม่ได้", CalendarService.acceptSponsor(cal, 8) == false)
 cal.follower = 15_000
-check("sponsor หลัง 10K ได้", CalendarService.acceptSponsor(cal, 8) == true)
+cal.phase = 2
+check("sponsor offer: ก่อน 10K ไม่สุ่ม", (function()
+	local c = GameState.newGame(); c.phase = 2; c.follower = 500
+	return CalendarService.rollSponsorOffer(c, function() return 0 end) == false
+end)())
+check("sponsor offer: เฟส 1 ไม่สุ่ม", (function()
+	local c = GameState.newGame(); c.follower = 15_000
+	return CalendarService.rollSponsorOffer(c, function() return 0 end) == false
+end)())
+check("sponsor offer: สุ่มพลาด (>=5%) ไม่ได้", CalendarService.rollSponsorOffer(cal, function() return 0.5 end) == false)
+check("sponsor offer: สุ่มติด (<5%) ได้", CalendarService.rollSponsorOffer(cal, function() return 0.01 end) == true)
+check("sponsor offer: มีค้างแล้วไม่ซ้อน", CalendarService.rollSponsorOffer(cal, function() return 0.01 end) == false)
+check("sponsor: มี offer แล้ววางได้", CalendarService.acceptSponsor(cal, 8) == true)
+check("sponsor: offer ถูกใช้หมด กดซ้ำไม่ได้", cal.sponsorOffer == false)
 cal.day = 8
 local money0 = cal.money
 local blk = CalendarService.onDay(cal, rng0)
@@ -638,6 +651,20 @@ for i, c in CommentsPool do
 end
 check("pool ต้องมีครบทั้ง 3 sentiment (ไม่งั้น slot นั้นไม่มีอะไรโผล่)",
 	poolCount.neg >= 1 and poolCount.neu >= 1 and poolCount.pos >= 1)
+
+-- ===== HUD storage = GB ไม่ใช่จำนวนคลิป (docs/09 §0 ข้อ 4) =====
+local HUD = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.HUD)
+	else require("../src/client/UI/HUD")
+local hudS = GameState.newGame()
+check("storage เริ่มต้น = 0 GB / 128 GB", HUD.storageText(hudS) == "💾 0 GB / 128 GB")
+hudS.footageGB = 64.7
+check("storage ปัดลงเป็นจำนวนเต็ม", HUD.storageText(hudS) == "💾 64 GB / 128 GB")
+hudS.footageGB = 128
+check("storage เต็ม = FULL", HUD.storageText(hudS):find("FULL") ~= nil)
+hudS.footageGB = 0
+hudS.upgrades.storage = 4
+check("ความจุ ≥1024 โชว์เป็น T", HUD.storageText(hudS) == "💾 0 GB / 1T")
 
 -- ===== AudioService (docs/02 §9.9) =====
 local Audio = if isStudio

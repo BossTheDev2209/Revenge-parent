@@ -191,6 +191,7 @@ TimeService.onDay(function(s)
 		if delta ~= 0 then MentalService.applyDelta(s, delta) end
 	end
 	CalendarService.onDay(s)
+	CalendarService.rollSponsorOffer(s, math.random)
 	checkEnding(s)
 end)
 TimeService.start(state)

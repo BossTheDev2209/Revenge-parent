@@ -43,7 +43,7 @@ function HUD.init(playerGui)
 	HUD.moneyLabel = label(box(gui, { 0, 8 }, { 0, 48 }, 190, 34), "💰 ฿0")
 	HUD.clockLabel = label(box(gui, { 1, -178 }, { 0, 8 }, 170, 34), "วัน 1 | 08:00")
 	HUD.phaseLabel = label(box(gui, { 1, -178 }, { 0, 48 }, 170, 34), "เฟส 1")
-	HUD.storageLabel = label(box(gui, { 0, 8 }, { 1, -132 }, 210, 34), "🎬 คลิป 0")
+	HUD.storageLabel = label(box(gui, { 0, 8 }, { 1, -132 }, 210, 34), "💾 0 GB / 128 GB")
 	HUD.cameraLabel = label(box(gui, { 0, 8 }, { 1, -92 }, 210, 34), "📷 720p")
 
 	-- mental bar แนวตั้ง ขวากลางจอ
@@ -69,12 +69,25 @@ function HUD.init(playerGui)
 	gui.Parent = playerGui
 end
 
+-- ช่อง storage = footage ที่อัดมา (GB) ไม่ใช่จำนวนคลิป — PDF หน้า 5 "790 GB / 1T", เต็ม = FULL
+-- pure: เทสได้ด้วย lune
+function HUD.storageText(state): string
+	local cap = Config.StorageLadderGB[state.upgrades and state.upgrades.storage or 1]
+		or Config.StorageLadderGB[1]
+	local used = math.floor(state.footageGB or 0)
+	local function fmt(gb)
+		return gb >= 1024 and ("%gT"):format(gb / 1024) or ("%d GB"):format(gb)
+	end
+	if used >= cap then return ("💾 %s/%s FULL"):format(fmt(cap), fmt(cap)) end
+	return ("💾 %d GB / %s"):format(used, fmt(cap))
+end
+
 function HUD.update(state)
 	HUD.followerLabel.Text = ("👤 %s"):format(tostring(state.follower))
 	HUD.moneyLabel.Text = ("💰 ฿%s"):format(tostring(state.money))
 	HUD.clockLabel.Text = ("วัน %d | %02d:00"):format(state.day, state.timeOfDay)
 	HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase)
-	HUD.storageLabel.Text = ("🎬 คลิป %d"):format(#state.clips)
+	HUD.storageLabel.Text = HUD.storageText(state)
 	HUD.cameraLabel.Text = ("📷 %s"):format(Config.ResolutionLadder[state.upgrades.camera] or "?")
 
 	local pct = math.clamp(state.mental, 0, 100) / 100

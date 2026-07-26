@@ -7,14 +7,16 @@
 
 ## 0. ⛔ ของที่โค้ดปัจจุบัน "มโน" ขึ้นมาเอง — ต้องลบ/แก้ (audit 21 ก.ค. หลังอ่าน PDF ครบ 10 หน้า)
 
-> agent รอบก่อนเขียนโค้ดโดยอ่าน doc ไม่ครบ เลยใส่ feature ที่**ไม่มีใน PDF** 4 จุด ทั้งหมดยังอยู่ในโค้ดตอนนี้ — เจ้าของสายที่ถือไฟล์นั้นแก้ได้เลย
+> agent รอบก่อนเขียนโค้ดโดยอ่าน doc ไม่ครบ เลยใส่ feature ที่**ไม่มีใน PDF** 4 จุด — ✅ **แก้ครบทั้ง 4 แล้ว 27 ก.ค.** (เก็บตารางไว้เป็นบันทึก ห้ามใส่กลับ)
 
-| # | ที่อยู่ | ตอนนี้โค้ดทำอะไร (ผิด) | PDF บอกว่าอะไร | สายที่แก้ |
-|---|--------|------------------------|-----------------|-----------|
-| 1 | `UI/Apps/EditQTE.luau` ปุ่ม **"อัปโหลดเลย!"** ท้าย QTE | ตัดเสร็จกดอัปได้ทันที **ข้ามแอป Upload ทั้งแอป** → ระบบเลือก title/description ตายสนิท | จอ 3 มีแค่ **Edit more / Done** เท่านั้น ต้องไปอัปที่แอป Upload แยก (หน้า 7-8) | **A** |
-| 2 | `UI/Apps/CalendarApp.luau` ปุ่ม **"รับ sponsor"** | โผล่ทุกวันที่ว่าง กดรับได้ไม่จำกัด = ปั๊มเงินได้ฟรี | sponsor เป็น **offer สุ่ม 5%/วัน เฟส 2-3** เด้งมาให้เลือกวางในปฏิทิน ไม่ใช่ปุ่มกดเรียกเอง (หน้า 6) | **B** |
-| 3 | `Main.client.luau` — **manage เป็น icon บน desktop** | desktop มี 8 icon | ภาพ PDF มี **7 icon** (upgrade/calendar/edit/message/upload/feedback/bank) — **manage เข้าผ่านปุ่มใน Bank เท่านั้น** (user ยืนยัน 21 ก.ค.) | **B** |
-| 4 | `UI/HUD.luau` ช่อง storage โชว์ **"🎬 คลิป N"** | โชว์จำนวนคลิปที่ตัดไว้ | ช่องนั้นคือ **ความจุ "790 GB / 1T"** (footage ที่อัดมา) | **A** |
+| # | ที่อยู่ | ที่เคยผิด | แก้เป็น | สถานะ |
+|---|--------|-----------|---------|-------|
+| 1 | `UI/Apps/EditQTE.luau` | ปุ่ม "อัปโหลดเลย!" ท้าย QTE ข้ามแอป Upload ทั้งแอป | จอสรุปเหลือปุ่ม **Done** อย่างเดียว อัปที่แอป Upload เท่านั้น | ✅ |
+| 2 | `UI/Apps/CalendarApp.luau` | ปุ่ม "รับ sponsor" กดได้ไม่จำกัด = ปั๊มเงินฟรี | `CalendarService.rollSponsorOffer` สุ่ม **5%/วัน เฟส 2-3 + ≥10K** เก็บที่ `state.sponsorOffer` มีค้างได้ทีละใบ ปุ่มโผล่เฉพาะตอนมี offer วางแล้ว offer หาย | ✅ |
+| 3 | `Main.client.luau` / `PCScreen.luau` | manage เป็น icon ที่ 8 บน desktop | ติด `hidden = true` (ไม่วาด icon) เข้าผ่าน**ปุ่ม "👥 จัดการพนักงาน" ในแอป Bank** ผ่าน `deps.openApp("manage")` | ✅ |
+| 4 | `UI/HUD.luau` | ช่อง storage โชว์ "🎬 คลิป N" | `HUD.storageText(state)` = `footageGB / StorageLadderGB[upgrades.storage]`, ≥1024 โชว์เป็น T, เต็ม = **FULL** | ✅ |
+
+**ยังไม่ทำ (จงใจ):** ปุ่ม **"Edit more"** บนจอสรุป QTE (PDF มี) — ต้องมี logic ตัดซ้ำเพื่อดันคะแนน ยังไม่ lock กติกา → สาย A ทำพร้อม Record system
 
 **เพิ่มเติมที่ยืนยันใหม่ 21 ก.ค.:**
 - **Progress bar เฟส** = **10% / 40% / 50%** (เดิมร่างไว้ 10/40/45/**5** แต่ 5% ที่กันไว้ให้ BCA ไม่มี purpose — BCA เป็น cutscene หลังบาร์เต็มแล้ว)
@@ -34,7 +36,7 @@
 | follower/เงิน/นาฬิกา/เฟส | ✅ | — |
 | **delta popup** (+300 เด้งข้างตัวเลข) | 🔴 | client เทียบ state เก่า-ใหม่ → TextLabel เด้งจางหาย 1.5 วิ |
 | **แถบ progress สู่ 1M** | 🔴 | bar ยาวบนจอ: fill = follower/1M, ขีด milestone 1K/10K/100K, สีต่างตามเฟส |
-| storage GB | 🔴 | ผูกกับระบบอัดคลิป (§4) — โชว์ `footageGB / capacity` |
+| storage GB | 🟡 27 ก.ค. | `HUD.storageText` เสร็จ (โชว์ `footageGB / capacity` + FULL) — รอ `state.footageGB` จาก Record system (§4) ตอนนี้อ่านเป็น 0 |
 | resolution ×mult | 🟡 | โชว์ 1080p แล้ว — เพิ่มตัวคูณข้างๆ. **✅ lock 26 ก.ค.: ตัวคูณนี้คือ GB/คลิกตอนอัด ไม่เกี่ยวกับคุณภาพคลิป (VidQ)** อ่านจาก `Config.Record.footagePerClickGB[ระดับกล้อง]` ที่มีอยู่แล้ว |
 | mental bar | ✅ | มีสีโซนแล้ว — เพิ่มหัวใจบน/ล่างเมื่อได้รูปจาก UIAssets |
 | hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
@@ -66,7 +68,7 @@
 | block หลายวัน | ✅ service 21 ก.ค. | `{type, id, length=3}` place เช็คชนทั้งช่วง, ผลเกิดวันจบงาน — เหลือวาดบน grid |
 | ย้าย block | ✅ service 21 ก.ค. (ทาง ก) | กดเลือก block → กดวันปลายทาง — action `MoveBlock{fromDay,toDay}` มีแล้ว, Canon/วันผ่านแล้ว/ช่องชน = ไม่ให้ — เหลือฝั่ง UI |
 | marker วันตัดรอบ | 🔴 | ทุกวันที่ `(day-1)%7==0` แปะป้าย "จ่ายค่าเช่า" |
-| sponsor spawn 5%/วัน (เฟส 2-3) | 🔴 | PDF หน้า 6: โอกาสได้ offer 5% — ตอนนี้กดรับได้ตลอด ต้องเปลี่ยนเป็นสุ่ม offer เข้า Message/ปฏิทิน |
+| sponsor spawn 5%/วัน (เฟส 2-3) | ✅ 27 ก.ค. | `rollSponsorOffer` ยิงใน `TimeService.onDay` — `Config.SponsorOfferChance/.SponsorOfferMinPhase`. เหลือแค่ (optional) เอา offer ไปโชว์ในแอป Message ด้วย |
 | งานให้ลูกน้องทำแทน | ❓ | ผูกระบบ staff (§8) — รอตัวเลข staff ก่อน |
 
 ## 4. ระบบอัดคลิป — Record (PDF หน้า 7 บน) 🔴 ยังไม่มีทั้งระบบ

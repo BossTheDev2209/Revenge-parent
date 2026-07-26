@@ -12,12 +12,20 @@ function CalendarApp.create(frame, deps)
 	title.BackgroundTransparency = 1
 	title.TextScaled = true
 	title.Text = "📅 ปฏิทิน"
+	local offerHint = Instance.new("TextLabel")
+	offerHint.Position = UDim2.new(0, 8, 0, 36)
+	offerHint.Size = UDim2.new(1, -16, 0, 20)
+	offerHint.BackgroundTransparency = 1
+	offerHint.TextScaled = true
+	offerHint.TextColor3 = Color3.fromRGB(200, 120, 30)
+	offerHint.Text = ""
+	offerHint.Parent = frame
 	title.Parent = frame
 
 	local rows = {}
 	for i = 1, 7 do
 		local row = Instance.new("Frame")
-		row.Position = UDim2.new(0, 8, 0, 36 + i * 48 - 40)
+		row.Position = UDim2.new(0, 8, 0, 60 + i * 48 - 40)
 		row.Size = UDim2.new(1, -16, 0, 42)
 		row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		row.Parent = frame
@@ -40,6 +48,7 @@ function CalendarApp.create(frame, deps)
 
 	local app = {}
 	function app.refresh(state)
+		offerHint.Text = state.sponsorOffer and "💼 มีงาน sponsor เข้ามา — เลือกวันวางได้" or ""
 		for i = 1, 7 do
 			local day = state.day + i
 			local r = rows[i]
@@ -47,7 +56,8 @@ function CalendarApp.create(frame, deps)
 			r.label.Text = block
 					and ("  วัน %d — %s%s"):format(day, block.type, block.id and (" (" .. block.id .. ")") or "")
 				or ("  วัน %d — ว่าง"):format(day)
-			local canSponsor = not block and state.follower >= Config.SponsorUnlockFollowers
+			-- ปุ่มโผล่เฉพาะตอนมี offer ค้าง (สุ่ม 5%/วัน เฟส 2-3 — ไม่ใช่กดเรียกเอง)
+			local canSponsor = not block and state.sponsorOffer == true
 			r.btn.Visible = canSponsor
 			if r.conn then r.conn:Disconnect() end
 			if canSponsor then

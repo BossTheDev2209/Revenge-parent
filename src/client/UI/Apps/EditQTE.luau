@@ -101,33 +101,21 @@ function EditQTE.start(playerGui, fireAction)
 
 		fireAction({ type = "FinishEdit", score = total })
 
-		-- จอสรุป + ปุ่มอัปโหลด
+		-- จอสรุป (PDF จอ 3) — ไม่มีปุ่มอัปโหลดที่นี่ ต้องไปอัปที่แอป Upload
 		keyLabel.Text = Formulas.vidqTier(total)
 		bar.Visible = false
-		info.Text = ("เสร็จ! คะแนน %d/200 = tier %s"):format(total, Formulas.vidqTier(total))
-		local upload = Instance.new("TextButton")
-		upload.Size = UDim2.new(0, 200, 0, 44)
-		upload.Position = UDim2.new(0.5, -210, 0.78, 0)
-		upload.Text = "อัปโหลดเลย!"
-		upload.TextScaled = true
-		upload.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
-		upload.Parent = dim
+		info.Text = ("เสร็จ! คะแนน %d/200 = tier %s — ไปอัปที่แอป Upload"):format(total, Formulas.vidqTier(total))
 		local close = Instance.new("TextButton")
 		close.Size = UDim2.new(0, 200, 0, 44)
-		close.Position = UDim2.new(0.5, 10, 0.78, 0)
-		close.Text = "เก็บไว้ก่อน"
+		close.Position = UDim2.new(0.5, -100, 0.78, 0)
+		close.Text = "Done"
 		close.TextScaled = true
 		close.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
 		close.Parent = dim
-		local function finish()
+		close.Activated:Connect(function()
 			gui:Destroy()
 			EditQTE.running = false
-		end
-		upload.Activated:Connect(function()
-			fireAction({ type = "UploadClip", clip = "latest" })
-			finish()
 		end)
-		close.Activated:Connect(finish)
 	end)
 end
 

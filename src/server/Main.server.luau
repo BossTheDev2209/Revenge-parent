@@ -15,6 +15,7 @@ local CalendarService = require(SSS.Services.CalendarService)
 local EndingService = require(SSS.Services.EndingService)
 local StaffService = require(SSS.Services.StaffService)
 local RecordService = require(SSS.Services.RecordService)
+local ToolService = require(SSS.Services.ToolService)
 local Config = require(RS.Shared.Config)
 
 local state = GameState.newGame()
@@ -63,6 +64,17 @@ local function filmSpots()
 end
 
 -- ทุกการกระทำของผู้เล่น — service ไม่เรียก push เอง Main push หลัง route สำเร็จ
+-- โน้ตบุ๊คเฟส 1: กดวางลงพื้น → กลายเป็นคอมใช้งานได้ (Interact_pcMonitor อยู่ในโมเดล) / เก็บกลับได้
+ActionRouter.register("PlaceNotebook", function(s, a, player)
+	if typeof(a.cf) == "CFrame" and ToolService.placeNotebook(s, a.cf) and player then
+		ToolService.sync(player, s)
+	end
+end)
+ActionRouter.register("PickupNotebook", function(s, a, player)
+	if ToolService.pickupNotebook(s) and player then
+		ToolService.sync(player, s)
+	end
+end)
 ActionRouter.register("RecordFootage", function(s, a)
 	-- inZone มาจาก client (singleplayer เชื่อ client เหมือนคะแนน QTE) — server คุมสูตร/cooldown/cap เอง
 	RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
@@ -156,12 +168,18 @@ end)
 -- client action ทุกอันวิ่งผ่านเส้นนี้เส้นเดียว
 RS.Shared.Remotes.Action.OnServerEvent:Connect(function(player, action)
 	if ActionRouter.route(state, action, player) then
+		ToolService.sync(player, state) -- อัปกล้อง/ข้ามเฟส/วางโน้ตบุ๊ค = Tool ในมือเปลี่ยนทันที
 		GameState.push(state)
 	end
 end)
 
 -- ผู้เล่นเข้า → ส่ง state ปัจจุบันให้ทันที
 Players.PlayerAdded:Connect(function(player)
+	ToolService.sync(player, state)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.5) -- รอ Backpack ใหม่หลังเกิด
+		ToolService.sync(player, state)
+	end)
 	GameState.push(state)
 end)
 

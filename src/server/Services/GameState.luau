@@ -27,6 +27,7 @@ function GameState.newGame()
 		footageGB = 0,        -- footage ดิบที่อัดมา เต็ม capacity = FULL อัดต่อไม่ได้
 		lastRecordAt = 0,     -- os.clock ครั้งล่าสุด (cooldown 0.6 วิ)
 		filmZone = { spot = nil, expiresAt = 0 }, -- โซนถ่ายปัจจุบัน ย้ายทุก 120 วิ
+		notebookPlaced = false, -- โน้ตบุ๊ค (เฟส 1) วางอยู่บนพื้นไหม — วางแล้ว Tool หายจากมือ
 		spending = { food = 0, rent = 0, staff = 0 }, -- ⊖⊕ ใน Bank เป็น offset step (Config.Spending)
 		calendar = {}, -- [day] = {type=..., id=...}
 		sponsorOffer = false, -- มี offer ค้างรอวางในปฏิทินไหม (สุ่มรายวัน — CalendarService.rollSponsorOffer)

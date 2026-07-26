@@ -52,26 +52,38 @@ function RecordTool.init(player, fireAction, getState)
 		return name and workspace:FindFirstChild(name, true) or nil
 	end
 
-	-- ผูก Tool ที่ทีมวางไว้ใน StarterPack (ไม่มี = เตือนครั้งเดียว)
+	-- ผูก Tool ทุกชิ้นที่ ToolService ส่งมาให้ (Attribute ToolSource บอกว่าเป็นอะไร)
+	--   Camera_N / Selfie = อุปกรณ์ถ่าย → RecordFootage
+	--   Notebook (เฟส 1)  = กดวางลงพื้นหน้าตัวเอง → กลายเป็นคอมใช้งานได้
 	local bound = {}
-	local function bindTools()
-		for _, name in Config.Record.toolNames do
-			local tool = player.Backpack:FindFirstChild(name)
-				or (player.Character and player.Character:FindFirstChild(name))
-			if tool and tool:IsA("Tool") and not bound[tool] then
-				bound[tool] = true
-				tool.Activated:Connect(function()
-					local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-					local part = spotPart()
-					local inside = root ~= nil
-						and RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
-					fireAction({ type = "RecordFootage", inZone = inside })
-				end)
+	local function bindTool(tool)
+		if not tool:IsA("Tool") or bound[tool] then return end
+		local src = tool:GetAttribute("ToolSource")
+		if not src then return end
+		bound[tool] = true
+		tool.Activated:Connect(function()
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not root then return end
+			if src == "Notebook" then
+				-- วางห่างตัว 4 studs หันหน้าจอเข้าหาผู้เล่น
+				local cf = root.CFrame * CFrame.new(0, -2.5, -4) * CFrame.Angles(0, math.pi, 0)
+				fireAction({ type = "PlaceNotebook", cf = cf })
+			else
+				local part = spotPart()
+				local inside = RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
+				fireAction({ type = "RecordFootage", inZone = inside })
 			end
+		end)
+	end
+	local function bindAll()
+		for _, t in player.Backpack:GetChildren() do bindTool(t) end
+		if player.Character then
+			for _, t in player.Character:GetChildren() do bindTool(t) end
 		end
 	end
-	bindTools()
-	player.CharacterAdded:Connect(function() task.delay(1, bindTools) end)
+	bindAll()
+	player.Backpack.ChildAdded:Connect(bindTool) -- Tool ใหม่ตอนอัปเกรด/ข้ามเฟส
+	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
 
 	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง
 	task.spawn(function()

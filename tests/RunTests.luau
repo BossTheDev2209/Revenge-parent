@@ -335,6 +335,32 @@ rce.footageGB = 32
 check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == true)
 check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
 
+-- Tool ในมือต้องตรง state (กล้อง 6 ระดับ 6 โมเดล, โน้ตบุ๊คเฉพาะเฟส 1)
+local ToolService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.ToolService)
+	else require("../src/server/Services/ToolService")
+local function toolSet(state)
+	local set = {}
+	for _, n in ToolService.desiredTools(state) do set[n] = true end
+	return set
+end
+local ts = GameState.newGame()
+local t1 = toolSet(ts)
+check("เฟส 1 เริ่มเกม: กล้อง L1 + ไม้เซลฟี่ + โน้ตบุ๊ค", t1.Camera_1 and t1.Selfie and t1.Notebook)
+check("ไม่มี Tool_Phone แยก (มือถือ = กล้องระดับ 1)", t1.Phone == nil)
+ts.upgrades.camera = 4
+check("อัปกล้อง = เปลี่ยนโมเดลเป็น Camera_4", toolSet(ts).Camera_4 and toolSet(ts).Camera_1 == nil)
+ts.notebookPlaced = true
+check("วางโน้ตบุ๊คแล้ว Tool หายจากมือ", toolSet(ts).Notebook == nil)
+ts.notebookPlaced = false
+ts.phase = 2
+check("เฟส 2 ไม่มีโน้ตบุ๊ค (ห้องมีคอมจริงแล้ว)", toolSet(ts).Notebook == nil)
+ts.upgrades.camera = 99
+check("ระดับกล้องเกินตาราง = clamp ที่ 6", toolSet(ts).Camera_6 == true)
+check("ชื่อบน hotbar โชว์ resolution ไม่ใช่ key", ToolService.displayName("Camera_3") == "กล้อง (1080p)")
+check("ชื่อ Selfie/Notebook เป็นไทย", ToolService.displayName("Selfie") == "ไม้เซลฟี่"
+	and ToolService.displayName("Notebook") == "โน้ตบุ๊ค")
+
 -- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
 local rz = GameState.newGame()
 local spots = { "FilmSpot_A", "FilmSpot_B", "FilmSpot_C" }

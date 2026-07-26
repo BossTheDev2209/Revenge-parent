@@ -70,10 +70,36 @@ Interact_NPC_Mom     แม่ — **พักไว้** (พ่อแม่ข
 ```
 CutsceneCams (Folder ใน Workspace) → Cam_<ending>_<เลข>   มุมกล้อง cutscene (docs/10 §3)
 FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
-Tool_Camera / Tool_Phone / Tool_Selfie                     Tool อัดคลิปใน StarterPack
+ReplicatedStorage.ToolModels → Camera_1..6 / Selfie / Notebook / NotebookPlaced   โมเดล Tool (§3.6)
 Zone_<ชื่อ>                                               โซนเพลง (Attribute Music/Ambient/Priority)
 Buy_<ชื่อ> + Item_<ชื่อ>                                   ปุ่ม tycoon + ของที่โผล่ (§3.5)
 ```
+
+### 3.6 โมเดล Tool — `ReplicatedStorage.ToolModels` (lock 27 ก.ค.)
+
+**StarterPack ต้องว่างเสมอ** — `ToolService` แจก Tool ให้เองตาม state (อัปกล้อง/ข้ามเฟส = สลับให้ทันที)
+ทีมมีหน้าที่**เปลี่ยนโมเดลข้างใน** ห้ามเปลี่ยนชื่อ ห้ามใส่ script
+
+| ชื่อใน ToolModels | คืออะไร | โผล่ตอนไหน |
+|---|---|---|
+| `Camera_1` | **มือถือ** 480p | เริ่มเกม (ไม่มี Tool_Phone แยก — มือถือคือกล้องระดับ 1) |
+| `Camera_2` | มือถือใหม่ 720p | ซื้อในแอป Shop |
+| `Camera_3` | กล้อง compact 1080p | ” |
+| `Camera_4` | กล้อง mirrorless 1440p | ” |
+| `Camera_5` | กล้องโปร 2160p | ” |
+| `Camera_6` | กล้องซินิมา 4320p | ” |
+| `Selfie` | ไม้เซลฟี่ | มีตลอด |
+| `Notebook` | โน้ตบุ๊คพับเก็บ (Tool) | **เฟส 1 เท่านั้น** ตอนยังไม่ได้วาง |
+| `NotebookPlaced` | โน้ตบุ๊คกางบนพื้น (Model) | ตอนกดวาง |
+
+**กติกาโมเดล:**
+- ทุกอันเป็น `Tool` ที่มี Part ชื่อ **`Handle`** (ตัวที่มือจับ) ส่วนที่เหลือ weld ติดเข้ากับ Handle
+- ชื่อ Tool ที่โชว์บน hotbar ระบบตั้งให้เอง ("กล้อง (1080p)" / "ไม้เซลฟี่" / "โน้ตบุ๊ค") ไม่ต้องตั้งเอง
+- **`NotebookPlaced` เป็น Model** ต้องมี 2 Part นี้:
+  - `Interact_pcMonitor` — จอ **4 × 2.6 studs** หน้าจอ = ด้าน Front (UI แปะบนนี้)
+  - `Interact_NotebookPack` — ตัวฐาน (กดเก็บกลับ) ตั้งเป็น `PrimaryPart`
+  - ทั้งคู่ `Anchored ✓` · ไม่ต้องใส่ ProximityPrompt (ระบบใส่ให้)
+- ตอนนี้เป็น**กล่องเปล่า placeholder** ทั้งหมด เปลี่ยนได้เลย
 
 **`FilmSpot_*` (จุดถ่ายคลิป — docs/02 §9.5) 🔴 ยังไม่มีสักจุด งานนี้ปลดล็อกระบบอัดคลิปทั้งระบบ:**
 Part เล็กๆ (ขนาดเท่าไหร่ก็ได้ ระบบใช้แค่ตำแหน่ง) `Anchored ✓ CanCollide ✗ Transparency 1` วางกระจายจุดที่ "น่าถ่ายคลิป" ในแมพ

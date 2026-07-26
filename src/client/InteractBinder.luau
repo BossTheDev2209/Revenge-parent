@@ -10,6 +10,7 @@ local PROMPT_TEXT = {
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",
 	Interact_NPC_Mom = "คุยกับแม่",
+	Interact_NotebookPack = "เก็บโน้ตบุ๊ค",
 }
 
 -- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
@@ -66,6 +67,8 @@ function InteractBinder.init(deps)
 		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
 			-- part = จอจริง: UI แปะบนหน้า part นี้ (SurfaceGui) + กล้อง zoom เข้าหา
 			deps.openPC(part)
+		elseif name == "Interact_NotebookPack" then
+			deps.fireAction({ type = "PickupNotebook" })
 		elseif name == "Interact_Bed" then
 			openBedMenu(deps.playerGui, deps.fireAction)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then

@@ -55,6 +55,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Audio = require(script.Parent.Parent.AudioService)
+local UIAssets = require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 
 local CAM_TIME = 1.2
 local FLASH_IN, FLASH_HOLD, FLASH_OUT = 0.35, 2.4, 0.6
@@ -185,15 +186,24 @@ function MenuUI.open(playerGui, deps)
 	homePanel.BackgroundTransparency = 1
 	homePanel.Parent = gui
 
-	local title = Instance.new("TextLabel")
+	-- โลโก้ถ้ามีรูป ไม่มีก็ใช้ตัวหนังสือ
+	local title
+	if UIAssets.menu_logo ~= "" then
+		title = Instance.new("ImageLabel")
+		title.Image = UIAssets.menu_logo
+		title.ScaleType = Enum.ScaleType.Fit
+		title.BackgroundTransparency = 1
+	else
+		title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.TextColor3 = Color3.new(1, 1, 1)
+		title.TextStrokeTransparency = 0.3
+		title.TextScaled = true
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Text = "Getting 1M Follower\nto Prove Parent Wrong"
+	end
 	title.Size = UDim2.new(1, -40, 0, 110)
 	title.Position = UDim2.new(0, 40, 0, 70)
-	title.BackgroundTransparency = 1
-	title.TextColor3 = Color3.new(1, 1, 1)
-	title.TextStrokeTransparency = 0.3
-	title.TextScaled = true
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Text = "Getting 1M Follower\nto Prove Parent Wrong"
 	title.Parent = homePanel
 
 	local flash = Instance.new("Frame")
@@ -218,6 +228,15 @@ function MenuUI.open(playerGui, deps)
 
 	local slotBtns = {}
 	if bookGui then
+		local paper = UIAssets.book_page
+		if paper ~= "" then -- texture กระดาษ (ไม่มีก็ปล่อยเป็นสีพื้นของ Part)
+			local img = Instance.new("ImageLabel")
+			img.Size = UDim2.new(1, 0, 1, 0)
+			img.BackgroundTransparency = 1
+			img.Image = paper
+			img.ScaleType = Enum.ScaleType.Crop
+			img.Parent = bookGui
+		end
 		local head = Instance.new("TextLabel")
 		head.Size = UDim2.new(1, -40, 0, 90)
 		head.Position = UDim2.new(0, 20, 0, 10)

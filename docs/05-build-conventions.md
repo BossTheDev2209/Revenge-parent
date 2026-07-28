@@ -70,6 +70,7 @@ Interact_NPC_Mom     แม่ — **พักไว้** (พ่อแม่ข
 ```
 CutsceneCams (Folder ใน Workspace) → Cam_<ending>_<เลข>   มุมกล้อง cutscene (docs/10 §3)
 FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
+Interact_Shop                                             ร้านขายอุปกรณ์ในแมพ (docs/09 §10)
 ReplicatedStorage.ToolModels → Camera_1..6 / Selfie / Notebook / NotebookPlaced   โมเดล Tool (§3.6)
 Zone_<ชื่อ>                                               โซนเพลง (Attribute Music/Ambient/Priority)
 Buy_<ชื่อ> + Item_<ชื่อ>                                   ปุ่ม tycoon + ของที่โผล่ (§3.5)

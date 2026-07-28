@@ -47,6 +47,9 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
 - **VidQ tier** = C/B/A/S เท่านั้น (ห้ามใช้ bad/normal/good/awesome)
 - **Mental bar** 3 โซน, cap โบนัสที่ ×1.25, 0% = Bad End ②
 - **Economy** เงิน = follower ที่ได้ × rate ของเฟส (0.8 / 1.2 / 1.5), หักค่าใช้จ่ายรอบ 7 วันในเกม
+  → **เพดานเงินทั้งเกม ≈ 1.47 ล้าน** (หักรายจ่ายเหลือ ~1.3 ล้าน) — ราคา upgrade ทุกสายต้องอยู่ในกรอบนี้
+- **Upgrade** 3 สาย (กล้อง / ที่เก็บ / คอมพิวเตอร์) สายละ **15 ระดับ** — ระดับ 1-6 ล็อก 21 ก.ค. ห้ามขยับ
+  ระดับ 7-15 + สายคอมพิวเตอร์ทั้งสาย = ⏳ **รอ user lock** (สาย pc ซื้อได้แต่ยัง unwired จงใจ)
 - **Endings** 6 ending, Bad End ① (โดนไล่ออกจากห้อง) และ ② (หมดใจ) เป็น optional challenge ไม่ใช่ fail state บังคับ
 - **NPC dialogue** = typewriter ทางเดียวแบบ Undertale ไม่มี branching; input ⊕/◎/⊖ มาจาก comment เท่านั้น
 - **Roblox compliance** — ตัดเนื้อหา fatal outcome ออกหมด reframe เป็นความล้มเหลวทางสังคม/อาชีพ

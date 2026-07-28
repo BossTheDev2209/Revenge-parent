@@ -14,15 +14,16 @@
 | ชั้น | งาน |
 |------|-----|
 | Engine | `RecordService` (footageGB, โซนสุ่มย้ายจุด 120 วิ, bonus 10%, เต็ม=FULL), Tool 3 ชิ้น |
-| UI | HUD ทั้งชุด (progress bar 1M, delta popup, storage GB, hotbar, ปุ่ม setting), Edit app (slider footage + QTE บน timeline + ปุ่ม Edit more), Shop app (การ์ด 6 ระดับ 2 หมวด) |
-| แมพ | `FilmSpot_*` ~8 จุด, เครื่อง PC เฟส 2/3 (จอ `Interact_pcMonitor` 4×2.6) |
-| รูป | HUD 14 ชิ้น + Shop 12 ชิ้น |
+| UI | HUD ทั้งชุด (progress bar 1M, delta popup, storage GB, hotbar, ปุ่ม setting), Edit app (slider footage + QTE บน timeline + ปุ่ม Edit more), Shop (การ์ด **15 ระดับ 3 หมวด** — ร้านในแมพ `ShopKiosk` ✅ ทำแล้ว / แอปบนจอ `Shop` 🟡 ยังของเดิม) |
+| แมพ | `FilmSpot_*` ~8 จุด, เครื่อง PC เฟส 2/3 (จอ `Interact_pcMonitor` 4×2.6), **`Interact_Shop`** (ร้านในแมพ — ตอนนี้เป็นกล่องส้ม placeholder ที่ 8,2,8 ย้าย/แต่งได้) |
+| รูป | HUD 14 ชิ้น + Shop **18 ชิ้น** (3 หมวด × 6 ระดับแรก — docs/13 §5) |
 | ส่ง | วิดีโอ gameplay 3–5 นาที |
 
 **ไฟล์ที่แตะ:** `Services/RecordService`, `UI/HUD`, `UI/Apps/{EditQTE,Shop}`, `StarterPack`, `Workspace.FilmSpot_*`
 
 📋 **spec เต็ม (อ่านก่อนเขียน ห้าม assume):**
-- ระบบอัดคลิป + อุปกรณ์ 6 ระดับ + โซน + bonus + cooldown → **docs/02 §9.5** (ตัวเลขล็อกครบ)
+- ระบบอัดคลิป + อุปกรณ์ **15 ระดับ 3 สาย** + โซน + bonus + cooldown → **docs/02 §9.5**
+  (ระดับ 1-6 ล็อก ห้ามขยับ · 7-15 + สายคอมพิวเตอร์ = ⏳ รอ user lock · สาย pc ยัง unwired)
 - HUD ทุกชิ้น + Record UI → **docs/09 §1, §4** | Edit → **§5** | Shop การ์ด → **§10**
 - ตัวเลข balance ทั้งหมด (`Config.Record`, `UpgradeCosts`, `ResolutionLadder`, `StorageLadderGB`) → `Shared.Config`
 - ✅ **ระดับกล้องไม่แตะ VidQ เลย** (lock 26 ก.ค.) — คุณภาพคลิปมาจาก QTE อย่างเดียว กล้องคูณแค่ **GB ต่อคลิกตอนอัด** (`Config.Record.footagePerClickGB`) **ห้ามไปผูกกับ tier คลิป**

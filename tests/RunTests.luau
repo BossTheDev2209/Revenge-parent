@@ -688,6 +688,8 @@ check("type มั่ว = ไม่ผ่าน", CutscenePlayer.validate({ { t
 check("wait ไม่มี t = ไม่ผ่าน", CutscenePlayer.validate({ { type = "wait" } }) == false)
 check("camera cam=ชื่อPart ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "Cam_Bad1_01" } }) == true)
 check("camera ไม่มีทั้ง cam/pos = ไม่ผ่าน", CutscenePlayer.validate({ { type = "camera" } }) == false)
+check("camera ใส่ t (เลื่อนกล้อง) ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "Cam_Good1_01", t = 2 } }) == true)
+check("camera t ไม่ใช่ตัวเลข = ไม่ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "A", t = "ช้า" } }) == false)
 -- content จริงทั้ง 6 ending ต้อง validate ผ่าน
 local Endings = if isStudio
 	then game:GetService("ReplicatedStorage").Shared.Content.Endings

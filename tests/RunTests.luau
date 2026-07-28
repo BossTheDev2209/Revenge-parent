@@ -231,6 +231,22 @@ TimeService.sleep(ts)
 check("นอน 4 ทุ่ม ข้าม 8 ชม. → ตื่น 6 โมง วันถัดไป", ts.timeOfDay == 6 and ts.day == 6)
 check("นอนยิง callback ครบทุกชั่วโมงที่ข้าม",
 	hourCount == before.h + 8 and dayCount == before.d + 1)
+check("นอนจบแล้ว flag sleeping ถูกปิด", ts.sleeping == false)
+
+-- ชั่วโมงที่หลับต้องไม่ drain ใจ (fix 29 ก.ค. — เดิมนอน 8 ชม. เสียใจ 13%)
+local slp = GameState.newGame()
+slp.phase = 2
+slp.mental = 80
+slp.timeOfDay = 22
+MentalService.onHour(slp) -- ตื่นอยู่ = drain ปกติ
+local awakeDrain = 80 - slp.mental
+slp.mental = 80
+slp.sleeping = true
+for _ = 1, 8 do MentalService.onHour(slp) end
+slp.sleeping = false
+check("ตื่น 1 ชม. เสียใจ ≈ 1.667", math.abs(awakeDrain - 5 / 3) < 0.001)
+check("หลับ 8 ชม. ใจไม่ลด", slp.mental == 80)
+check("หลับไม่นับชั่วโมงตื่น (ไม่ติด NoSleep เอง)", slp.awakeHours == 1)
 
 -- ===== MentalService (design doc §3 — ไม่มี modifiers ตาม option ข) =====
 check("drain ต่อชั่วโมงเกม = 1% × 7.5/4.5 ≈ 1.667",
@@ -732,6 +748,13 @@ check("ยิ่งไกลยิ่งจาง (ไม่กลับทา�
 	InteractBinder.labelAlpha(16) < InteractBinder.labelAlpha(20)
 	and InteractBinder.labelAlpha(20) < InteractBinder.labelAlpha(26))
 
+-- ประตู (docs/02 §9.9): follower ถึงเกณฑ์ = ผ่าน, ไม่ถึง = ข้อความบอกเกณฑ์
+check("ประตูไม่มี MinFollower = เข้าได้เลย", (InteractBinder.doorCheck(0, nil)) == true)
+check("ประตู 10K: มี 9,999 = เข้าไม่ได้", (InteractBinder.doorCheck(9999, 10000)) == false)
+check("ประตู 10K: มี 10,000 = เข้าได้", (InteractBinder.doorCheck(10000, 10000)) == true)
+local _, doorWhy = InteractBinder.doorCheck(0, 100000)
+check("ประตูล็อกบอกเกณฑ์เป็น K", doorWhy == "ยังเข้าไม่ได้ (ต้องมี 100K follower)")
+
 check("เฟส 1 ได้ p1", InteractBinder.pickLines(sample, { phase = 1, flags = {} })[1] == "หนึ่ง")
 check("เฟส 2 ได้ p2", InteractBinder.pickLines(sample, { phase = 2, flags = {} })[1] == "สอง")
 check("เฟส 3 ไม่มี p3 → ถอยลงมา p2", InteractBinder.pickLines(sample, { phase = 3, flags = {} })[1] == "สอง")
@@ -838,14 +861,15 @@ local HUD = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.HUD)
 	else require("../src/client/UI/HUD")
 local hudS = GameState.newGame()
-check("storage เริ่มต้น = 0 GB / 128 GB", HUD.storageText(hudS) == "💾 0 GB / 128 GB")
+-- ⚠️ 28 ก.ค.: ไอคอนย้ายออกจากข้อความไปเป็นรูป/emoji แยกช่อง (HUD ใหม่ตามภาพร่าง) → ไม่มี "💾 " นำหน้าแล้ว
+check("storage เริ่มต้น = 0 GB / 128 GB", HUD.storageText(hudS) == "0 GB / 128 GB")
 hudS.footageGB = 64.7
-check("storage ปัดลงเป็นจำนวนเต็ม", HUD.storageText(hudS) == "💾 64 GB / 128 GB")
+check("storage ปัดลงเป็นจำนวนเต็ม", HUD.storageText(hudS) == "64 GB / 128 GB")
 hudS.footageGB = 128
 check("storage เต็ม = FULL", HUD.storageText(hudS):find("FULL") ~= nil)
 hudS.footageGB = 0
 hudS.upgrades.storage = 4
-check("ความจุ ≥1024 โชว์เป็น T", HUD.storageText(hudS) == "💾 0 GB / 1T")
+check("ความจุ ≥1024 โชว์เป็น T", HUD.storageText(hudS) == "0 GB / 1T")
 
 check("comma: หลักเดียว", HUD.comma(7) == "7")
 check("comma: 1024 = 1,024", HUD.comma(1024) == "1,024")

@@ -36,10 +36,13 @@ function TimeService.sleepHours(hour: number): number
 end
 
 -- นอน: เดินเวลาทีละชั่วโมงผ่าน tick ปกติ → onDay/onHour ยิงถูกจังหวะเอง
+-- state.sleeping = true ระหว่างนี้ ให้ MentalService รู้ว่าเป็นชั่วโมงหลับ (ไม่ drain — fix 29 ก.ค.)
 function TimeService.sleep(state)
+	state.sleeping = true
 	for _ = 1, TimeService.sleepHours(state.timeOfDay) do
 		TimeService.tick(state)
 	end
+	state.sleeping = false
 end
 
 -- ===== Roblox glue (Studio เท่านั้น) =====

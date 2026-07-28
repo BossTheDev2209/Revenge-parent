@@ -12,7 +12,19 @@ local PROMPT_TEXT = {
 	Interact_NPC_Mom = "คุยกับแม่",
 	Interact_NotebookPack = "เก็บโน้ตบุ๊ค",
 	Interact_Shop = "เข้าร้านค้า",
+	Interact_Door = "เข้าไป",
 }
+
+-- ===== ประตู (docs/02 §9.9) =====
+-- Attribute บนบานประตู: `Target` = ชื่อ Part ปลายทาง · `MinFollower` = follower ที่ต้องมี (0/ไม่ใส่ = เข้าได้เลย)
+-- ยังไม่ปลด = ขึ้นข้อความบอกว่าต้องมีกี่ follower · ไม่มี Target = เตือนคนวางแมพ
+-- pure: ตัดสินว่าเข้าได้ไหม — เทสได้
+function InteractBinder.doorCheck(follower: number, minFollower: number?): (boolean, string?)
+	local need = tonumber(minFollower) or 0
+	if follower >= need then return true end
+	return false, ("ยังเข้าไม่ได้ (ต้องมี %s follower)"):format(
+		need >= 1000 and ("%dK"):format(need / 1000) or tostring(need))
+end
 
 -- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
 -- พ่อแม่ = ขีดดำ ตัดชั่วคราว (docs/02 §9.4) — ไฟล์ Mom/Dad ยังอยู่ ถ้าดึงกลับค่อยผูก Interact_NPC_Mom
@@ -63,6 +75,26 @@ local function openBedMenu(playerGui, fireAction)
 	gui.Parent = playerGui
 end
 
+-- ข้อความกลางจอ 2 วิ (ประตูล็อก / ประตูยังไม่ตั้ง Attribute)
+local function toast(playerGui, text: string)
+	local g = Instance.new("ScreenGui")
+	g.ResetOnSpawn = false
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(0, 460, 0, 46)
+	l.Position = UDim2.new(0.5, -230, 0.32, 0)
+	l.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	l.BackgroundTransparency = 0.15
+	l.TextColor3 = Color3.new(1, 1, 1)
+	l.TextScaled = true
+	l.Text = text
+	l.Parent = g
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 10)
+	c.Parent = l
+	g.Parent = playerGui
+	task.delay(2, function() g:Destroy() end)
+end
+
 -- ป้ายชื่อเหนือจุด interact (BillboardGui ที่ทีมแปะไว้เอง) — จางตามระยะ
 -- ไม่งั้นป้ายลอยเด่นทั้งแมพ เห็นตั้งแต่อีกฝั่งเมือง (user feedback 28 ก.ค.)
 -- ระยะอ้างอิง ProximityPrompt.MaxActivationDistance (default 10): ชัดเต็มตอนกดได้พอดี
@@ -89,6 +121,23 @@ function InteractBinder.init(deps)
 			openBedMenu(deps.playerGui, deps.fireAction)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then
 			deps.fireAction({ type = "DoActivity", activity = name:gsub("Interact_", "") })
+		elseif name == "Interact_Door" then
+			-- teleport ฝั่ง client พอ (singleplayer) — ปลายทางกับเงื่อนไขอ่านจาก Attribute ของบานประตู
+			local state = deps.getState and deps.getState() or nil
+			local ok, why = InteractBinder.doorCheck(state and state.follower or 0, part:GetAttribute("MinFollower"))
+			if not ok then
+				toast(deps.playerGui, why)
+				return
+			end
+			local targetName = part:GetAttribute("Target")
+			local target = targetName and workspace:FindFirstChild(targetName, true)
+			if not target or not target:IsA("BasePart") then
+				toast(deps.playerGui, ("ประตูนี้ยังไม่ตั้งปลายทาง (Attribute Target=%s)"):format(tostring(targetName)))
+				return
+			end
+			local char = game:GetService("Players").LocalPlayer.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			if root then root.CFrame = target.CFrame + Vector3.new(0, 3, 0) end
 		elseif NPC_DIALOGUE[name] then
 			deps.startDialogue(NPC_DIALOGUE[name])
 		else

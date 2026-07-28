@@ -36,8 +36,13 @@ function MentalService.apply(state, reason: string)
 	MentalService.applyDelta(state, d)
 end
 
+-- ชั่วโมงที่หลับอยู่ **ไม่ drain และไม่นับชั่วโมงตื่น** (fix 29 ก.ค.)
+-- เดิม: TimeService.sleep เดินเวลาทีละชั่วโมงผ่าน tick → นอน 8 ชม. เสียใจ −13% ทั้งที่ไม่ได้ทำอะไร
+-- = นอนกลายเป็นการกระทำที่ "แย่กว่าไม่นอน" ซึ่งขัดกับ modifier "อดนอน" (docs/02 §3) ที่ลงโทษการไม่นอน
+-- mod ยังหมดอายุตามเวลาปกติ (Canon event/streak) — แค่ตัว drain กับ awakeHours ที่หยุด
 function MentalService.onHour(state)
 	MentalService.expireMods(state)
+	if state.sleeping then return end
 	MentalService.onHourAwake(state)
 	MentalService.applyDelta(state, -MentalService.drainPerHour * MentalService.drainMultiplier(state))
 end

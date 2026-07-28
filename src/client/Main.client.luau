@@ -151,6 +151,7 @@ end)
 InteractBinder.init({
 	fireAction = fireAction,
 	playerGui = playerGui,
+	getState = function() return latestState end, -- ประตูใช้เช็ค follower ก่อนปล่อยผ่าน (docs/02 §9.9)
 	openPC = function(screenPart) -- Interact_pcMonitor = zoom เข้าจอ | Interact_Camera เก่า = เปิดเฉยๆ
 		PCScreen.open(playerGui, pcDeps, PC_APPS, screenPart)
 	end,

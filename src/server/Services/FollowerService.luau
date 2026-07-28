@@ -35,6 +35,7 @@ function FollowerService.uploadClip(state, action, mentalPct: number, rng)
 	clip.uploaded = true
 	clip.gained = gained
 	clip.viral = viral
+	clip.day = state.day -- ใช้คิด income/สัปดาห์ ในแอป Bank (PDF หน้า 9 "income per week")
 	return true, viral
 end
 

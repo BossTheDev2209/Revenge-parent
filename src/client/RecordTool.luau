@@ -85,6 +85,57 @@ function RecordTool.init(player, fireAction, getState)
 	player.Backpack.ChildAdded:Connect(bindTool) -- Tool ใหม่ตอนอัปเกรด/ข้ามเฟส
 	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
 
+	-- ตัวเลขลอยรอบตัวตอนอัดติด "+1.2" / "+2.4 Bonus!" (ภาพร่าง `CameraTool clicking number pop-up ui.png`)
+	-- อ่านจากส่วนต่าง footageGB ของ state — server เป็นคนคิดว่าได้เท่าไหร่ ที่นี่แค่โชว์
+	local function floatGain(amount: number, bonus: boolean)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		local anchor = Instance.new("Part")
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.CanQuery = false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+		anchor.CFrame = root.CFrame * CFrame.new(math.random(-70, 70) / 10, math.random(0, 40) / 10, math.random(-50, 20) / 10)
+		anchor.Parent = workspace
+
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.new(0, 160, 0, 44)
+		bb.AlwaysOnTop = true
+		bb.Adornee = anchor
+		bb.Parent = anchor
+		local l = Instance.new("TextLabel")
+		l.Size = UDim2.new(1, 0, 1, 0)
+		l.BackgroundTransparency = 1
+		l.TextColor3 = Color3.fromRGB(180, 110, 255)
+		l.TextStrokeTransparency = 0.4
+		l.TextScaled = true
+		l.Text = bonus and ("+%.1f Bonus!"):format(amount) or ("+%.1f"):format(amount)
+		l.Parent = bb
+
+		local tween = game:GetService("TweenService"):Create(l, TweenInfo.new(1.2), {
+			TextTransparency = 1, TextStrokeTransparency = 1,
+		})
+		tween:Play()
+		tween.Completed:Connect(function() anchor:Destroy() end)
+	end
+
+	task.spawn(function()
+		local prev = nil
+		while true do
+			local s = getState()
+			local now = s and s.footageGB or nil
+			if prev and now and now > prev + 0.001 then
+				local gained = now - prev
+				local base = Config.Record.footagePerClickGB[s.upgrades and s.upgrades.camera or 1]
+					or Config.Record.footagePerClickGB[1]
+				floatGain(gained, gained > base + 0.001) -- ได้เกิน base = ติดโบนัสโซน
+			end
+			prev = now
+			task.wait(0.1)
+		end
+	end)
+
 	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง
 	task.spawn(function()
 		while true do

@@ -1,37 +1,74 @@
--- HUD.luau — UI ติดจอตลอดเวลา (PDF หน้า 5 "UI ทั้งหมด")
--- บนซ้าย: follower + เงิน | บนขวา: เวลา/วัน | ขวา: mental bar แนวตั้ง | ล่างซ้าย: storage + กล้อง
--- placeholder หน้าตา — ทีมทำสวยแทนได้ ขอแค่คง function init/update
+-- HUD.luau — UI ติดจอตลอดเวลา — **layout ตามภาพร่าง PDF หน้า 5 / `assets/reference/ui screenshot/All ui.png`**
+--   บนกลาง : [👤 follower] [💰 money] เรียงข้างกัน + แถบ progress เฟสอยู่ใต้ทั้งคู่
+--   บนขวา  : นาฬิกา 15:24 + ป้ายปฏิทินเลขวัน
+--   ซ้ายกลาง: storage / กล้อง + ปุ่มกลม setting・เสียง ใต้กล่อง
+--   ขวาสุด : mental bar แนวตั้งยาว หัวใจบน–หัวใจแตกล่าง + ป้าย 100/50/0%
+--   ล่างกลาง: hotbar 3 ช่อง
+-- ทุกกล่องเว้นที่ให้ใส่รูปทีหลัง (คีย์ใน UIAssets — docs/13 §1) ยังไม่มีรูป = กล่องสีทึบ + emoji
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local UIAssets = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
+	else require("../../shared/UIAssets")
 
 local HUD = {}
 
-local function box(parent, x, y, w, h, bg)
+-- ===== ขนาด/ตำแหน่งอ้างภาพร่าง (แก้ที่เดียว) =====
+local STAT_W, STAT_H = 210, 46 -- กล่อง follower / money
+local BAR_W, BAR_H = 470, 22 -- แถบ progress ใต้กล่อง
+local SIDE_W, SIDE_H = 230, 40 -- กล่อง storage / กล้อง ฝั่งซ้าย
+local SIDE_Y = 0.40 -- ซ้ายกลางค่อนบน ตามภาพร่าง
+local MENTAL_W = 26
+local MENTAL_TOP, MENTAL_BOT = 0.22, 0.86 -- บาร์ยาวเกือบเต็มความสูงจอ
+
+local function corner(inst, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 8)
+	c.Parent = inst
+	return c
+end
+
+local function panel(parent, pos, size, bg)
 	local f = Instance.new("Frame")
-	f.Position = UDim2.new(x[1], x[2], y[1], y[2])
-	f.Size = UDim2.new(0, w, 0, h)
+	f.Position = pos
+	f.Size = size
 	f.BackgroundColor3 = bg or Color3.fromRGB(20, 20, 30)
 	f.BackgroundTransparency = 0.25
 	f.Parent = parent
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 8)
-	c.Parent = f
+	corner(f)
 	return f
 end
 
-local function label(parent, text)
+-- ไอคอนช่องซ้าย: ใช้รูปจาก UIAssets ถ้ามี ไม่มีก็ใช้ emoji (docs/13 กติกา fallback)
+local function statLabel(parent, assetKey, fallbackEmoji, text)
+	local iconId = UIAssets[assetKey] or ""
+	local pad = 8
+	if iconId ~= "" then
+		local img = Instance.new("ImageLabel")
+		img.Size = UDim2.new(0, 28, 0, 28)
+		img.Position = UDim2.new(0, 8, 0.5, -14)
+		img.BackgroundTransparency = 1
+		img.Image = iconId
+		img.Parent = parent
+		pad = 44
+	end
 	local l = Instance.new("TextLabel")
-	l.Size = UDim2.new(1, -12, 1, 0)
-	l.Position = UDim2.new(0, 6, 0, 0)
+	l.Size = UDim2.new(1, -pad - 8, 1, -8)
+	l.Position = UDim2.new(0, pad, 0, 4)
 	l.BackgroundTransparency = 1
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextScaled = true
 	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.Text = text
+	l.Text = (iconId ~= "" and "" or fallbackEmoji .. " ") .. text
 	l.Parent = parent
+	l:SetAttribute("prefix", iconId ~= "" and "" or fallbackEmoji .. " ")
 	return l
+end
+
+local function setStat(l: TextLabel, text: string)
+	l.Text = (l:GetAttribute("prefix") or "") .. text
 end
 
 -- ===== pure (เทสด้วย lune) =====
@@ -59,82 +96,132 @@ function HUD.init(playerGui)
 	gui.Name = "Gui_HUD"
 	gui.ResetOnSpawn = false
 
-	HUD.followerLabel = label(box(gui, { 0, 8 }, { 0, 8 }, 190, 34), "👤 0")
-	HUD.moneyLabel = label(box(gui, { 0, 8 }, { 0, 48 }, 190, 34), "💰 ฿0")
-	HUD.clockLabel = label(box(gui, { 1, -178 }, { 0, 8 }, 170, 34), "วัน 1 | 08:00")
-	HUD.phaseLabel = label(box(gui, { 1, -178 }, { 0, 48 }, 170, 34), "เฟส 1")
-	HUD.storageLabel = label(box(gui, { 0, 8 }, { 1, -132 }, 210, 34), "💾 0 GB / 128 GB")
-	HUD.cameraLabel = label(box(gui, { 0, 8 }, { 1, -92 }, 210, 34), "📷 720p")
+	-- ---------- บนกลาง: follower + money เรียงข้างกัน (ภาพร่าง: กล่องม่วง | กล่องเขียว) ----------
+	local half = STAT_W + 5
+	local fBox = panel(gui, UDim2.new(0.5, -half, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
+	local mBox = panel(gui, UDim2.new(0.5, 5, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
+	HUD.followerLabel = statLabel(fBox, "hud_follower", "👤", "0")
+	HUD.moneyLabel = statLabel(mBox, "hud_money", "💰", "฿0")
+	HUD.statTopY = 10 + STAT_H -- ให้ popup เกาะขอบล่างกล่อง
 
-	-- mental bar แนวตั้ง ขวากลางจอ
-	local barBack = box(gui, { 1, -34 }, { 0.5, -120 }, 22, 240, Color3.fromRGB(15, 15, 20))
-	local fill = Instance.new("Frame")
-	fill.AnchorPoint = Vector2.new(0, 1)
-	fill.Position = UDim2.new(0, 2, 1, -2)
-	fill.Size = UDim2.new(1, -4, 0.8, 0)
-	fill.BackgroundColor3 = Color3.fromRGB(80, 220, 120)
-	fill.Parent = barBack
-	local fc = Instance.new("UICorner")
-	fc.CornerRadius = UDim.new(0, 6)
-	fc.Parent = fill
-	local heart = Instance.new("TextLabel")
-	heart.Size = UDim2.new(0, 30, 0, 24)
-	heart.Position = UDim2.new(1, -38, 0.5, -146)
-	heart.BackgroundTransparency = 1
-	heart.Text = "❤️"
-	heart.TextScaled = true
-	heart.Parent = gui
-	HUD.mentalFill = fill
-
-	-- แถบ progress สู่ 1M กลางบนจอ + ขีด milestone (PDF หน้า 5)
-	local track = box(gui, { 0.5, -260 }, { 0, 10 }, 520, 20, Color3.fromRGB(15, 15, 20))
+	-- แถบ progress อยู่ "ใต้กล่องทั้งสอง" ตามภาพร่าง (ไม่ใช่เหนือ)
+	local track = panel(gui, UDim2.new(0.5, -BAR_W / 2, 0, 10 + STAT_H + 6),
+		UDim2.new(0, BAR_W, 0, BAR_H), Color3.fromRGB(15, 15, 20))
 	local pfill = Instance.new("Frame")
 	pfill.Size = UDim2.new(0, 0, 1, -6)
 	pfill.Position = UDim2.new(0, 3, 0, 3)
 	pfill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
 	pfill.Parent = track
-	local pc = Instance.new("UICorner")
-	pc.CornerRadius = UDim.new(0, 6)
-	pc.Parent = pfill
-	for _, m in { 10_000, 100_000 } do -- รอยต่อเฟส
+	corner(pfill, 6)
+	for _, m in { 10_000, 100_000 } do -- ขีดรอยต่อเฟส (ภาพร่างมีขีดแบ่งช่วง)
 		local tick = Instance.new("Frame")
 		tick.Size = UDim2.new(0, 2, 1, 0)
 		tick.Position = UDim2.new(HUD.progressPct(m), 0, 0, 0)
-		tick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		tick.BackgroundColor3 = Color3.new(1, 1, 1)
 		tick.BorderSizePixel = 0
 		tick.Parent = track
 	end
+	HUD.phaseLabel = Instance.new("TextLabel") -- ป้ายเฟสซ้อนบนบาร์ (ภาพร่างเขียนชื่อช่วงในบาร์)
+	HUD.phaseLabel.Size = UDim2.new(1, -8, 1, 0)
+	HUD.phaseLabel.Position = UDim2.new(0, 4, 0, 0)
+	HUD.phaseLabel.BackgroundTransparency = 1
+	HUD.phaseLabel.TextColor3 = Color3.new(1, 1, 1)
+	HUD.phaseLabel.TextStrokeTransparency = 0.4
+	HUD.phaseLabel.TextSize = 14
+	HUD.phaseLabel.Text = "เฟส 1"
+	HUD.phaseLabel.Parent = track
 	local goal = Instance.new("TextLabel")
-	goal.Size = UDim2.new(0, 120, 0, 20)
-	goal.Position = UDim2.new(0.5, 264, 0, 10)
+	goal.Size = UDim2.new(0, 60, 0, BAR_H)
+	goal.Position = UDim2.new(0.5, BAR_W / 2 + 6, 0, 10 + STAT_H + 6)
 	goal.BackgroundTransparency = 1
 	goal.TextColor3 = Color3.new(1, 1, 1)
 	goal.TextStrokeTransparency = 0.5
 	goal.TextScaled = true
 	goal.TextXAlignment = Enum.TextXAlignment.Left
-	goal.Text = "/ 1M"
+	goal.Text = "1M"
 	goal.Parent = gui
 	HUD.progressFill = pfill
 
-	-- ปุ่มตั้งค่า + แผงเสียง (ตัวเต็มอยู่หน้า Setting ของ Main Menu — นี่คือทางลัดระหว่างเล่น)
-	local setBtn = Instance.new("TextButton")
-	setBtn.Size = UDim2.new(0, 36, 0, 36)
-	setBtn.Position = UDim2.new(0, 116, 1, -44) -- ขวาปุ่มเซฟ (Main.client วางปุ่มเซฟที่ x=8 กว้าง 100)
-	setBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-	setBtn.BackgroundTransparency = 0.25
-	setBtn.TextColor3 = Color3.new(1, 1, 1)
-	setBtn.TextScaled = true
-	setBtn.Text = "⚙️"
-	setBtn.Parent = gui
-	local sc = Instance.new("UICorner")
-	sc.CornerRadius = UDim.new(0, 8)
-	sc.Parent = setBtn
+	-- ---------- บนขวา: นาฬิกา + ป้ายปฏิทิน (ภาพร่าง: "15:24" ตัวเปล่า + ปฏิทินฉีกเลข 24) ----------
+	HUD.clockLabel = Instance.new("TextLabel")
+	HUD.clockLabel.Size = UDim2.new(0, 110, 0, 40)
+	HUD.clockLabel.Position = UDim2.new(1, -186, 0, 12)
+	HUD.clockLabel.BackgroundTransparency = 1
+	HUD.clockLabel.TextColor3 = Color3.new(1, 1, 1)
+	HUD.clockLabel.TextStrokeTransparency = 0.4
+	HUD.clockLabel.TextScaled = true
+	HUD.clockLabel.TextXAlignment = Enum.TextXAlignment.Right
+	HUD.clockLabel.Text = "08:00"
+	HUD.clockLabel.Parent = gui
 
-	local panel = box(gui, { 0, 8 }, { 1, -230 }, 220, 88) -- เหนือช่อง storage ไม่ทับอะไร
-	panel.Visible = false
+	local calId = UIAssets.hud_calendar or ""
+	local calBox
+	if calId ~= "" then
+		calBox = Instance.new("ImageLabel")
+		calBox.Image = calId
+		calBox.BackgroundTransparency = 1
+	else
+		calBox = Instance.new("Frame")
+		calBox.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+		calBox.BackgroundTransparency = 0.25
+		corner(calBox)
+	end
+	calBox.Size = UDim2.new(0, 62, 0, 62)
+	calBox.Position = UDim2.new(1, -70, 0, 8)
+	calBox.Parent = gui
+	HUD.dayLabel = Instance.new("TextLabel") -- เลขวันพิมพ์ทับกลางรูปปฏิทิน (docs/13 กติกา 5)
+	HUD.dayLabel.Size = UDim2.new(1, 0, 0.55, 0)
+	HUD.dayLabel.Position = UDim2.new(0, 0, 0.38, 0)
+	HUD.dayLabel.BackgroundTransparency = 1
+	HUD.dayLabel.TextColor3 = calId ~= "" and Color3.fromRGB(30, 30, 40) or Color3.new(1, 1, 1)
+	HUD.dayLabel.TextScaled = true
+	HUD.dayLabel.Text = "1"
+	HUD.dayLabel.Parent = calBox
+
+	-- ---------- ซ้ายกลาง: storage / กล้อง + ปุ่มกลม ----------
+	local stBox = panel(gui, UDim2.new(0, 16, SIDE_Y, 0), UDim2.new(0, SIDE_W, 0, SIDE_H))
+	local camBox = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H + 8), UDim2.new(0, SIDE_W, 0, SIDE_H))
+	HUD.storageLabel = statLabel(stBox, "hud_storage", "💾", "0 GB / 128 GB")
+	HUD.cameraLabel = statLabel(camBox, "hud_camera", "📷", "720p")
+	HUD.sideAnchorY = SIDE_Y
+
+	local function roundBtn(assetKey, fallback, x)
+		local id = UIAssets[assetKey] or ""
+		local b
+		if id ~= "" then
+			b = Instance.new("ImageButton")
+			b.Image = id
+			b.BackgroundTransparency = 1
+		else
+			b = Instance.new("TextButton")
+			b.Text = fallback
+			b.TextScaled = true
+			b.TextColor3 = Color3.new(1, 1, 1)
+			b.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+			b.BackgroundTransparency = 0.25
+			corner(b, 20)
+		end
+		b.Size = UDim2.new(0, 40, 0, 40)
+		b.Position = UDim2.new(0, x, SIDE_Y, SIDE_H * 2 + 18)
+		b.Parent = gui
+		return b
+	end
+	local setBtn = roundBtn("btn_setting", "⚙️", 16)
+	local soundBtn = roundBtn("btn_sound", "🔊", 64)
+
+	-- แผงเสียง (ตัวเต็มอยู่หน้า Setting ของ Main Menu — นี่คือทางลัดระหว่างเล่น)
+	local vpanel = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H * 2 + 66), UDim2.new(0, 230, 0, 88))
+	vpanel.Visible = false
 	local Audio = require(script.Parent.Parent.AudioService)
-	local volLabel = label(panel, ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5)))
+	local volLabel = Instance.new("TextLabel")
 	volLabel.Size = UDim2.new(1, -12, 0, 34)
+	volLabel.Position = UDim2.new(0, 6, 0, 2)
+	volLabel.BackgroundTransparency = 1
+	volLabel.TextColor3 = Color3.new(1, 1, 1)
+	volLabel.TextScaled = true
+	volLabel.TextXAlignment = Enum.TextXAlignment.Left
+	volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
+	volLabel.Parent = vpanel
 	local function volBtn(text, x, dir)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0, 60, 0, 32)
@@ -143,7 +230,7 @@ function HUD.init(playerGui)
 		b.TextColor3 = Color3.new(1, 1, 1)
 		b.TextScaled = true
 		b.Text = text
-		b.Parent = panel
+		b.Parent = vpanel
 		b.Activated:Connect(function()
 			Audio.setVolume(Audio.getVolume() + dir * 0.1)
 			volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
@@ -151,12 +238,54 @@ function HUD.init(playerGui)
 	end
 	volBtn("⊖", 10, -1)
 	volBtn("⊕", 80, 1)
-	setBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+	local function toggleVol() vpanel.Visible = not vpanel.Visible end
+	setBtn.Activated:Connect(toggleVol)
+	soundBtn.Activated:Connect(toggleVol)
 
-	-- ที่เก็บ popup ตัวเลขเด้ง (+300 ข้างตัวเลข)
+	-- ---------- ขวาสุด: mental bar แนวตั้ง ----------
+	local barBack = panel(gui, UDim2.new(1, -46, MENTAL_TOP, 0),
+		UDim2.new(0, MENTAL_W, MENTAL_BOT - MENTAL_TOP, 0), Color3.fromRGB(15, 15, 20))
+	barBack.BackgroundTransparency = 0.1
+	local fill = Instance.new("Frame")
+	fill.AnchorPoint = Vector2.new(0, 1)
+	fill.Position = UDim2.new(0, 2, 1, -2)
+	fill.Size = UDim2.new(1, -4, 0.8, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(80, 220, 120)
+	fill.Parent = barBack
+	corner(fill, 6)
+	HUD.mentalFill = fill
+
+	local function heart(emoji, yScale, yOff)
+		local h = Instance.new("TextLabel")
+		h.Size = UDim2.new(0, 34, 0, 30)
+		h.Position = UDim2.new(1, -50, yScale, yOff)
+		h.BackgroundTransparency = 1
+		h.TextScaled = true
+		h.Text = emoji
+		h.Parent = gui
+		return h
+	end
+	heart("❤️", MENTAL_TOP, -34) -- หัวใจเต็มบนหัวบาร์
+	heart("💔", MENTAL_BOT, 4) -- หัวใจแตกใต้บาร์
+	for _, tick in { { 100, MENTAL_TOP }, { 50, (MENTAL_TOP + MENTAL_BOT) / 2 }, { 0, MENTAL_BOT } } do
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.new(0, 40, 0, 18)
+		t.Position = UDim2.new(1, -92, tick[2], -9)
+		t.BackgroundTransparency = 1
+		t.TextColor3 = Color3.new(1, 1, 1)
+		t.TextStrokeTransparency = 0.5
+		t.TextSize = 13
+		t.TextXAlignment = Enum.TextXAlignment.Right
+		t.Text = tick[1] .. "%"
+		t.Parent = gui
+	end
+
+	-- ---------- ล่างกลาง: hotbar ----------
+	-- ★ ไม่วาดเอง — ใช้ backpack ของ Roblox (ล่างกลาง 3 ช่องพอดีภาพร่างอยู่แล้ว)
+	-- อยากได้ช่องตามรูปที่วาด (`hud_hotbar_slot`) ต้องปิด CoreGui backpack แล้วทำเอง = งานแยก (docs/14 §4)
+
 	HUD.gui = gui
 	HUD.prev = nil
-
 	gui.Parent = playerGui
 end
 
@@ -191,39 +320,39 @@ function HUD.storageText(state): string
 	local function fmt(gb)
 		return gb >= 1024 and ("%gT"):format(gb / 1024) or ("%d GB"):format(gb)
 	end
-	if used >= cap then return ("💾 %s/%s FULL"):format(fmt(cap), fmt(cap)) end
-	return ("💾 %d GB / %s"):format(used, fmt(cap))
+	if used >= cap then return ("%s/%s FULL"):format(fmt(cap), fmt(cap)) end
+	return ("%d GB / %s"):format(used, fmt(cap))
 end
 
 function HUD.update(state)
-	-- delta popup: เทียบ state ก่อนหน้า (PDF หน้า 5 "+300" / "+20")
+	-- delta popup เกาะมุมขวาบนของกล่องที่เปลี่ยน (ภาพร่าง: "+300" ลอยมุมขวาบนกล่อง follower)
 	local p = HUD.prev
 	if p then
 		local dF, dM = state.follower - p.follower, state.money - p.money
 		local dG = (state.footageGB or 0) - (p.footageGB or 0)
 		if dF ~= 0 then
-			HUD.popup(UDim2.new(0, 204, 0, 12), ("%+d"):format(dF),
+			HUD.popup(UDim2.new(0.5, -STAT_W - 5 + 12, 0, 2), ("%+d"):format(dF),
 				dF > 0 and Color3.fromRGB(90, 230, 130) or Color3.fromRGB(240, 90, 90))
 		end
 		if dM ~= 0 then
-			HUD.popup(UDim2.new(0, 204, 0, 52), ("%+d"):format(dM),
+			HUD.popup(UDim2.new(0.5, STAT_W - 40, 0, 2), ("%+d"):format(dM),
 				dM > 0 and Color3.fromRGB(240, 220, 80) or Color3.fromRGB(240, 90, 90))
 		end
-		if dG > 0 then
-			HUD.popup(UDim2.new(0, 224, 1, -128), ("+%.1f GB"):format(dG), Color3.fromRGB(120, 200, 255))
-		end
+		-- +GB ไม่ขึ้นตรงนี้แล้ว — ภาพร่างให้ลอยรอบตัวผู้เล่นตอนกดอัด (RecordTool.floatGain)
+		local _ = dG
 	end
 	HUD.prev = { follower = state.follower, money = state.money, footageGB = state.footageGB or 0 }
 
-	HUD.followerLabel.Text = ("👤 %s"):format(HUD.comma(state.follower))
-	HUD.moneyLabel.Text = ("💰 ฿%s"):format(HUD.comma(state.money))
+	setStat(HUD.followerLabel, HUD.comma(state.follower))
+	setStat(HUD.moneyLabel, ("฿%s"):format(HUD.comma(state.money)))
 	if HUD.progressFill then
 		HUD.progressFill.Size = UDim2.new(HUD.progressPct(state.follower), -6, 1, -6)
 	end
-	HUD.clockLabel.Text = ("วัน %d | %02d:00"):format(state.day, state.timeOfDay)
+	HUD.clockLabel.Text = ("%02d:00"):format(state.timeOfDay)
+	HUD.dayLabel.Text = tostring(state.day)
 	HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase)
-	HUD.storageLabel.Text = HUD.storageText(state)
-	HUD.cameraLabel.Text = ("📷 %s"):format(Config.ResolutionLadder[state.upgrades.camera] or "?")
+	setStat(HUD.storageLabel, HUD.storageText(state))
+	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[state.upgrades.camera] or "?"))
 
 	local pct = math.clamp(state.mental, 0, 100) / 100
 	HUD.mentalFill.Size = UDim2.new(1, -4, pct, 0)

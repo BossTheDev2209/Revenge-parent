@@ -1,5 +1,8 @@
--- Manage.luau — จ้าง/ไล่พนักงาน (PDF หน้า 9 ล่าง, docs/02 §9.8)
--- ซ้าย: สรุปทีม | ขวา: การ์ดพนักงาน hire/fire — server ตัดสินเงื่อนไขทั้งหมด
+-- Manage.luau — **layout ตามภาพร่าง `ui screenshot/PC-Bank-2 ui (manage-hire).png`** (PDF หน้า 9 ล่าง, docs/02 §9.8)
+--   ซ้าย : "Video per day : x/y" + เส้นคั่น + 3 แถบ speed / Quality / Salary
+--   ขวา  : การ์ดพนักงาน 2 คอลัมน์ — ส่วนบน Hirable (แดง) / เส้นคั่นหนา / ส่วนล่าง Active (เขียว)
+--   การ์ด: ชื่อ + กรอบรูป (★ เว้นว่างรอรูปวาด) + ปุ่ม hire/fire ซ้าย · speed/Quality/Salary ขวา
+-- server ตัดสินเงื่อนไขทั้งหมด — client แค่ยิง action
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -7,48 +10,184 @@ local Config = if isStudio
 
 local Manage = {}
 
-local function label(parent, y, h, text, size)
-	local l = Instance.new("TextLabel")
-	l.Position = UDim2.new(0, 6, 0, y)
-	l.Size = UDim2.new(1, -12, 0, h)
-	l.BackgroundTransparency = 1
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.TextSize = size or 16
-	l.TextWrapped = true
-	l.Text = text
-	l.Parent = parent
-	return l
+local BLUE = Color3.fromRGB(30, 60, 160)
+
+local function stroke(inst, color, thick)
+	local s = Instance.new("UIStroke")
+	s.Color = color or BLUE
+	s.Thickness = thick or 2
+	s.Parent = inst
+	return s
 end
 
 function Manage.create(frame, deps)
-	-- ซ้าย: สรุปทีม
-	local summary = Instance.new("Frame")
-	summary.Position = UDim2.new(0, 6, 0, 6)
-	summary.Size = UDim2.new(0.35, -8, 1, -12)
-	summary.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
-	summary.Parent = frame
-	local sumTitle = label(summary, 6, 24, "👥 ทีมของเรา", 18)
-	local sumBody = label(summary, 36, 200, "")
+	frame.BackgroundColor3 = Color3.fromRGB(238, 240, 245)
 
-	-- ขวา: การ์ดพนักงาน
-	local list = Instance.new("ScrollingFrame")
-	list.Position = UDim2.new(0.35, 6, 0, 6)
-	list.Size = UDim2.new(0.65, -12, 1, -12)
-	list.BackgroundTransparency = 1
-	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	list.CanvasSize = UDim2.new(0, 0, 0, 0)
-	list.Parent = frame
-	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.new(0.5, -8, 0, 96)
-	grid.CellPadding = UDim2.new(0, 6, 0, 6)
-	grid.Parent = list
+	-- ===== ซ้าย: สรุปทีม =====
+	local left = Instance.new("Frame")
+	left.Position = UDim2.new(0, 8, 0, 8)
+	left.Size = UDim2.new(0.36, -12, 1, -16)
+	left.BackgroundColor3 = Color3.new(1, 1, 1)
+	left.Parent = frame
+	stroke(left)
+
+	local perDayLabel = Instance.new("TextLabel")
+	perDayLabel.Position = UDim2.new(0, 10, 0.08, 0)
+	perDayLabel.Size = UDim2.new(1, -20, 0, 26)
+	perDayLabel.BackgroundTransparency = 1
+	perDayLabel.TextColor3 = BLUE
+	perDayLabel.TextScaled = true
+	perDayLabel.TextXAlignment = Enum.TextXAlignment.Left
+	perDayLabel.Text = "Video per day : 0/0"
+	perDayLabel.Parent = left
+
+	local sep = Instance.new("Frame")
+	sep.Position = UDim2.new(0.06, 0, 0.26, 0)
+	sep.Size = UDim2.new(0.88, 0, 0, 2)
+	sep.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	sep.BorderSizePixel = 0
+	sep.Parent = left
+
+	-- 3 แถบ: ชื่อซ้าย ค่าขวา แถบใต้
+	local bars = {}
+	for i, def in { { "speed", "⏱️" }, { "Quality", "🎬" }, { "Salary", "💵" } } do
+		local y = 0.34 + (i - 1) * 0.2
+		local cap = Instance.new("TextLabel")
+		cap.Position = UDim2.new(0.06, 0, y, 0)
+		cap.Size = UDim2.new(0.5, 0, 0, 22)
+		cap.BackgroundTransparency = 1
+		cap.TextColor3 = BLUE
+		cap.TextScaled = true
+		cap.TextXAlignment = Enum.TextXAlignment.Left
+		cap.Text = ("%s %s"):format(def[1], def[2])
+		cap.Parent = left
+
+		local val = Instance.new("TextLabel")
+		val.Position = UDim2.new(0.5, 0, y, 0)
+		val.Size = UDim2.new(0.44, 0, 0, 22)
+		val.BackgroundTransparency = 1
+		val.TextColor3 = BLUE
+		val.TextScaled = true
+		val.TextXAlignment = Enum.TextXAlignment.Right
+		val.Text = ": -"
+		val.Parent = left
+
+		local track = Instance.new("Frame")
+		track.Position = UDim2.new(0.06, 0, y + 0.07, 0)
+		track.Size = UDim2.new(0.88, 0, 0, 20)
+		track.BackgroundColor3 = Color3.new(1, 1, 1)
+		track.Parent = left
+		stroke(track)
+		local fill = Instance.new("Frame")
+		fill.Size = UDim2.new(0, 0, 1, -4)
+		fill.Position = UDim2.new(0, 2, 0, 2)
+		fill.BackgroundColor3 = BLUE
+		fill.BorderSizePixel = 0
+		fill.Parent = track
+
+		bars[def[1]] = { val = val, fill = fill }
+	end
+
+	-- ===== ขวา: การ์ดพนักงาน 2 ส่วน =====
+	local right = Instance.new("Frame")
+	right.Position = UDim2.new(0.36, 4, 0, 8)
+	right.Size = UDim2.new(0.64, -12, 1, -16)
+	right.BackgroundTransparency = 1
+	right.Parent = frame
+
+	local function section(yScale, hScale)
+		local sc = Instance.new("ScrollingFrame")
+		sc.Position = UDim2.new(0, 0, yScale, 0)
+		sc.Size = UDim2.new(1, 0, hScale, 0)
+		sc.BackgroundTransparency = 1
+		sc.ScrollBarThickness = 4
+		sc.CanvasSize = UDim2.new(0, 0, 0, 0)
+		sc.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		sc.Parent = right
+		local grid = Instance.new("UIGridLayout")
+		grid.CellSize = UDim2.new(0.5, -6, 0, 104)
+		grid.CellPadding = UDim2.new(0, 6, 0, 6)
+		grid.Parent = sc
+		return sc
+	end
+	local hirableList = section(0, 0.56)
+	local divider = Instance.new("Frame")
+	divider.Position = UDim2.new(0, 0, 0.58, 0)
+	divider.Size = UDim2.new(1, 0, 0, 3)
+	divider.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	divider.BorderSizePixel = 0
+	divider.Parent = right
+	local activeList = section(0.61, 0.39)
+
+	-- การ์ด 1 ใบตามภาพร่าง
+	local function makeCard(parent, r, hired)
+		local card = Instance.new("Frame")
+		card.BackgroundColor3 = Color3.new(1, 1, 1)
+		card.Parent = parent
+		stroke(card)
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Position = UDim2.new(0, 6, 0, 4)
+		nameLabel.Size = UDim2.new(0.5, 0, 0, 22)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.TextColor3 = BLUE
+		nameLabel.TextScaled = true
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.Text = r.id
+		nameLabel.Parent = card
+
+		local status = Instance.new("TextLabel")
+		status.Position = UDim2.new(0.55, 0, 0, 4)
+		status.Size = UDim2.new(0.42, -6, 0, 20)
+		status.BackgroundTransparency = 1
+		status.TextColor3 = hired and Color3.fromRGB(40, 170, 70) or Color3.fromRGB(220, 50, 50)
+		status.TextScaled = true
+		status.TextXAlignment = Enum.TextXAlignment.Right
+		status.Text = hired and "Active" or "Hirable"
+		status.Parent = card
+
+		-- ★ กรอบรูปพนักงาน — เว้นว่างรอรูปวาด (ตอนนี้ emoji)
+		local portrait = Instance.new("TextLabel")
+		portrait.Name = "ArtSlot"
+		portrait.Position = UDim2.new(0, 8, 0, 28)
+		portrait.Size = UDim2.new(0, 46, 0, 40)
+		portrait.BackgroundColor3 = Color3.new(1, 1, 1)
+		portrait.TextScaled = true
+		portrait.Text = "🧑"
+		portrait.Parent = card
+		stroke(portrait)
+
+		local btn = Instance.new("TextButton")
+		btn.Position = UDim2.new(0, 8, 0, 72)
+		btn.Size = UDim2.new(0, 46, 0, 24)
+		btn.BackgroundColor3 = Color3.new(1, 1, 1)
+		btn.TextColor3 = hired and Color3.fromRGB(180, 50, 50) or BLUE
+		btn.TextScaled = true
+		btn.Text = hired and "fire" or "hire"
+		btn.Parent = card
+		stroke(btn, hired and Color3.fromRGB(180, 50, 50) or BLUE)
+		btn.Activated:Connect(function()
+			deps.fireAction({ type = hired and "FireStaff" or "HireStaff", id = r.id })
+		end)
+
+		local stats = Instance.new("TextLabel")
+		stats.Position = UDim2.new(0, 62, 0, 28)
+		stats.Size = UDim2.new(1, -70, 0, 68)
+		stats.BackgroundTransparency = 1
+		stats.TextColor3 = BLUE
+		stats.TextSize = 13
+		stats.TextXAlignment = Enum.TextXAlignment.Left
+		stats.TextYAlignment = Enum.TextYAlignment.Top
+		stats.Text = ("speed ⏱️ : %d\nQuality 🎬 : %d\nSalary 💵 : %s"):format(
+			r.speed, r.quality, r.salary >= 1000 and ("%dk"):format(r.salary / 1000) or tostring(r.salary))
+		stats.Parent = card
+	end
 
 	local app = {}
 	function app.refresh(state)
 		local staff = state.staff or {}
 		local companions = state.companions or {}
 
-		-- สรุปทีม (นับ companion ด้วย)
 		local speed, quality, salary, n = 0, 0, 0, 0
 		for _, m in staff do
 			speed += m.speed; quality += m.quality; salary += m.salary or 0; n += 1
@@ -57,45 +196,29 @@ function Manage.create(frame, deps)
 			speed += m.speed; quality += m.quality; n += 1
 		end
 		local perDay = speed / Config.Staff.clipsPerDayPerSpeed
-		sumBody.Text = table.concat({
-			("คลิป/วัน: %.1f"):format(perDay),
-			("Speed รวม: %d"):format(speed),
-			("Quality เฉลี่ย: %d"):format(n > 0 and math.floor(quality / n) or 0),
-			("Salary/สัปดาห์: ฿%d"):format(salary),
-			"",
-			("จ้างแล้ว %d / %d"):format(#staff, Config.Staff.hireCap),
-			("เพื่อนร่วมทาง: %d (ฟรี)"):format(#companions),
-		}, "\n")
+		local capSpeed = Config.Staff.hireCap * 40 -- สเกลแถบเฉยๆ ไม่ใช่ค่า balance
+		perDayLabel.Text = ("Video per day : %.1f/%d"):format(perDay, Config.Staff.hireCap)
+		bars.speed.val.Text = (": %d/%d"):format(speed, capSpeed)
+		bars.speed.fill.Size = UDim2.new(math.clamp(speed / capSpeed, 0, 1), -4, 1, -4)
+		local avgQ = n > 0 and math.floor(quality / n) or 0
+		bars.Quality.val.Text = (": %d/100"):format(avgQ)
+		bars.Quality.fill.Size = UDim2.new(math.clamp(avgQ / 100, 0, 1), -4, 1, -4)
+		bars.Salary.val.Text = (": ฿%d"):format(salary)
+		bars.Salary.fill.Size = UDim2.new(math.clamp(salary / 100000, 0, 1), -4, 1, -4)
 
-		-- การ์ด: โชว์เฉพาะที่ปลดล็อกแล้ว (phase และ follower ครบ)
-		for _, ch in list:GetChildren() do
-			if ch:IsA("Frame") then ch:Destroy() end
+		for _, list in { hirableList, activeList } do
+			for _, ch in list:GetChildren() do
+				if ch:IsA("Frame") then ch:Destroy() end
+			end
 		end
+		-- โชว์เฉพาะที่ปลดล็อกแล้ว (phase และ follower ครบ)
 		for _, r in Config.Staff.roster do
-			local unlocked = state.phase >= r.phase and state.follower >= r.follower
-			if unlocked then
+			if state.phase >= r.phase and state.follower >= r.follower then
 				local hired = false
 				for _, s in staff do
 					if s.id == r.id then hired = true end
 				end
-
-				local card = Instance.new("Frame")
-				card.BackgroundColor3 = hired and Color3.fromRGB(230, 250, 230) or Color3.fromRGB(255, 255, 255)
-				card.Parent = list
-				label(card, 4, 20, ("%s  %s"):format(r.id, hired and "🟢 Active" or "🔴 Hirable"), 15)
-				label(card, 26, 44, ("⚡ Speed %d\n⭐ Quality %d\n💰 ฿%d/สัปดาห์"):format(r.speed, r.quality, r.salary), 13)
-
-				local btn = Instance.new("TextButton")
-				btn.Position = UDim2.new(1, -76, 1, -30)
-				btn.Size = UDim2.new(0, 70, 0, 26)
-				btn.BackgroundColor3 = hired and Color3.fromRGB(180, 70, 70) or Color3.fromRGB(70, 140, 80)
-				btn.TextColor3 = Color3.new(1, 1, 1)
-				btn.TextScaled = true
-				btn.Text = hired and "fire" or "hire"
-				btn.Parent = card
-				btn.Activated:Connect(function()
-					deps.fireAction({ type = hired and "FireStaff" or "HireStaff", id = r.id })
-				end)
+				makeCard(hired and activeList or hirableList, r, hired)
 			end
 		end
 	end

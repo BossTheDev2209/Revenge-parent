@@ -8,7 +8,6 @@ local Upload = require(script.Parent.UI.Apps.Upload)
 local Feedback = require(script.Parent.UI.Apps.Feedback)
 local Bank = require(script.Parent.UI.Apps.Bank)
 local CalendarApp = require(script.Parent.UI.Apps.CalendarApp)
-local Shop = require(script.Parent.UI.Apps.Shop)
 local ShopKiosk = require(script.Parent.UI.Apps.ShopKiosk)
 local Message = require(script.Parent.UI.Apps.Message)
 local Manage = require(script.Parent.UI.Apps.Manage)
@@ -55,24 +54,29 @@ saveBtn.Activated:Connect(function()
 	task.delay(1.5, function() saveBtn.Text = "💾 เซฟ" end)
 end)
 
--- PC Screen (PDF หน้า 5 "UI PC") — id ตรง key ใน UIAssets ("app_"..id)
-local PC_APPS = {
-	{ id = "edit", name = "ตัดคลิป", label = "✂️ ตัดคลิป", external = function()
-		EditQTE.start(playerGui, fireAction, function() return latestState end)
-	end },
-	{ id = "upload", name = "อัปโหลด", label = "⬆️ อัปโหลด", create = Upload.create },
-	{ id = "feedback", name = "feedback", label = "📊 Feedback", create = Feedback.create },
-	{ id = "bank", name = "ธนาคาร", label = "🏦 Bank", create = Bank.create },
-	{ id = "calendar", name = "ปฏิทิน", label = "📅 ปฏิทิน", create = CalendarApp.create },
-	{ id = "shop", name = "ร้านค้า", label = "🛒 Shop", create = Shop.create },
-	{ id = "message", name = "ข้อความ", label = "✉️ Message", create = Message.create },
-	-- hidden = ไม่มี icon บน desktop (PDF มี 7 icon) — เข้าผ่านปุ่มในแอป Bank เท่านั้น
-	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
-}
-
 local pcDeps = {
 	fireAction = fireAction,
 	getState = function() return latestState end,
+}
+
+-- PC Screen (PDF หน้า 5 "UI PC") — id ตรง key ใน UIAssets ("app_"..id)
+-- ★ ลำดับนี้ = ลำดับไอคอนบน desktop ตามภาพร่าง `ui screenshot/PC ui.png`
+--   คอลัมน์ 1 (บนลงล่าง): upgrade(shop) · edit · upload · feedback · bank | คอลัมน์ 2: calendar · message
+local PC_APPS = {
+	-- upgrade บนคอม = เปิดหน้าร้านตัวเดียวกับร้านในแมพ (layout ตามภาพร่าง PDF หน้า 9 อยู่ที่ ShopKiosk)
+	{ id = "shop", name = "upgrade", label = "🛒 Shop", external = function()
+		ShopKiosk.open(playerGui, pcDeps)
+	end },
+	{ id = "edit", name = "edit", label = "✂️ ตัดคลิป", external = function()
+		EditQTE.start(playerGui, fireAction, function() return latestState end)
+	end },
+	{ id = "upload", name = "upload", label = "⬆️ อัปโหลด", create = Upload.create },
+	{ id = "feedback", name = "feedback", label = "📊 Feedback", create = Feedback.create },
+	{ id = "bank", name = "bank", label = "🏦 Bank", create = Bank.create },
+	{ id = "calendar", name = "calendar", label = "📅 ปฏิทิน", create = CalendarApp.create },
+	{ id = "message", name = "message", label = "✉️ Message", create = Message.create },
+	-- hidden = ไม่มี icon บน desktop (PDF มี 7 icon) — เข้าผ่านปุ่มในแอป Bank เท่านั้น
+	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
 }
 
 -- คุย NPC: freeze เวลา → typewriter → unfreeze (design doc §7 — ทางเดียว ไม่นับ choice)

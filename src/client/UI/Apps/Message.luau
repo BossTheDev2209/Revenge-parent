@@ -41,7 +41,7 @@ function Message.create(frame, deps)
 	pl.Parent = people
 
 	local chat = Instance.new("ScrollingFrame")
-	chat.Size = UDim2.new(0.72, -12, 1, -64)
+	chat.Size = UDim2.new(0.72, -12, 1, -140) -- เว้นที่ให้ช้อย 3 แถวเรียงลง (ภาพร่าง PC-DM ui.png)
 	chat.Position = UDim2.new(0.28, 4, 0, 4)
 	chat.BackgroundColor3 = Color3.fromRGB(250, 250, 252)
 	chat.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -51,9 +51,17 @@ function Message.create(frame, deps)
 	cl.Padding = UDim.new(0, 6)
 	cl.Parent = chat
 
+	-- เส้นคั่นเหนือแถวช้อย (ภาพร่างมีเส้นแบ่งแชท/ช้อย)
+	local rule = Instance.new("Frame")
+	rule.Size = UDim2.new(0.72, -12, 0, 2)
+	rule.Position = UDim2.new(0.28, 4, 1, -132)
+	rule.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	rule.BorderSizePixel = 0
+	rule.Parent = frame
+
 	local choiceBar = Instance.new("Frame")
-	choiceBar.Size = UDim2.new(0.72, -12, 0, 52)
-	choiceBar.Position = UDim2.new(0.28, 4, 1, -56)
+	choiceBar.Size = UDim2.new(0.72, -12, 0, 124)
+	choiceBar.Position = UDim2.new(0.28, 4, 1, -126)
 	choiceBar.BackgroundTransparency = 1
 	choiceBar.Parent = frame
 
@@ -87,15 +95,21 @@ function Message.create(frame, deps)
 		local ex = dm.exchanges[done + 1]
 		if not ex then return end
 		bubble(chat, ex.npc, false)
+		-- ช้อยเรียงลงเต็มความกว้าง 3 แถว ตามภาพร่าง (ไม่ใช่เรียงข้างกัน)
 		for ci, choiceText in ex.choices or {} do
 			local b = Instance.new("TextButton")
-			b.Size = UDim2.new(1 / #ex.choices, -6, 1, 0)
-			b.Position = UDim2.new((ci - 1) / #ex.choices, 3, 0, 0)
-			b.BackgroundColor3 = Color3.fromRGB(70, 110, 180)
-			b.TextColor3 = Color3.new(1, 1, 1)
+			b.Size = UDim2.new(0.86, 0, 0, 34)
+			b.Position = UDim2.new(0.07, 0, 0, (ci - 1) * 40)
+			b.BackgroundColor3 = Color3.new(1, 1, 1)
+			b.TextColor3 = Color3.fromRGB(30, 60, 160)
 			b.TextScaled = true
 			b.TextWrapped = true
-			b.Text = choiceText
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			b.Text = ("%d.  %s"):format(ci, choiceText)
+			local bs = Instance.new("UIStroke")
+			bs.Color = Color3.fromRGB(30, 60, 160)
+			bs.Thickness = 2
+			bs.Parent = b
 			b.Parent = choiceBar
 			b.Activated:Connect(function()
 				-- เลือกอะไรก็ได้ NPC ตอบเหมือนเดิม (design §6)

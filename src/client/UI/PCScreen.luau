@@ -175,36 +175,52 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 
 	surface.Parent = playerGui
 
-	-- ===== ปุ่มออก: ScreenGui ลอยเหนือจอจริง (ref: ปุ่ม RETURN สีแดงบนสุด) =====
-	local overlay = Instance.new("ScreenGui")
-	overlay.Name = "Gui_PCExit"
-	overlay.ResetOnSpawn = false
-	overlay.IgnoreGuiInset = true
-
+	-- ===== ปุ่มออก: **มุมขวาบนของจอ** ตามภาพร่าง `ui screenshot/PC ui.png` ("Exit ⏻") =====
+	-- อยู่บน SurfaceGui เดียวกับ desktop (surface.Active = true ทำให้กดได้)
 	local exitId = UIAssets.btn_exit
 	local exit
 	if exitId ~= "" then
 		exit = Instance.new("ImageButton")
 		exit.Image = exitId
 		exit.BackgroundTransparency = 1
-		exit.Size = UDim2.new(0, 72, 0, 72)
-		exit.Position = UDim2.new(0.5, -36, 0.02, 0)
+		exit.Size = UDim2.new(0, 56, 0, 56)
+		exit.Position = UDim2.new(1, -70, 0, 14)
 	else
 		exit = Instance.new("TextButton")
-		exit.Text = "⏻ ออกจากเครื่อง"
+		exit.Text = "Exit ⏻"
 		exit.TextScaled = true
-		exit.TextColor3 = Color3.new(1, 1, 1)
-		exit.BackgroundColor3 = Color3.fromRGB(200, 45, 45)
-		exit.Size = UDim2.new(0, 260, 0, 56)
-		exit.Position = UDim2.new(0.5, -130, 0.03, 0)
-		local ec = Instance.new("UICorner")
-		ec.CornerRadius = UDim.new(0, 12)
-		ec.Parent = exit
+		exit.TextColor3 = Color3.fromRGB(30, 60, 160)
+		exit.BackgroundColor3 = Color3.new(1, 1, 1)
+		exit.Size = UDim2.new(0, 120, 0, 44)
+		exit.Position = UDim2.new(1, -136, 0, 14)
+		local es = Instance.new("UIStroke")
+		es.Color = Color3.fromRGB(30, 60, 160)
+		es.Thickness = 2
+		es.Parent = exit
 	end
-	exit.Parent = overlay
+	exit.ZIndex = 5
+	exit.Parent = screen
+
+	-- ปุ่มสำรองบน ScreenGui — กันเคสกด SurfaceGui ไม่ติด (มือถือ/กล้องเอียง) จะได้ไม่ค้างในจอ
+	local overlay = Instance.new("ScreenGui")
+	overlay.Name = "Gui_PCExit"
+	overlay.ResetOnSpawn = false
+	overlay.IgnoreGuiInset = true
+	local backup = Instance.new("TextButton")
+	backup.Text = "⏻"
+	backup.TextScaled = true
+	backup.TextColor3 = Color3.new(1, 1, 1)
+	backup.BackgroundColor3 = Color3.fromRGB(200, 45, 45)
+	backup.BackgroundTransparency = 0.35
+	backup.Size = UDim2.new(0, 44, 0, 44)
+	backup.Position = UDim2.new(1, -56, 0, 12)
+	local bc = Instance.new("UICorner")
+	bc.CornerRadius = UDim.new(0, 10)
+	bc.Parent = backup
+	backup.Parent = overlay
 	overlay.Parent = playerGui
 
-	exit.Activated:Connect(function()
+	local function closeScreen()
 		deps.fireAction({ type = "FreezeTime", on = false })
 		local camera = workspace.CurrentCamera
 		camera.CFrame = savedCam.cf
@@ -212,7 +228,9 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		surface:Destroy()
 		overlay:Destroy()
 		PCScreen.running = false
-	end)
+	end
+	exit.Activated:Connect(closeScreen)
+	backup.Activated:Connect(closeScreen)
 
 	function PCScreen.refresh(newState)
 		state = newState

@@ -11,6 +11,7 @@ local PROMPT_TEXT = {
 	Interact_Exercise = "ออกกำลังกาย",
 	Interact_NPC_Mom = "คุยกับแม่",
 	Interact_NotebookPack = "เก็บโน้ตบุ๊ค",
+	Interact_Shop = "เข้าร้านค้า",
 }
 
 -- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
@@ -69,6 +70,8 @@ function InteractBinder.init(deps)
 			deps.openPC(part)
 		elseif name == "Interact_NotebookPack" then
 			deps.fireAction({ type = "PickupNotebook" })
+		elseif name == "Interact_Shop" then
+			deps.openShop()
 		elseif name == "Interact_Bed" then
 			openBedMenu(deps.playerGui, deps.fireAction)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then

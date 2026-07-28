@@ -9,6 +9,7 @@ local Feedback = require(script.Parent.UI.Apps.Feedback)
 local Bank = require(script.Parent.UI.Apps.Bank)
 local CalendarApp = require(script.Parent.UI.Apps.CalendarApp)
 local Shop = require(script.Parent.UI.Apps.Shop)
+local ShopKiosk = require(script.Parent.UI.Apps.ShopKiosk)
 local Message = require(script.Parent.UI.Apps.Message)
 local Manage = require(script.Parent.UI.Apps.Manage)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
@@ -115,6 +116,7 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	end
 	prevClips, primed = uploaded, true
 	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end
+	if ShopKiosk.running and ShopKiosk.refresh then ShopKiosk.refresh(state) end -- ซื้อแล้วราคา/ระดับอัปทันที
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
 
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว
@@ -147,6 +149,9 @@ InteractBinder.init({
 	playerGui = playerGui,
 	openPC = function(screenPart) -- Interact_pcMonitor = zoom เข้าจอ | Interact_Camera เก่า = เปิดเฉยๆ
 		PCScreen.open(playerGui, pcDeps, PC_APPS, screenPart)
+	end,
+	openShop = function() -- ร้านในแมพ (Interact_Shop) — คนละอันกับแอป Shop บนจอคอม
+		ShopKiosk.open(playerGui, pcDeps)
 	end,
 	startDialogue = startDialogue,
 })

@@ -22,7 +22,7 @@ function GameState.newGame()
 		timeOfDay = Config.Time.dayStartHour,
 		clips = {},    -- {tier="B", uploaded=true, ...}
 		choices = { pos = 0, neu = 0, neg = 0 }, -- ชื่อตรงกับ Formulas.resolveEnding
-		upgrades = { camera = 1, storage = 1 },
+		upgrades = { camera = 1, storage = 1, pc = 1 }, -- pc = สายใหม่ ผลยัง unwired (Config.UpgradeCosts.pc)
 		-- ระบบอัดคลิป (docs/02 §9.5)
 		footageGB = 0,        -- footage ดิบที่อัดมา เต็ม capacity = FULL อัดต่อไม่ได้
 		lastRecordAt = 0,     -- os.clock ครั้งล่าสุด (cooldown 0.6 วิ)

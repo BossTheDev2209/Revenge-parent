@@ -34,6 +34,10 @@ local EditQTE = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.EditQTE)
 	else require("../src/client/UI/Apps/EditQTE")
 
+local ShopKiosk = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.ShopKiosk)
+	else require("../src/client/UI/Apps/ShopKiosk")
+
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../src/shared/Config")
@@ -947,6 +951,56 @@ check("ladder 6 ระดับตรงกันทุกตาราง", #Con
 	and #Config.StorageLadderGB == 6 and #Config.Record.footagePerClickGB == 6
 	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)
 check("เริ่มเกม = 480p/128GB", Config.ResolutionLadder[1] == "480p" and Config.StorageLadderGB[1] == 128)
+
+-- ===== ร้านค้าในแมพ (Interact_Shop) — เวอร์ชันเทส หมวดละ 2 ชิ้น =====
+local sk = GameState.newGame()
+check("upgrades มีสาย pc เริ่มที่ 1", sk.upgrades.pc == 1)
+check("catalog 3 หมวด หมวดละ 2 ชิ้น", #Config.ShopCatalog == 3
+	and Config.ShopCatalog[1].names and #Config.ShopCatalog[1].names == 2
+	and #Config.ShopCatalog[2].names == 2 and #Config.ShopCatalog[3].names == 2)
+
+-- ทุกหมวดต้องมีราคาครบเท่าจำนวนของที่ขาย ไม่งั้นการ์ดโชว์ของแต่กดซื้อไม่ได้
+for _, e in Config.ShopCatalog do
+	check(("หมวด %s มีราคาครบทุกชิ้น"):format(e.key),
+		Config.UpgradeCosts[e.key] ~= nil and #Config.UpgradeCosts[e.key] >= #e.names)
+end
+
+local camEntry, stoEntry, pcEntry
+for _, e in Config.ShopCatalog do
+	if e.key == "camera" then camEntry = e elseif e.key == "storage" then stoEntry = e else pcEntry = e end
+end
+
+-- สเปคบนการ์ดต้องมาจาก ladder ไม่ใช่ข้อความที่พิมพ์ซ้ำใน catalog
+check("spec กล้อง = resolution + GB/คลิก ของระดับที่จะได้",
+	ShopKiosk.specFor("camera", 2) == "720p · 2 GB/คลิก")
+check("spec storage < 1024 = GB", ShopKiosk.specFor("storage", 2) == "256 GB")
+check("spec storage ≥ 1024 = TB", ShopKiosk.specFor("storage", 4) == "1 TB")
+check("spec pc = nil (ยังไม่มี ladder)", ShopKiosk.specFor("pc", 2) == nil)
+
+local camOffer = ShopKiosk.offerFor(camEntry, sk)
+check("ของชิ้นแรกหมวดกล้อง = มือถือใหม่ ราคา 2000 ได้ระดับ 2",
+	camOffer.name == "มือถือใหม่" and camOffer.price == 2_000 and camOffer.level == 2)
+check("ราคาตรงกับ UpgradeCosts ที่เดียว", camOffer.price == Config.UpgradeCosts.camera[1])
+check("offer storage ชิ้นแรกได้ 256 GB", ShopKiosk.offerFor(stoEntry, sk).spec == "256 GB")
+check("offer pc ชิ้นแรกไม่มี spec แต่ซื้อได้", ShopKiosk.offerFor(pcEntry, sk).price == Config.UpgradeCosts.pc[1])
+
+-- ซื้อครบ 2 ชิ้นแล้วต้องหยุดขาย แม้ UpgradeCosts.camera ยังมีขั้น 3-5 เหลือ
+sk.upgrades.camera = 3
+check("ซื้อครบ 2 ชิ้น = ไม่มีของขายต่อ (แม้ ladder ยังไม่สุด)",
+	ShopKiosk.offerFor(camEntry, sk) == nil and Config.UpgradeCosts.camera[3] ~= nil)
+
+-- ซื้อผ่าน action เดิม (BuyUpgrade → MoneyService) ต้องขยับระดับ pc จริง
+local pcBuy = GameState.newGame()
+pcBuy.money = Config.UpgradeCosts.pc[1]
+check("ซื้อ pc ชิ้นแรกได้ เงินหมดพอดี", MoneyService.buyUpgrade(pcBuy, "pc") == true
+	and pcBuy.upgrades.pc == 2 and pcBuy.money == 0)
+check("เงินไม่พอซื้อ pc ชิ้นที่สองไม่ได้", MoneyService.buyUpgrade(pcBuy, "pc") == false
+	and pcBuy.upgrades.pc == 2)
+
+-- save เก่า (ไม่มี pc) โหลดกับโค้ดใหม่ต้องไม่พัง
+local oldSave = { upgrades = { camera = 2, storage = 1 } }
+GameState.mergeDefaults(oldSave, GameState.newGame())
+check("save เก่าไม่มี pc → เติมเป็น 1 ไม่ทับ camera", oldSave.upgrades.pc == 1 and oldSave.upgrades.camera == 2)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("มีเทสไม่ผ่าน") end

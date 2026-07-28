@@ -154,9 +154,24 @@ Config.Spending = {
 Config.UpgradeCosts = {
 	camera = { 2_000, 8_000, 30_000, 120_000, 300_000 },
 	storage = { 1_500, 6_000, 25_000, 100_000, 250_000 },
+	-- ⚠️ pc = สายใหม่ ยังไม่มีใน docs/02 — ราคา agent เลือก **รอ user lock**
+	-- ผลของมัน (ตัดต่อไวขึ้น = อะไร) ยัง unwired จงใจ: ซื้อได้/เก็บระดับได้ แต่ยังไม่มีผลกับเกม
+	pc = { 5_000, 20_000 },
 }
 Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p" }
 Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192 } -- 128GB → 8TB
+
+-- ร้านค้าในแมพ (Part `Interact_Shop`) — คนละตัวกับแอป Shop บนจอคอม (PDF หน้า 9)
+-- ⚠️ เวอร์ชันเทส: หมวดละ 2 ชิ้น — เพิ่มของ = เติมชื่อใน names + ราคาใน UpgradeCosts ให้ยาวเท่ากัน
+-- ห้ามใส่ราคา/สเปคซ้ำที่นี่ — ราคามาจาก UpgradeCosts, สเปคคำนวณจาก ladder (ShopKiosk.specFor)
+Config.ShopCatalog = {
+	{ key = "pc", label = "💻 คอมพิวเตอร์", note = "ตัดต่อไวขึ้น",
+		names = { "คอมประกอบมือสอง", "คอมสเปคตัดต่อ" } },
+	{ key = "storage", label = "💾 ที่เก็บข้อมูล", note = "เก็บ footage ได้มากขึ้น",
+		names = { "SSD NVMe เกรดเกมเมอร์", 'External HDD 2.5"' } },
+	{ key = "camera", label = "📷 อุปกรณ์ถ่ายรูป", note = "อัด footage ไวขึ้นต่อคลิก",
+		names = { "มือถือใหม่", "กล้อง compact" } },
+}
 
 -- ระบบอัดคลิป (user lock 21 ก.ค. + เลขต่อคลิกเลือกโดย agent — docs/02 §9.5)
 -- สูตรต่อคลิก: GB = footagePerClickGB[กล้อง] × (bonus? bonusMult : 1) × (ในโซน? zoneMult : 1)

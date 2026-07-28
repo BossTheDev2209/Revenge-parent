@@ -5,7 +5,8 @@
 --   "ข้อความ"                                    — ไม่มีชื่อคนพูด
 --   { speaker = "แม่", text = "ข้อความ" }         — มีชื่อคนพูดข้างบนกล่อง
 --   { choices = { {text=, tone=, reply={...}}, ... } } — ให้ player เลือก
--- tone = "plus" | "neutral" | "minus" (⊕/◎/⊖) — เก็บไว้ส่งกลับทาง onDone(picks) ยัง**ไม่ผูก mental**
+-- tone = "plus" | "neutral" | "minus" (⊕/◎/⊖) — ป้ายกำกับเฉยๆ ส่งกลับทาง onDone(picks)
+--        ✅ ล็อก 28 ก.ค. 2569: **ไม่ผูก mental ถาวร** ทุกช้อยผลเท่ากันหมด — input ที่มีผลจริงอยู่ที่ comment เท่านั้น (docs/02 §9.6)
 -- reply = บทตอบกลับหลังเลือก แล้ว**บรรจบกลับเส้นเดิม** (ไม่ branching — design doc §7)
 --
 -- tag [slow] [fast] [normal] คุมความเร็วกลางบรรทัด — pure: parseTags/lineOf/validate | glue: show()

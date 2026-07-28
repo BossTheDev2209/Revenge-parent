@@ -63,6 +63,19 @@ local function openBedMenu(playerGui, fireAction)
 	gui.Parent = playerGui
 end
 
+-- ป้ายชื่อเหนือจุด interact (BillboardGui ที่ทีมแปะไว้เอง) — จางตามระยะ
+-- ไม่งั้นป้ายลอยเด่นทั้งแมพ เห็นตั้งแต่อีกฝั่งเมือง (user feedback 28 ก.ค.)
+-- ระยะอ้างอิง ProximityPrompt.MaxActivationDistance (default 10): ชัดเต็มตอนกดได้พอดี
+local LABEL_CLEAR_STUDS = 14 -- ใกล้กว่านี้ = ชัดเต็ม
+local LABEL_GONE_STUDS = 30 -- ไกลกว่านี้ = หายสนิท
+
+-- pure: ระยะ → ความโปร่งใส (0 = ชัด, 1 = หาย) — เทสได้
+function InteractBinder.labelAlpha(distance: number): number
+	if distance <= LABEL_CLEAR_STUDS then return 0 end
+	if distance >= LABEL_GONE_STUDS then return 1 end
+	return (distance - LABEL_CLEAR_STUDS) / (LABEL_GONE_STUDS - LABEL_CLEAR_STUDS)
+end
+
 function InteractBinder.init(deps)
 	local function onTriggered(name, part)
 		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
@@ -83,9 +96,17 @@ function InteractBinder.init(deps)
 		end
 	end
 
+	-- ป้ายที่ต้องจางตามระยะ — เก็บไว้ให้ loop เดียวอัปเดตทั้งหมด
+	local labels = {}
+	local function trackLabel(inst)
+		local bb = inst:FindFirstChildOfClass("BillboardGui")
+		if bb then labels[bb] = inst end
+	end
+
 	local function bind(inst)
 		if not inst:IsA("BasePart") then return end
 		if not inst.Name:match("^Interact_") then return end
+		trackLabel(inst)
 		if inst:FindFirstChildOfClass("ProximityPrompt") then return end
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.ActionText = PROMPT_TEXT[inst.Name] or inst.Name:gsub("Interact_", "")
@@ -101,6 +122,28 @@ function InteractBinder.init(deps)
 		bind(d)
 	end
 	workspace.DescendantAdded:Connect(bind)
+
+	-- จางป้ายตามระยะ — เดินเข้าใกล้ค่อยโผล่ ไม่ใช่เห็นเด่นทั้งแมพ
+	local player = game:GetService("Players").LocalPlayer
+	game:GetService("RunService").Heartbeat:Connect(function()
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		for bb, part in labels do
+			if not bb.Parent or not part.Parent then
+				labels[bb] = nil
+			else
+				local a = root and InteractBinder.labelAlpha((root.Position - part.Position).Magnitude) or 1
+				bb.Enabled = a < 1 -- ไกลสุด = ปิดไปเลย ไม่ต้องวาด
+				for _, g in bb:GetDescendants() do
+					if g:IsA("TextLabel") then
+						g.TextTransparency = a
+						g.TextStrokeTransparency = 1 - (1 - a) * 0.7 -- ขอบจางเร็วกว่าตัวอักษรนิดนึง
+					elseif g:IsA("ImageLabel") then
+						g.ImageTransparency = a
+					end
+				end
+			end
+		end
+	end)
 end
 
 return InteractBinder

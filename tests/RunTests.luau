@@ -723,6 +723,15 @@ local InteractBinder = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.InteractBinder)
 	else require("../src/client/InteractBinder")
 local sample = { p1 = { "หนึ่ง" }, p2 = { "สอง" }, after = { "หลังทรยศ" } }
+-- ป้าย Interact_* จางตามระยะ (user feedback 28 ก.ค. — ป้ายเด่นเกินไป)
+check("ยืนติดป้าย = ชัดเต็ม", InteractBinder.labelAlpha(0) == 0)
+check("ในระยะกดได้ (10 studs) = ยังชัดเต็ม", InteractBinder.labelAlpha(10) == 0)
+check("ไกลสุด = หายสนิท", InteractBinder.labelAlpha(30) == 1 and InteractBinder.labelAlpha(999) == 1)
+check("ระหว่างทาง = จางไล่ระดับ", InteractBinder.labelAlpha(22) > 0 and InteractBinder.labelAlpha(22) < 1)
+check("ยิ่งไกลยิ่งจาง (ไม่กลับทาง)",
+	InteractBinder.labelAlpha(16) < InteractBinder.labelAlpha(20)
+	and InteractBinder.labelAlpha(20) < InteractBinder.labelAlpha(26))
+
 check("เฟส 1 ได้ p1", InteractBinder.pickLines(sample, { phase = 1, flags = {} })[1] == "หนึ่ง")
 check("เฟส 2 ได้ p2", InteractBinder.pickLines(sample, { phase = 2, flags = {} })[1] == "สอง")
 check("เฟส 3 ไม่มี p3 → ถอยลงมา p2", InteractBinder.pickLines(sample, { phase = 3, flags = {} })[1] == "สอง")

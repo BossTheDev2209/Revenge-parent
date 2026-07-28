@@ -192,21 +192,21 @@ Config.CameraModelCount = 6
 -- names[N] = ของที่ได้เมื่ออยู่ระดับ N แล้วกดซื้อ (→ ระดับ N+1) · ชิ้นสุดท้าย = ระดับ 15
 -- ห้ามใส่ราคา/สเปคซ้ำที่นี่ — ราคามาจาก UpgradeCosts, สเปคคำนวณจาก ladder (ShopKiosk.specFor)
 Config.ShopCatalog = {
-	{ key = "pc", label = "💻 คอมพิวเตอร์", note = "ตัดต่อไวขึ้น", startName = "โน้ตบุ๊คมือสอง",
+	{ key = "pc", label = "💻 คอมพิวเตอร์", icon = "💻", note = "ตัดต่อไวขึ้น", startName = "โน้ตบุ๊คมือสอง",
 		names = {
 			"คอมประกอบมือสอง", "คอมสเปคตัดต่อ", "iMac มือสอง", "PC การ์ดจอแยก", "Workstation 8 คอร์",
 			"Mac Studio", "PC เรนเดอร์ 2 การ์ดจอ", "Workstation 16 คอร์", "เครื่องเรนเดอร์ฟาร์มเล็ก",
 			"Render Farm 4 เครื่อง", "Render Farm 16 เครื่อง", "เช่า Cloud Render",
 			"Render Cluster ส่วนตัว", "ซูเปอร์คอมตัดต่อทั้งตึก",
 		} },
-	{ key = "storage", label = "💾 ที่เก็บข้อมูล", note = "เก็บ footage ได้มากขึ้น", startName = "SSD พกพา",
+	{ key = "storage", label = "💾 ที่เก็บข้อมูล", icon = "💾", note = "เก็บ footage ได้มากขึ้น", startName = "SSD พกพา",
 		names = {
 			"SSD NVMe เกรดเกมเมอร์", 'External HDD 2.5"', "HDD ตั้งโต๊ะ", "NAS 2 เบย์", "NAS 4 เบย์ RAID",
 			"NAS 8 เบย์", "Server Rack มือสอง", "Server Rack ป้ายแดง", "ตู้ Rack เต็มตู้",
 			"ห้อง Server ส่วนตัว", "เช่า Cloud Storage", "เช่าตึกทำ Data Center",
 			"Data Center ของตัวเอง", "Data Center ทั้งเครือ",
 		} },
-	{ key = "camera", label = "📷 อุปกรณ์ถ่ายรูป", note = "อัด footage ไวขึ้นต่อคลิก", startName = "มือถือเครื่องเก่า",
+	{ key = "camera", label = "📷 อุปกรณ์ถ่ายรูป", icon = "📷", note = "อัด footage ไวขึ้นต่อคลิก", startName = "มือถือเครื่องเก่า",
 		names = {
 			"มือถือใหม่", "กล้อง compact", "กล้อง mirrorless", "กล้อง DSLR โปร", "กล้อง cinema",
 			"กล้อง cinema + เลนส์โปร", "กล้อง cinema 120fps", "โดรนถ่ายภาพ 8K", "ชุดกล้อง 3 ตัว + สวิตเชอร์",

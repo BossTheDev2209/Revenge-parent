@@ -54,11 +54,15 @@ return {
 	clip_cover_5 = "",
 	clip_cover_6 = "",
 
-	-- ===== Shop: 2 หมวด × 6 ระดับ (docs/02 §9.5) 128×128 =====
+	-- ===== Shop: 3 หมวด × 6 ระดับแรก (PDF หน้า 9 ล่าง) 128×128 =====
+	-- ระดับ 7-15 **ไม่ต้องวาด** — ไม่มีคีย์ = การ์ดใช้ emoji ของหมวดแทนอัตโนมัติ
+	-- (ระดับ 7+ เป็นของ endgame ที่ซื้อไม่ไหวในรอบเดียวอยู่แล้ว — docs/02 §9.5)
 	shop_camera_1 = "", shop_camera_2 = "", shop_camera_3 = "",
 	shop_camera_4 = "", shop_camera_5 = "", shop_camera_6 = "",
 	shop_storage_1 = "", shop_storage_2 = "", shop_storage_3 = "",
 	shop_storage_4 = "", shop_storage_5 = "", shop_storage_6 = "",
+	shop_pc_1 = "", shop_pc_2 = "", shop_pc_3 = "",
+	shop_pc_4 = "", shop_pc_5 = "", shop_pc_6 = "",
 
 	-- ===== Bank + Manage (PDF หน้า 9 บน) =====
 	bank_food = "",            -- จานข้าว 128×128

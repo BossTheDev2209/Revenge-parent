@@ -1029,6 +1029,25 @@ for lv = 1, 15 do
 	check(("ระดับ %d: เต็มถังใน 128-256 คลิก"):format(lv), clicks == 128 or clicks == 256)
 end
 
+-- ===== layout ตามภาพร่าง PDF หน้า 9: แถวละ 4 การ์ด + ลูกศรเลื่อน =====
+check("แถวละ 4 การ์ด ตาม PDF", ShopKiosk.CARDS_PER_ROW == 4)
+check("15 ระดับ = 4 หน้า (4/4/4/3)", ShopKiosk.pageCount(15, 4) == 4)
+check("ของน้อยกว่า 1 หน้า ก็ยังนับเป็น 1 หน้า", ShopKiosk.pageCount(3, 4) == 1 and ShopKiosk.pageCount(0, 4) == 1)
+check("ระดับ 1-4 อยู่หน้า 1", ShopKiosk.pageOf(1, 4) == 1 and ShopKiosk.pageOf(4, 4) == 1)
+check("ระดับ 5 ขึ้นหน้า 2", ShopKiosk.pageOf(5, 4) == 2)
+check("ระดับ 15 อยู่หน้า 4", ShopKiosk.pageOf(15, 4) == 4)
+check("เลื่อนเกินขอบถูก clamp", ShopKiosk.clampPage(99, 15, 4) == 4 and ShopKiosk.clampPage(-3, 15, 4) == 1)
+-- รูปสินค้ามีแค่ระดับ 1-6 (UIAssets) — ระดับ 7+ ต้องคืน nil ให้การ์ดใช้ emoji แทน ไม่ใช่รูปพัง
+check("ระดับ 7+ ไม่มีคีย์รูป = nil (ใช้ emoji แทน)", ShopKiosk.imageFor("camera", 9) == nil)
+check("ระดับ 1-6 ยังไม่ได้วาด (ค่าว่าง) = nil ไม่ใช่ \"\"", ShopKiosk.imageFor("camera", 1) == nil)
+for _, e in Config.ShopCatalog do
+	check(("หมวด %s มี icon ไว้ fallback ตอนไม่มีรูป"):format(e.key), e.icon ~= nil and e.icon ~= "")
+end
+-- tiersFor ต้องแนบรูปมาให้ UI ด้วย (การ์ดใน PDF มีรูป)
+check("tiersFor แนบ field image", select(2, pcall(function()
+	return ShopKiosk.tiersFor(camEntry, GameState.newGame())[1].image
+end)) == nil)
+
 -- โมเดล Tool มีถึง Camera_6 — ระดับ 7-15 ต้องไม่ทำให้ผู้เล่นมือเปล่า
 local hi = GameState.newGame()
 hi.upgrades.camera = 12

@@ -771,6 +771,48 @@ check("milestone เรียงจากน้อยไปมาก (event ย�
 	return true
 end)())
 
+-- ===== กันไม้ตาย: เนื้อหาจริงต้องไม่มี [placeholder] ค้าง (docs/10 — เนื้อเรื่อง = งาน user เขียน) =====
+-- เทสนี้ FAIL ไปเรื่อยๆ จนกว่าจะเติมบทจริงครบ — ใช้เป็นตัวนับความคืบหน้า ไม่ใช่ตัวชี้ผิด/ถูกของเนื้อเรื่อง
+local function hasPlaceholder(lines)
+	for _, l in lines do
+		if type(l) == "string" and l:find("[placeholder", 1, true) then return true end
+	end
+	return false
+end
+
+for key, ev in Events do
+	check(("CanonEvents.%s ไม่มี [placeholder] ค้าง"):format(key), not hasPlaceholder(ev.dialogue or {}))
+end
+
+local DialogueFiles = { "Mom", "Dad", "Landlord", "Friend1", "Friend2", "CC1", "Hater" }
+for _, name in DialogueFiles do
+	local mod = if isStudio
+		then require(game:GetService("ReplicatedStorage").Shared.Content.Dialogue[name])
+		else require("../src/shared/Content/Dialogue/" .. name)
+	-- format ใหม่ = { p1=..., p2=..., after=... } | format เก่า = list ตรงๆ (ดู InteractBinder.pickLines)
+	local flat = {}
+	if type(mod[1]) == "string" then
+		flat = mod
+	else
+		for _, group in mod do
+			for _, l in group do table.insert(flat, l) end
+		end
+	end
+	check(("Dialogue.%s ไม่มี [placeholder] ค้าง"):format(name), not hasPlaceholder(flat))
+end
+
+local EndingFiles = { "Good1", "Neutral1", "Neutral2", "Bad1", "Bad2", "Bad3" }
+for _, name in EndingFiles do
+	local steps = if isStudio
+		then require(game:GetService("ReplicatedStorage").Shared.Content.Endings[name])
+		else require("../src/shared/Content/Endings/" .. name)
+	local texts = {}
+	for _, s in steps do
+		if s.type == "text" and s.text then table.insert(texts, s.text) end
+	end
+	check(("Endings.%s ไม่มี [placeholder] ค้าง"):format(name), not hasPlaceholder(texts))
+end
+
 -- ===== Comments pool schema (docs/02 §9.6 — ทีมเติม comment แล้ว format ต้องไม่พัง) =====
 local CommentsPool = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.Comments)

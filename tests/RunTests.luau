@@ -944,25 +944,29 @@ check("ซื้อกล้อง lv2 (2000)", MoneyService.buyUpgrade(bu, "cam
 	and bu.upgrades.camera == 2 and bu.money == 1_000)
 check("เงินไม่พอ (lv3 = 8000)", MoneyService.buyUpgrade(bu, "camera") == false and bu.upgrades.camera == 2)
 bu.money = 999_999
-bu.upgrades.storage = 6 -- ระดับสูงสุด (ซื้อครบ 5 ครั้ง)
+bu.upgrades.storage = 15 -- ระดับสูงสุด (ขยายจาก 6 → 15 เมื่อ 28 ก.ค. — ดูหมวดร้านค้าท้ายไฟล์)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
-check("ladder 6 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 6
-	and #Config.StorageLadderGB == 6 and #Config.Record.footagePerClickGB == 6
-	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)
+check("ladder 15 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 15
+	and #Config.StorageLadderGB == 15 and #Config.Record.footagePerClickGB == 15
+	and #Config.UpgradeCosts.camera == 14 and #Config.UpgradeCosts.storage == 14)
 check("เริ่มเกม = 480p/128GB", Config.ResolutionLadder[1] == "480p" and Config.StorageLadderGB[1] == 128)
 
--- ===== ร้านค้าในแมพ (Interact_Shop) — เวอร์ชันเทส หมวดละ 2 ชิ้น =====
+-- ===== ร้านค้าในแมพ (Interact_Shop) — 3 หมวด หมวดละ 15 ระดับ =====
 local sk = GameState.newGame()
 check("upgrades มีสาย pc เริ่มที่ 1", sk.upgrades.pc == 1)
-check("catalog 3 หมวด หมวดละ 2 ชิ้น", #Config.ShopCatalog == 3
-	and Config.ShopCatalog[1].names and #Config.ShopCatalog[1].names == 2
-	and #Config.ShopCatalog[2].names == 2 and #Config.ShopCatalog[3].names == 2)
+check("catalog 3 หมวด", #Config.ShopCatalog == 3)
 
--- ทุกหมวดต้องมีราคาครบเท่าจำนวนของที่ขาย ไม่งั้นการ์ดโชว์ของแต่กดซื้อไม่ได้
+-- ทุกตารางต้องยาว 15 ระดับเท่ากัน ไม่งั้นบันไดขาดกลางคัน
+check("ladder ยาว 15 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 15
+	and #Config.StorageLadderGB == 15 and #Config.Record.footagePerClickGB == 15)
+
 for _, e in Config.ShopCatalog do
-	check(("หมวด %s มีราคาครบทุกชิ้น"):format(e.key),
-		Config.UpgradeCosts[e.key] ~= nil and #Config.UpgradeCosts[e.key] >= #e.names)
+	local costs = Config.UpgradeCosts[e.key]
+	check(("หมวด %s: 15 ระดับ (ของเริ่ม 1 + ซื้อได้ 14)"):format(e.key),
+		ShopKiosk.tierCount(e) == 15 and #e.names == 14)
+	check(("หมวด %s: ราคาครบทุกขั้นที่ขาย"):format(e.key), costs ~= nil and #costs == #e.names)
+	check(("หมวด %s: มีชื่อของเริ่มต้น (ระดับ 1 ไม่ได้ซื้อ)"):format(e.key), e.startName ~= nil)
 end
 
 local camEntry, stoEntry, pcEntry
@@ -970,12 +974,19 @@ for _, e in Config.ShopCatalog do
 	if e.key == "camera" then camEntry = e elseif e.key == "storage" then stoEntry = e else pcEntry = e end
 end
 
--- สเปคบนการ์ดต้องมาจาก ladder ไม่ใช่ข้อความที่พิมพ์ซ้ำใน catalog
-check("spec กล้อง = resolution + GB/คลิก ของระดับที่จะได้",
+-- สเปคบนแถวต้องมาจาก ladder ไม่ใช่ข้อความที่พิมพ์ซ้ำใน catalog
+check("spec กล้อง = resolution + GB/คลิก ของระดับนั้น",
 	ShopKiosk.specFor("camera", 2) == "720p · 2 GB/คลิก")
 check("spec storage < 1024 = GB", ShopKiosk.specFor("storage", 2) == "256 GB")
 check("spec storage ≥ 1024 = TB", ShopKiosk.specFor("storage", 4) == "1 TB")
+check("spec storage ≥ 1PB = PB", ShopKiosk.specFor("storage", 13) == "1 PB")
+check("spec storage ระดับ 15 = 16 PB", ShopKiosk.specFor("storage", 15) == "16 PB")
 check("spec pc = nil (ยังไม่มี ladder)", ShopKiosk.specFor("pc", 2) == nil)
+
+-- ระดับ 1 = ของติดตัวตอนเริ่ม ไม่มีราคา · ระดับ 2+ = ของที่ซื้อ
+check("ระดับ 1 = ชื่อของเริ่มต้น", ShopKiosk.nameAt(camEntry, 1) == "มือถือเครื่องเก่า")
+check("ระดับ 2 = ของชิ้นแรกที่ซื้อ", ShopKiosk.nameAt(camEntry, 2) == "มือถือใหม่")
+check("ระดับ 15 = ชื่อสุดท้ายใน names", ShopKiosk.nameAt(camEntry, 15) == camEntry.names[14])
 
 local camOffer = ShopKiosk.offerFor(camEntry, sk)
 check("ของชิ้นแรกหมวดกล้อง = มือถือใหม่ ราคา 2000 ได้ระดับ 2",
@@ -984,10 +995,45 @@ check("ราคาตรงกับ UpgradeCosts ที่เดียว", ca
 check("offer storage ชิ้นแรกได้ 256 GB", ShopKiosk.offerFor(stoEntry, sk).spec == "256 GB")
 check("offer pc ชิ้นแรกไม่มี spec แต่ซื้อได้", ShopKiosk.offerFor(pcEntry, sk).price == Config.UpgradeCosts.pc[1])
 
--- ซื้อครบ 2 ชิ้นแล้วต้องหยุดขาย แม้ UpgradeCosts.camera ยังมีขั้น 3-5 เหลือ
-sk.upgrades.camera = 3
-check("ซื้อครบ 2 ชิ้น = ไม่มีของขายต่อ (แม้ ladder ยังไม่สุด)",
-	ShopKiosk.offerFor(camEntry, sk) == nil and Config.UpgradeCosts.camera[3] ~= nil)
+-- บันได: สถานะทุกขั้นต้องสอดคล้องกับระดับปัจจุบัน (ข้ามขั้นซื้อไม่ได้)
+local tiers = ShopKiosk.tiersFor(camEntry, sk)
+check("บันไดยาว 15 ขั้น", #tiers == 15)
+check("ขั้น 1 = ใช้อยู่ ไม่มีราคา", tiers[1].status == "current" and tiers[1].price == nil)
+check("ขั้น 2 = ซื้อได้ถัดไป", tiers[2].status == "next" and tiers[2].price == 2_000)
+check("ขั้น 3+ = ล็อกไว้ก่อน", tiers[3].status == "locked" and tiers[15].status == "locked")
+sk.upgrades.camera = 6
+local t6 = ShopKiosk.tiersFor(camEntry, sk)
+check("อยู่ระดับ 6: ขั้นก่อนหน้าเป็น owned", t6[5].status == "owned" and t6[1].status == "owned")
+check("อยู่ระดับ 6: ขั้น 6 ใช้อยู่ / ขั้น 7 ซื้อได้", t6[6].status == "current" and t6[7].status == "next")
+
+-- ซื้อครบ 15 แล้วต้องหยุดขาย
+sk.upgrades.camera = 15
+check("ระดับสูงสุดแล้ว = ไม่มีของขายต่อ", ShopKiosk.offerFor(camEntry, sk) == nil)
+check("ระดับสูงสุด: ขั้นสุดท้าย = ใช้อยู่", ShopKiosk.tiersFor(camEntry, sk)[15].status == "current")
+
+-- ระดับ 1-6 ต้องเป็นค่าที่ล็อกใน docs/02 §9.5 เป๊ะ (ขยาย 15 ห้ามขยับของเดิม)
+check("[ล็อก] storage 1-6 ไม่ขยับ", Config.StorageLadderGB[1] == 128 and Config.StorageLadderGB[2] == 256
+	and Config.StorageLadderGB[3] == 512 and Config.StorageLadderGB[4] == 1024
+	and Config.StorageLadderGB[5] == 4096 and Config.StorageLadderGB[6] == 8192)
+check("[ล็อก] GB/คลิก 1-6 ไม่ขยับ", Config.Record.footagePerClickGB[1] == 1
+	and Config.Record.footagePerClickGB[6] == 32)
+check("[ล็อก] resolution 1-6 ไม่ขยับ", Config.ResolutionLadder[1] == "480p"
+	and Config.ResolutionLadder[6] == "4320p")
+check("[ล็อก] ราคา 1-6 ไม่ขยับ", Config.UpgradeCosts.camera[1] == 2_000
+	and Config.UpgradeCosts.camera[5] == 300_000 and Config.UpgradeCosts.storage[1] == 1_500
+	and Config.UpgradeCosts.storage[5] == 250_000)
+
+-- อัตราส่วน storage/GB-ต่อคลิก = จำนวนคลิกต่อเต็มถัง ต้องคงที่ ไม่งั้น balance เพี้ยนเงียบๆ
+for lv = 1, 15 do
+	local clicks = Config.StorageLadderGB[lv] / Config.Record.footagePerClickGB[lv]
+	check(("ระดับ %d: เต็มถังใน 128-256 คลิก"):format(lv), clicks == 128 or clicks == 256)
+end
+
+-- โมเดล Tool มีถึง Camera_6 — ระดับ 7-15 ต้องไม่ทำให้ผู้เล่นมือเปล่า
+local hi = GameState.newGame()
+hi.upgrades.camera = 12
+check("กล้องระดับ 12 ยังมี Tool ในมือ (ใช้โมเดลตัวท้ายสุด)",
+	ToolService.desiredTools(hi)[1] == "Camera_" .. Config.CameraModelCount)
 
 -- ซื้อผ่าน action เดิม (BuyUpgrade → MoneyService) ต้องขยับระดับ pc จริง
 local pcBuy = GameState.newGame()

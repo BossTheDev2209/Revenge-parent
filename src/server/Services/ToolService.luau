@@ -14,7 +14,10 @@ local ToolService = {}
 -- อุปกรณ์ถ่ายมีสายเดียว: Camera_1..6 (ระดับ 1 = มือถือ) — ไม่มี Tool มือถือ/ไม้เซลฟี่แยก
 function ToolService.desiredTools(state)
 	local lv = math.clamp(state.upgrades and state.upgrades.camera or 1, 1, #Config.ResolutionLadder)
-	local out = { "Camera_" .. lv }
+	-- ระดับกล้องมี 15 แต่โมเดลใน ToolModels มีถึง Camera_6 — เกินนั้นใช้โมเดลตัวท้ายสุด
+	-- (ไม่ clamp = หาโมเดลไม่เจอ = มือเปล่า อัดคลิปไม่ได้ทั้งเกม)
+	local modelLv = math.min(lv, Config.CameraModelCount)
+	local out = { "Camera_" .. modelLv }
 	-- โน้ตบุ๊คมีเฉพาะเฟส 1 และเฉพาะตอนยังไม่ได้วางลงพื้น
 	if state.phase == 1 and not state.notebookPlaced then
 		table.insert(out, "Notebook")

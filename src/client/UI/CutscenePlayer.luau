@@ -1,4 +1,6 @@
--- CutscenePlayer.luau — เล่น cutscene จาก script data (design doc §8, Genshin ref)
+-- CutscenePlayer.luau — **cutscene โหมด 1 "หนัง"** (design doc §8, Genshin ref)
+-- player กดอะไรไม่ได้ · กล้องเปลี่ยนบ่อย/เลื่อนได้ · ซับไตเติลล่างจอ **ไม่มีกรอบข้อความ** · เดินตามเวลาเอง
+-- โหมด 2 "ฉากคุย" (กล้องนิ่ง + กล่องข้อความ + ช้อย) อยู่ที่ DialogueUI — เทียบตาราง docs/engines/README.md
 -- step: {type="text",text=} | {type="wait",t=} | {type="camera",cam="ชื่อPart"[,t=วินาที]} | {type="camera",pos={x,y,z},look={x,y,z}[,t=]}
 --       | {type="bgm",name="ชื่อใน SoundService.BGM"}  (""/nil = เงียบ)
 --       | {type="sound",name="ชื่อใน SoundService.SFX"} (เสียงประกอบครั้งเดียว)
@@ -79,17 +81,23 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	local bar2 = bar1:Clone()
 	bar2.Position = UDim2.new(0, 0, 0.88, 0)
 	bar2.Parent = gui
+	-- ซับไตเติลแบบหนัง — **ไม่มีกรอบพื้นหลัง** (โหมด 1) อ่านออกด้วยขอบดำรอบตัวอักษรแทน
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0.8, 0, 0.14, 0)
-	label.Position = UDim2.new(0.1, 0, 0.72, 0)
-	label.BackgroundTransparency = 0.3
-	label.BackgroundColor3 = Color3.new(0, 0, 0)
+	label.Size = UDim2.new(0.8, 0, 0.1, 0)
+	label.Position = UDim2.new(0.1, 0, 0.78, 0)
+	label.BackgroundTransparency = 1
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextScaled = true
 	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.Text = ""
 	label.Visible = false
 	label.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = Color3.new(0, 0, 0)
+	stroke.Transparency = 0.35
+	stroke.Parent = label
 	gui.Parent = playerGui
 
 	task.spawn(function()

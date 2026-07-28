@@ -4,9 +4,23 @@
 
 | Engine | ทีมทำอะไร | อ่าน |
 |--------|-----------|------|
-| 🗣️ **Dialogue** | เขียนบท NPC ในไฟล์ `Content.Dialogue.*` | [dialogue.md](dialogue.md) |
-| 🎬 **Cutscene** | เขียน ending 6 ไฟล์ + วาง Part กล้อง `Cam_*` | [cutscene.md](cutscene.md) |
+| 🗣️ **Dialogue** = cutscene **โหมด 2 "ฉากคุย"** | เขียนบท NPC ในไฟล์ `Content.Dialogue.*` | [dialogue.md](dialogue.md) |
+| 🎬 **Cutscene** = cutscene **โหมด 1 "หนัง"** | เขียน ending 6 ไฟล์ + วาง Part กล้อง `Cam_*` | [cutscene.md](cutscene.md) |
 | 🔊 **Audio** | วาง Sound ใน SoundService + Part โซน `Zone_*` | [audio.md](audio.md) |
+
+## cutscene มี 2 โหมด — เลือกให้ถูกก่อนเขียน (Genshin ref)
+
+| | **โหมด 1 "หนัง"** — `CutscenePlayer` | **โหมด 2 "ฉากคุย"** — `DialogueUI` |
+|---|---|---|
+| player กดอะไรได้ | **ไม่ได้เลย** ปล่อยเล่นยาว | กดข้ามพิมพ์ / กดไปบรรทัดถัดไป / **เลือกช้อย** |
+| กล้อง | เปลี่ยนบ่อย เลื่อนได้ (`cam` + `t`) | **นิ่ง** อยู่ที่ player ยืน (engine ไม่แตะกล้อง) |
+| ข้อความ | **ซับไตเติลกลางล่าง ไม่มีกรอบ** ขอบดำรอบตัวอักษร | **กล่องข้อความ** + ชื่อคนพูดมุมซ้ายบน |
+| จังหวะ | เดินตามเวลาเอง (`wait`) | รอ player คลิกทุกบรรทัด |
+| แถบดำบน-ล่าง | มี | ไม่มี |
+| ใช้กับ | ending 6 อัน, canon event ใหญ่ | คุย NPC, canon event ทั่วไป |
+
+**เขียนไฟล์คนละ format** — โหมด 1 = ลิสต์ step (`camera`/`text`/`wait`/`bgm`/`sound`) · โหมด 2 = ลิสต์บรรทัด
+ฉากเดียวใช้ทั้งสองได้: เล่นโหมด 1 จบแล้วต่อโหมด 2 (Main.client ทำแบบนี้อยู่ตอนขึ้น "— จบ —")
 
 ## หลักการร่วมของทั้ง 3
 

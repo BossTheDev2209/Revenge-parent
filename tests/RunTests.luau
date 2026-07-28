@@ -684,6 +684,21 @@ check("tag นำหน้า + กลางบรรทัด", #seg == 2 and s
 seg = DialogueUI.parseTags("ปกติ[slow]ช้า")
 check("เริ่ม normal แล้วเปลี่ยน", seg[1].speed == "normal" and seg[2].speed == "slow" and seg[2].text == "ช้า")
 
+-- ===== DialogueUI.validate — format บรรทัด 3 แบบ (โหมด 2 "ฉากคุย") =====
+check("บทข้อความล้วน ผ่าน", DialogueUI.validate({ "ก", "ข" }) == true)
+check("บทมี speaker ผ่าน", DialogueUI.validate({ { speaker = "แม่", text = "ก" } }) == true)
+check("ตารางไม่มี text/choices = ไม่ผ่าน", DialogueUI.validate({ { speaker = "แม่" } }) == false)
+check("ช้อยครบ ผ่าน", DialogueUI.validate({
+	{ choices = { { text = "ขอโทษ", tone = "plus", reply = { "…" } }, { text = "เงียบ" } } },
+}) == true)
+check("ช้อยว่าง = ไม่ผ่าน", DialogueUI.validate({ { choices = {} } }) == false)
+check("ช้อยไม่มี text = ไม่ผ่าน", DialogueUI.validate({ { choices = { { tone = "plus" } } } }) == false)
+check("tone มั่ว = ไม่ผ่าน", DialogueUI.validate({ { choices = { { text = "ก", tone = "angry" } } } }) == false)
+check("reply พังข้างใน = ไม่ผ่าน", DialogueUI.validate({
+	{ choices = { { text = "ก", reply = { { speaker = "แม่" } } } } },
+}) == false)
+check("lineOf: string → text", DialogueUI.lineOf("ก").text == "ก")
+
 -- ===== CutscenePlayer.validate =====
 local okc = CutscenePlayer.validate({ { type = "text", text = "x" }, { type = "wait", t = 1 },
 	{ type = "camera", pos = { 0, 5, 0 }, look = { 0, 0, 0 } } })

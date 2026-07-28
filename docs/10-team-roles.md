@@ -78,6 +78,13 @@
 
 ---
 
+## 1.4 ⚠️ แก้ 28 ก.ค. 2569 — งานวาดรูปทั้งหมดเป็นของบอส
+
+แถว **"รูป"** ในตารางสาย A (HUD 14 + Shop 12) และสาย B (icon 8 + wallpaper 3) **ยกเลิก** — **บอสวาด UI ทุกชิ้นเอง**
+สาย A/B ยังถือ engine + UI code + แมพ + deliverable ของตัวเองเหมือนเดิม แค่ไม่ต้องวาด
+
+ลิสต์ครบ ~65 ชิ้น + ลำดับความสำคัญ → `docs/13-art-assets.md` (วาดแค่ 🅿️0 27 ชิ้นก็ส่งได้)
+
 ## 1.5 ไฟล์กลาง — ห้ามแก้พร้อมกัน
 
 `Shared.Config` · `Services.GameState` · `ServerScriptService.Main` · `Tests.RunTests` — ทั้งสามสายต้องเติมของตัวเองลงไฟล์พวกนี้ (ตัวเลข balance / field ใน state / register action / เทส)

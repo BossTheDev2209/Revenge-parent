@@ -1,4 +1,7 @@
-# Engine: Cutscene — ฉากจบ 6 แบบ
+# Engine: Cutscene — ฉากจบ 6 แบบ (= cutscene **โหมด 1 "หนัง"**)
+
+**หน้าตา:** แถบดำบน-ล่าง + กล้องเปลี่ยนบ่อย/เลื่อนได้ + **ซับไตเติลกลางล่าง ไม่มีกรอบข้อความ** + player กดอะไรไม่ได้
+**โหมด 2 "ฉากคุย"** (กล้องนิ่ง กล่องข้อความ ช้อย) = `DialogueUI` → [dialogue.md](dialogue.md) · ตารางเทียบ 2 โหมด → [README.md](README.md)
 
 **ไฟล์โค้ด:** `StarterPlayerScripts.UI.CutscenePlayer`
 **ไฟล์เนื้อหา:** `ReplicatedStorage.Shared.Content.Endings.<ชื่อ ending>` (6 ไฟล์) ← **ทีมแก้แค่ตรงนี้**

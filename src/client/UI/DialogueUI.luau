@@ -9,8 +9,9 @@
 -- ท่าทาง/อารมณ์ (Genshin ref) — ใส่เพิ่มในบรรทัดไหนก็ได้ ไม่ใส่ = ตัวละครไม่ขยับ:
 --   anim  = "HeadScratch"  เล่นครั้งเดียวตอนบรรทัดนี้ขึ้น
 --   pose  = "Angry"        ท่ายืนค้าง (loop) จนกว่าจะสั่ง pose ใหม่
+--   face  = "Angry"        สีหน้า (ค้างจนสั่งหน้าใหม่ · จบบทคืนหน้าเดิมอัตโนมัติ)
 --   actor = "CC1"          ให้ตัวอื่นขยับแทนคนพูด (ไม่ใส่ = ตัวที่กำลังคุยด้วย)
---   ท่าทั้งหมดอยู่ ReplicatedStorage.Animations (ดู AnimPlayer.luau)
+--   ท่าอยู่ ReplicatedStorage.Animations · สีหน้าอยู่ ReplicatedStorage.Faces (ดู AnimPlayer.luau)
 -- tone = "plus" | "neutral" | "minus" (⊕/◎/⊖) — ป้ายกำกับเฉยๆ ส่งกลับทาง onDone(picks)
 --        ✅ ล็อก 28 ก.ค. 2569: **ไม่ผูก mental ถาวร** ทุกช้อยผลเท่ากันหมด — input ที่มีผลจริงอยู่ที่ comment เท่านั้น (docs/02 §9.6)
 -- reply = บทตอบกลับหลังเลือก แล้ว**บรรจบกลับเส้นเดิม** (ไม่ branching — design doc §7)
@@ -71,6 +72,8 @@ function DialogueUI.validate(lines)
 			return false, ("บรรทัด %d: anim ต้องเป็นชื่อท่า (string)"):format(i)
 		elseif item.pose ~= nil and type(item.pose) ~= "string" then
 			return false, ("บรรทัด %d: pose ต้องเป็นชื่อท่า (string)"):format(i)
+		elseif item.face ~= nil and type(item.face) ~= "string" then
+			return false, ("บรรทัด %d: face ต้องเป็นชื่อสีหน้า (string)"):format(i)
 		elseif item.actor ~= nil and type(item.actor) ~= "string" then
 			return false, ("บรรทัด %d: actor ต้องเป็นชื่อตัวละคร (string)"):format(i)
 		elseif item.choices then
@@ -89,8 +92,8 @@ function DialogueUI.validate(lines)
 					if not ok then return false, ("บรรทัด %d ช้อย %d > %s"):format(i, j, err) end
 				end
 			end
-		elseif item.anim or item.pose then
-			-- บรรทัดสั่งท่าล้วน (ไม่มี text) = stage direction ไม่ขึ้นกล่องข้อความ ผ่านได้
+		elseif item.anim or item.pose or item.face then
+			-- บรรทัดสั่งท่า/สีหน้าล้วน (ไม่มี text) = stage direction ไม่ขึ้นกล่องข้อความ ผ่านได้
 			if item.text ~= nil and type(item.text) ~= "string" then
 				return false, ("บรรทัด %d: text ต้องเป็นข้อความ"):format(i)
 			end

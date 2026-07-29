@@ -735,6 +735,15 @@ check("cutscene step anim ผ่าน",
 check("cutscene step anim ขาด name = ไม่ผ่าน",
 	CutscenePlayer.validate({ { type = "anim", actor = "Friend1" } }) == false)
 
+-- สีหน้า (R6 = สลับ Decal บนหัว คนละระบบกับ animation)
+check("บทใส่ face ผ่าน", DialogueUI.validate({ { speaker = "เจ", text = "ก", face = "Angry" } }) == true)
+check("บรรทัดสั่ง face ล้วนผ่าน", DialogueUI.validate({ { face = "Sad", actor = "CC1" } }) == true)
+check("face ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", face = 1 } }) == false)
+check("cutscene step face ผ่าน",
+	CutscenePlayer.validate({ { type = "face", actor = "player", name = "Shock" } }) == true)
+check("cutscene step face ขาด actor = ไม่ผ่าน",
+	CutscenePlayer.validate({ { type = "face", name = "Shock" } }) == false)
+
 -- ===== CutscenePlayer.validate =====
 local okc = CutscenePlayer.validate({ { type = "text", text = "x" }, { type = "wait", t = 1 },
 	{ type = "camera", pos = { 0, 5, 0 }, look = { 0, 0, 0 } } })

@@ -1,5 +1,6 @@
 -- CutscenePlayer.luau — **cutscene โหมด 1 "หนัง"** (design doc §8, Genshin ref)
 -- player กดอะไรไม่ได้ · กล้องเปลี่ยนบ่อย/เลื่อนได้ · ซับไตเติลล่างจอ **ไม่มีกรอบข้อความ** · เดินตามเวลาเอง
+-- step: camera / text / wait / bgm / sound / anim (ท่าทาง) / face (สีหน้า) — ดู VALID ข้างล่าง
 -- โหมด 2 "ฉากคุย" (กล้องนิ่ง + กล่องข้อความ + ช้อย) อยู่ที่ DialogueUI — เทียบตาราง docs/engines/README.md
 -- step: {type="text",text=} | {type="wait",t=} | {type="camera",cam="ชื่อPart"[,t=วินาที]} | {type="camera",pos={x,y,z},look={x,y,z}[,t=]}
 --       | {type="bgm",name="ชื่อใน SoundService.BGM"}  (""/nil = เงียบ)
@@ -34,6 +35,8 @@ local VALID = {
 		return type(s.actor) == "string" and type(s.name) == "string"
 			and (s.loop == nil or type(s.loop) == "boolean")
 	end,
+	-- สีหน้า: name = ชื่อใน ReplicatedStorage.Faces (ค้างจนสั่งใหม่ · จบฉากคืนหน้าเดิม)
+	face = function(s) return type(s.actor) == "string" and type(s.name) == "string" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -113,6 +116,9 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		for _, step in steps do
 			if step.type == "anim" then
 				AnimPlayer.play(step.actor, step.name, step.loop)
+				movedActors[step.actor] = true
+			elseif step.type == "face" then
+				AnimPlayer.setFace(step.actor, step.name)
 				movedActors[step.actor] = true
 			elseif step.type == "text" then
 				label.Visible = true

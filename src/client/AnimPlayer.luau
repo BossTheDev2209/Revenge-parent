@@ -7,15 +7,23 @@
 --     Friend1/  Point, Cry, ...                    ← ท่าเฉพาะตัว (ชื่อโฟลเดอร์ = ชื่อไฟล์บท)
 --     CC1/      Smug, ...
 --
--- เรียกจากบท (docs/engines/dialogue.md §4, cutscene.md §5):
+-- สีหน้า = คนละระบบกับ animation (R6 เปลี่ยนอารมณ์ด้วยการสลับรูปหน้า ไม่ใช่ท่า):
+--   ReplicatedStorage.Faces/
+--     Angry, Sad, Happy, Shock, ...              ← หน้ากลาง
+--     Friend1/  Angry, Cry, ...                  ← หน้าเฉพาะตัว
+--   ข้างในเป็น **Decal** (ตั้ง Texture) หรือ **StringValue** (ใส่ rbxassetid://... ใน Value) ก็ได้
+--
+-- เรียกจากบท (docs/engines/dialogue.md §2.5, cutscene.md §2):
 --   { speaker = "เจ", text = "...", anim = "HeadScratch" }   -- เล่นครั้งเดียวตอนบรรทัดนี้ขึ้น
 --   { speaker = "เจ", text = "...", pose = "Angry" }         -- ท่ายืนค้าง (loop) จนกว่าจะสั่งท่าใหม่
+--   { speaker = "เจ", text = "...", face = "Angry" }         -- เปลี่ยนสีหน้า (ค้างจนสั่งหน้าใหม่/จบฉาก)
 --   ใส่ actor = "CC1" เพิ่ม ถ้าอยากให้ "ตัวอื่น" ขยับแทนคนพูด
 --
--- pure: candidates / modelPrefix (เทสด้วย lune) | glue: play/stop (ต้องมี Humanoid)
+-- pure: candidates / modelPrefix (เทสด้วย lune) | glue: play/setFace/stop (ต้องมี Humanoid)
 local AnimPlayer = {}
 
 local FOLDER_NAME = "Animations"
+local FACE_FOLDER_NAME = "Faces"
 local FADE = 0.15
 
 -- ชื่อไฟล์บท → prefix ของโมเดลในแมพ (docs/05 §4: NPC_01_<ชื่อ>)
@@ -47,21 +55,41 @@ end
 
 local tracks = {} -- [Animator][ชื่อท่า] = AnimationTrack (โหลดครั้งเดียวต่อตัวละคร)
 local posed = {} -- [Animator] = ท่า loop ที่ค้างอยู่
+local originalFace = {} -- [Decal หน้า] = texture เดิม (คืนตอนจบฉาก)
 
-local function animFolder(): Instance?
-	return game:GetService("ReplicatedStorage"):FindFirstChild(FOLDER_NAME)
+-- เดินตาม path "A/B" ในโฟลเดอร์ที่ให้ — คืน instance ที่เจอ
+local function resolve(root: Instance?, path: string): Instance?
+	if not root then return nil end
+	local node = root
+	for part in path:gmatch("[^/]+") do
+		node = node and node:FindFirstChild(part)
+	end
+	return node
+end
+
+local function folderNamed(name: string): Instance?
+	return game:GetService("ReplicatedStorage"):FindFirstChild(name)
 end
 
 -- หา Animation object ตามลำดับ candidates
 function AnimPlayer.findAnimation(actor: string?, animName: string): Animation?
-	local root = animFolder()
-	if not root then return nil end
+	local root = folderNamed(FOLDER_NAME)
 	for _, path in AnimPlayer.candidates(actor, animName) do
-		local node = root
-		for part in path:gmatch("[^/]+") do
-			node = node and node:FindFirstChild(part)
-		end
+		local node = resolve(root, path)
 		if node and node:IsA("Animation") then return node end
+	end
+	return nil
+end
+
+-- หา texture ของสีหน้า — รับได้ทั้ง Decal (ใช้ .Texture) และ StringValue (ใช้ .Value)
+function AnimPlayer.findFaceTexture(actor: string?, faceName: string): string?
+	local root = folderNamed(FACE_FOLDER_NAME)
+	for _, path in AnimPlayer.candidates(actor, faceName) do
+		local node = resolve(root, path)
+		if node then
+			if node:IsA("Decal") then return node.Texture end
+			if node:IsA("StringValue") and node.Value ~= "" then return node.Value end
+		end
 	end
 	return nil
 end
@@ -123,22 +151,56 @@ function AnimPlayer.play(actor: string?, animName: string, loop: boolean?): bool
 	return true
 end
 
--- หยุดทุกท่าของตัวละครนั้น (ใช้ตอนจบ cutscene)
+-- Decal หน้าของตัวละคร (R6 = Head.face) — คืน nil ถ้าโมเดลไม่มีหัว/ไม่มีหน้า
+function AnimPlayer.faceDecal(rig: Model?): Decal?
+	local head = rig and rig:FindFirstChild("Head")
+	if not head then return nil end
+	local d = head:FindFirstChild("face")
+	if d and d:IsA("Decal") then return d end
+	return head:FindFirstChildOfClass("Decal")
+end
+
+-- เปลี่ยนสีหน้า — ค้างจนกว่าจะสั่งหน้าใหม่หรือจบฉาก (stop คืนหน้าเดิมให้)
+function AnimPlayer.setFace(actor: string?, faceName: string): boolean
+	local rig = AnimPlayer.findRig(actor)
+	local decal = AnimPlayer.faceDecal(rig)
+	if not decal then
+		warn(("[AnimPlayer] ตัวละคร '%s' ไม่มีหน้า (ต้องมี Head.face เป็น Decal)"):format(tostring(actor)))
+		return false
+	end
+	local texture = AnimPlayer.findFaceTexture(actor, faceName)
+	if not texture then
+		warn(("[AnimPlayer] ไม่เจอสีหน้า '%s' ใน ReplicatedStorage.%s"):format(faceName, FACE_FOLDER_NAME))
+		return false
+	end
+	if originalFace[decal] == nil then originalFace[decal] = decal.Texture end
+	decal.Texture = texture
+	return true
+end
+
+-- หยุดทุกท่า + คืนหน้าเดิมของตัวละครนั้น (ใช้ตอนจบ cutscene)
 function AnimPlayer.stop(actor: string?)
-	local animator = animatorOf(AnimPlayer.findRig(actor))
+	local rig = AnimPlayer.findRig(actor)
+	local decal = AnimPlayer.faceDecal(rig)
+	if decal and originalFace[decal] ~= nil then
+		decal.Texture = originalFace[decal]
+		originalFace[decal] = nil
+	end
+	local animator = animatorOf(rig)
 	if not animator then return end
 	for _, t in tracks[animator] or {} do t:Stop(FADE) end
 	posed[animator] = nil
 end
 
--- เล่นตาม field ในบท 1 บรรทัด/1 step — คืน actor ที่ขยับ (ให้ผู้เรียกเก็บไว้ stop ทีหลัง)
--- item = { anim = "ชื่อท่า"?, pose = "ชื่อท่า"?, actor = "ชื่อตัวละคร"? }
+-- เล่นตาม field ในบท 1 บรรทัด/1 step — คืน actor ที่ถูกสั่ง (ให้ผู้เรียกเก็บไว้ stop ทีหลัง)
+-- item = { anim = "ชื่อท่า"?, pose = "ชื่อท่า"?, face = "ชื่อหน้า"?, actor = "ชื่อตัวละคร"? }
 function AnimPlayer.applyLine(item, defaultActor: string?): string?
 	if type(item) ~= "table" then return nil end
 	local actor = item.actor or defaultActor
 	if item.pose then AnimPlayer.play(actor, item.pose, true) end
 	if item.anim then AnimPlayer.play(actor, item.anim, false) end
-	return (item.pose or item.anim) and actor or nil
+	if item.face then AnimPlayer.setFace(actor, item.face) end
+	return (item.pose or item.anim or item.face) and actor or nil
 end
 
 return AnimPlayer

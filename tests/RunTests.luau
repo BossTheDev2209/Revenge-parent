@@ -715,6 +715,26 @@ check("reply พังข้างใน = ไม่ผ่าน", DialogueUI.va
 }) == false)
 check("lineOf: string → text", DialogueUI.lineOf("ก").text == "ก")
 
+-- ===== ท่าทาง/อารมณ์ (AnimPlayer) =====
+local AnimPlayer = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AnimPlayer)
+	else require("../src/client/AnimPlayer")
+check("บทใส่ anim ผ่าน", DialogueUI.validate({ { speaker = "เจ", text = "ก", anim = "Point" } }) == true)
+check("บทใส่ pose + actor ผ่าน", DialogueUI.validate({ { text = "ก", pose = "Angry", actor = "CC1" } }) == true)
+check("บรรทัดสั่งท่าล้วน (ไม่มี text) ผ่าน", DialogueUI.validate({ { pose = "Idle" } }) == true)
+check("anim ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", anim = 5 } }) == false)
+check("actor ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", pose = "A", actor = true } }) == false)
+check("หาท่าเฉพาะตัวก่อนท่ากลาง",
+	AnimPlayer.candidates("Friend1", "Point")[1] == "Friend1/Point"
+	and AnimPlayer.candidates("Friend1", "Point")[2] == "Point")
+check("ไม่ระบุ actor = หาแค่ท่ากลาง", #AnimPlayer.candidates(nil, "Idle") == 1)
+check("ชื่อไฟล์บท → prefix โมเดลในแมพ", AnimPlayer.modelPrefix("Friend1") == "NPC_02")
+check("ชื่อที่ไม่มีในตาราง = ใช้ชื่อนั้นตรงๆ", AnimPlayer.modelPrefix("Boss_Final") == "Boss_Final")
+check("cutscene step anim ผ่าน",
+	CutscenePlayer.validate({ { type = "anim", actor = "Friend1", name = "Point" } }) == true)
+check("cutscene step anim ขาด name = ไม่ผ่าน",
+	CutscenePlayer.validate({ { type = "anim", actor = "Friend1" } }) == false)
+
 -- ===== CutscenePlayer.validate =====
 local okc = CutscenePlayer.validate({ { type = "text", text = "x" }, { type = "wait", t = 1 },
 	{ type = "camera", pos = { 0, 5, 0 }, look = { 0, 0, 0 } } })

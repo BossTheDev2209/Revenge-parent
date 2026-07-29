@@ -5,6 +5,12 @@
 --   "ข้อความ"                                    — ไม่มีชื่อคนพูด
 --   { speaker = "แม่", text = "ข้อความ" }         — มีชื่อคนพูดข้างบนกล่อง
 --   { choices = { {text=, tone=, reply={...}}, ... } } — ให้ player เลือก
+--
+-- ท่าทาง/อารมณ์ (Genshin ref) — ใส่เพิ่มในบรรทัดไหนก็ได้ ไม่ใส่ = ตัวละครไม่ขยับ:
+--   anim  = "HeadScratch"  เล่นครั้งเดียวตอนบรรทัดนี้ขึ้น
+--   pose  = "Angry"        ท่ายืนค้าง (loop) จนกว่าจะสั่ง pose ใหม่
+--   actor = "CC1"          ให้ตัวอื่นขยับแทนคนพูด (ไม่ใส่ = ตัวที่กำลังคุยด้วย)
+--   ท่าทั้งหมดอยู่ ReplicatedStorage.Animations (ดู AnimPlayer.luau)
 -- tone = "plus" | "neutral" | "minus" (⊕/◎/⊖) — ป้ายกำกับเฉยๆ ส่งกลับทาง onDone(picks)
 --        ✅ ล็อก 28 ก.ค. 2569: **ไม่ผูก mental ถาวร** ทุกช้อยผลเท่ากันหมด — input ที่มีผลจริงอยู่ที่ comment เท่านั้น (docs/02 §9.6)
 -- reply = บทตอบกลับหลังเลือก แล้ว**บรรจบกลับเส้นเดิม** (ไม่ branching — design doc §7)
@@ -17,6 +23,9 @@ local Config = if isStudio
 local Audio = if isStudio
 	then require(script.Parent.Parent.AudioService)
 	else require("../AudioService")
+local AnimPlayer = if isStudio
+	then require(script.Parent.Parent.AnimPlayer)
+	else require("../AnimPlayer")
 
 local DialogueUI = {}
 DialogueUI.running = false
@@ -58,6 +67,12 @@ function DialogueUI.validate(lines)
 			continue
 		elseif type(item) ~= "table" then
 			return false, ("บรรทัด %d: ต้องเป็นข้อความหรือตาราง"):format(i)
+		elseif item.anim ~= nil and type(item.anim) ~= "string" then
+			return false, ("บรรทัด %d: anim ต้องเป็นชื่อท่า (string)"):format(i)
+		elseif item.pose ~= nil and type(item.pose) ~= "string" then
+			return false, ("บรรทัด %d: pose ต้องเป็นชื่อท่า (string)"):format(i)
+		elseif item.actor ~= nil and type(item.actor) ~= "string" then
+			return false, ("บรรทัด %d: actor ต้องเป็นชื่อตัวละคร (string)"):format(i)
 		elseif item.choices then
 			if type(item.choices) ~= "table" or #item.choices == 0 then
 				return false, ("บรรทัด %d: choices ว่าง"):format(i)
@@ -74,6 +89,11 @@ function DialogueUI.validate(lines)
 					if not ok then return false, ("บรรทัด %d ช้อย %d > %s"):format(i, j, err) end
 				end
 			end
+		elseif item.anim or item.pose then
+			-- บรรทัดสั่งท่าล้วน (ไม่มี text) = stage direction ไม่ขึ้นกล่องข้อความ ผ่านได้
+			if item.text ~= nil and type(item.text) ~= "string" then
+				return false, ("บรรทัด %d: text ต้องเป็นข้อความ"):format(i)
+			end
 		elseif type(item.text) ~= "string" then
 			return false, ("บรรทัด %d: ต้องมี text"):format(i)
 		end
@@ -84,6 +104,7 @@ end
 -- ===== UI glue (Studio เท่านั้น) =====
 -- แสดง lines ทีละบรรทัด typewriter — คลิกระหว่างพิมพ์ = โชว์ทั้งบรรทัด, คลิกอีกที = บรรทัดถัดไป
 -- voiceName = ชื่อ Sound ใน SoundService.Voice (blip ตอนพิมพ์) — ไม่ส่ง = ใช้ Default
+--             ใช้เป็น **actor เริ่มต้น** ของท่าทางด้วย (ชื่อไฟล์บท = ชื่อ NPC ที่คุยอยู่)
 -- onDone(picks) — picks = ลิสต์ tone ที่ player เลือกตามลำดับ (ว่างถ้าบทไม่มีช้อย)
 function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	if DialogueUI.running then return end
@@ -203,8 +224,12 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	task.spawn(function()
 		local queue = table.clone(lines)
 		local i = 1
+		local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบบทแล้วหยุดให้หมด กันค้างท่าเดิม
 		while i <= #queue do
 			local item = DialogueUI.lineOf(queue[i])
+			-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
+			local moved = AnimPlayer.applyLine(item, voiceName)
+			if moved then movedActors[moved] = true end
 			if item.choices then
 				local c = ask(item.choices)
 				table.insert(picks, c.tone or "neutral")
@@ -214,11 +239,12 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 						table.insert(queue, i + 1, c.reply[k])
 					end
 				end
-			else
+			elseif item.text then
 				speak(item.speaker, item.text)
-			end
+			end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
 			i += 1
 		end
+		for actor in movedActors do AnimPlayer.stop(actor) end
 		gui:Destroy()
 		DialogueUI.running = false
 		if onDone then onDone(picks) end

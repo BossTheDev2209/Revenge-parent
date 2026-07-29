@@ -12,6 +12,9 @@ local isStudio = script ~= nil
 local Audio = if isStudio
 	then require(script.Parent.Parent.AudioService)
 	else require("../AudioService")
+local AnimPlayer = if isStudio
+	then require(script.Parent.Parent.AnimPlayer)
+	else require("../AnimPlayer")
 
 local CutscenePlayer = {}
 CutscenePlayer.running = false
@@ -26,6 +29,11 @@ local VALID = {
 	end,
 	bgm = function(s) return s.name == nil or type(s.name) == "string" end,
 	sound = function(s) return type(s.name) == "string" end,
+	-- ท่าทางตัวละคร: actor = ชื่อไฟล์บท/ชื่อโมเดล ("player" = ตัวผู้เล่น), name = ชื่อท่าใน ReplicatedStorage.Animations
+	anim = function(s)
+		return type(s.actor) == "string" and type(s.name) == "string"
+			and (s.loop == nil or type(s.loop) == "boolean")
+	end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -100,9 +108,13 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	stroke.Parent = label
 	gui.Parent = playerGui
 
+	local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบฉากแล้วหยุดให้หมด
 	task.spawn(function()
 		for _, step in steps do
-			if step.type == "text" then
+			if step.type == "anim" then
+				AnimPlayer.play(step.actor, step.name, step.loop)
+				movedActors[step.actor] = true
+			elseif step.type == "text" then
 				label.Visible = true
 				label.Text = step.text:gsub("%[%a+%]", "") -- tag ความเร็วยังไม่ใช้ใน cutscene
 				task.wait(math.max(1.5, #step.text * 0.03))
@@ -131,6 +143,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 				end
 			end
 		end
+		for actor in movedActors do AnimPlayer.stop(actor) end
 		camera.CameraType = savedType
 		camera.FieldOfView = savedFov
 		gui:Destroy()

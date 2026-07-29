@@ -23,6 +23,7 @@
 return {
     { type = "camera", cam = "Cam_Good1_01" },      -- ย้ายกล้องไป Part ชื่อนี้
     { type = "bgm",    name = "Ending_Sad" },       -- เปลี่ยนเพลง (ไม่ใส่ name = เงียบ)
+    { type = "anim",   actor = "player", name = "SitDown" }, -- สั่งท่าตัวละคร
     { type = "text",   text = "[slow]ข้อความ" },    -- ขึ้นข้อความ (ค้างจนถึง step ถัดไป)
     { type = "wait",   t = 2 },                     -- เว้นจังหวะ 2 วินาที
     { type = "sound",  name = "door_slam" },        -- เสียงประกอบครั้งเดียว
@@ -36,6 +37,7 @@ return {
 | `wait` | `t` (วินาที) | |
 | `bgm` | — | `name` = ชื่อใน `SoundService.BGM` · ไม่ใส่ = เงียบสนิท |
 | `sound` | `name` | ชื่อใน `SoundService.SFX` |
+| `anim` | `actor` + `name` | สั่งท่าตัวละคร · ใส่ `loop = true` = ท่าค้าง · ท่าอยู่ `ReplicatedStorage.Animations` (วิธีเตรียม → [dialogue.md §2.5](dialogue.md)) |
 
 **ไม่ใส่ step `camera` เลยก็ได้** — กล้องอยู่ที่เดิมที่ player ยืน แล้วขึ้นแถบดำ+ข้อความ (ใช้ได้จริงสำหรับ ending แบบย่อ)
 

@@ -1,8 +1,9 @@
 -- tests/RunTests.luau — เทสสมองคณิตทั้งเกม (Formulas.luau) เทียบกับ docs/02-game-design-locked.md
 --
--- รันได้ 2 ทาง:
---   local : lune run tests/RunTests.luau
---   Studio: วางเป็น Script ใน ServerScriptService.Tests → ติ๊ก Enabled → Play → ดู Output → ติ๊กกลับ
+-- sync เป็น ModuleScript ที่ SSS.Tests.RunTests (gen_sync) แล้วรัน:
+--   Studio: Play → execute_luau (Server) → require(SSS.Tests.RunTests) → อ่าน {pass,fail,failures}
+--           (1 รอบ/1 play session — service เป็น singleton state ค้างข้ามรอบ)
+--   local : lune run tests/RunTests.luau (ถ้ามี lune)
 local isStudio = script ~= nil
 local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
@@ -59,8 +60,9 @@ local CutscenePlayer = if isStudio
 	else require("../src/client/UI/CutscenePlayer")
 
 local pass, fail = 0, 0
+local failures = {}
 local function check(name: string, ok: boolean)
-	if ok then pass += 1 else fail += 1; print("FAIL: " .. name) end
+	if ok then pass += 1 else fail += 1; failures[#failures + 1] = name; print("FAIL: " .. name) end
 end
 
 -- rng ปลอม: คืนค่าจากคิวตามลำดับ ไว้ fix ผลสุ่มให้เทสได้
@@ -1187,4 +1189,5 @@ GameState.mergeDefaults(oldSave, GameState.newGame())
 check("save เก่าไม่มี pc → เติมเป็น 1 ไม่ทับ camera", oldSave.upgrades.pc == 1 and oldSave.upgrades.camera == 2)
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
-if fail > 0 then error("มีเทสไม่ผ่าน") end
+-- คืน table ให้ execute_luau อ่านผลตรงๆ — ไม่ต้อง clone Source + patch print + pcall probe อีก
+return { pass = pass, fail = fail, failures = failures }

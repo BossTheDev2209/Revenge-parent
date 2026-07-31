@@ -50,7 +50,7 @@ python tools/mcp_driver.py /tmp/steps.json
 - step แรกของ batch retry 60 วิอัตโนมัติ (รอ Studio plugin reconnect เข้า host ใหม่)
 - path ใน steps.json ต้องเป็น Windows format (`C:/...`) ไม่ใช่ git-bash (`/c/...`)
 - ส่ง source code เข้า Studio: ห่อด้วย long bracket `[=====[ ... ]=====]` (เช็คก่อนว่า source ไม่มี `]=====]`)
-- เทสใน Studio ไม่ต้องกด Play: `loadstring(RunTests.Source)` + `setfenv` ให้ `script` ชี้ instance แล้ว `pcall` — ดู `tools/` + ประวัติ commit
+- เทสใน Studio ไม่ต้องกด Play: `execute_luau` รัน `RunTests.Source` แล้ว **อ่าน table ที่ return** (`{pass, fail, failures}`) — RunTests คืนผลตรงๆ ไม่ต้อง clone/patch print/pcall probe อีก
 - tool มีครบ 27 ตัว: `execute_luau`, `inspect_instance`, `script_read`, `multi_edit`, `search_game_tree`, `get_console_output`, `start_stop_play`, `screen_capture` ฯลฯ
 - **Place เป็น Team Create** — ทีมออนไลน์พร้อมกันได้ ระวังแก้ชนกัน + Team Create autosave เอง
 - **Studio require cache:** อัป `Source` ของ ModuleScript ที่เคยถูก require แล้ว = โมดูลเก่ายังถูก cache

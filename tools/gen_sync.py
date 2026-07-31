@@ -23,7 +23,9 @@ ROOTS = [
 SPECIAL = {
     "src/server/Main.server.luau": ("SSS", "Main", "Script"),
     "src/client/Main.client.luau": ("SPS", "Main", "LocalScript"),
-    "tests/RunTests.luau": ("SSS.Tests", "RunTests", "Script"),
+    # ModuleScript ไม่ใช่ Script: รันเทสด้วย require() แล้วอ่าน {pass,fail,failures} ที่ return
+    # (loadstring ปิดใน MCP sandbox — require เป็นทางเดียวที่จับค่า return ได้ ไม่ต้อง clone/patch print)
+    "tests/RunTests.luau": ("SSS.Tests", "RunTests", "ModuleScript"),
 }
 
 
@@ -79,7 +81,7 @@ parts = [
 end""",
     """local function put(parent, name, class, src)
 	local m = parent:FindFirstChild(name)
-	if m and not m:IsA('LuaSourceContainer') then m:Destroy(); m = nil end
+	if m and m.ClassName ~= class then m:Destroy(); m = nil end
 	if not m then
 		m = Instance.new(class)
 		m.Name = name

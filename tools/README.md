@@ -26,14 +26,6 @@ python tools/mcp_driver.py <steps.json>
 | **`build_npc_template.luau`** | ก๊อป `Workspace.NPC.R6` เป็น NPC_Template + ตัวจริง — ใส่ Animator/Shirt/Pants/attachment/face/Interact/ป้ายชื่อ ครบ (docs/05 §4) | ✅ ใช้อยู่ |
 | **`rename_npc_interacts.luau`** | เปลี่ยนชื่อ Part `Interact_NPC_01` ในโมเดล NPC → `Interact_NPC_<ชื่อ>` unique (ผูกบทได้) · รันหลังเพิ่ม NPC ใหม่ | ✅ ใช้อยู่ |
 
-## สคริปต์ที่เลิกใช้แล้ว (accessory — user จัดการหน้าตา NPC เอง 29 ก.ค.)
-
-`attach_accessory.luau` · `clean_accessories.luau` · `normalize_accessories.luau`
-→ ระบบ accessory ถูกถอดออกหมดแล้ว (ทั้งคลัง `ReplicatedStorage.Accessories` และของบน NPC)
-→ เก็บไฟล์ไว้เผื่อกลับมาใช้ · **ถ้าไม่คิดจะแต่งตัว NPC ด้วยสคริปต์อีก ลบทิ้งได้**
-
----
-
 ## เพิ่ม NPC ใหม่ (ลำดับที่ใช้จริง)
 
 1. ก๊อป `NPC_Template` ใน `Workspace.NPC.WorldNPC` (หรือ StoryNPC) → ตั้งชื่อ `NPC_<NN>_<ชื่อ>`

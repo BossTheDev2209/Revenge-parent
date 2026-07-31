@@ -76,6 +76,26 @@ Workspace/NPC/
 
 **เหลือให้ทีมทำ:** ใส่ `ShirtTemplate`/`PantsTemplate` id → ใส่ Accessory (ผม/หมวก) → เปลี่ยน `Head.face.Texture` → ลากตัวไปวางจุดที่ต้องการในแมพ (ลากทั้งโมเดล `Interact_` ติดไปเอง)
 
+#### คลังของแต่งตัว — `ReplicatedStorage.Accessories` (ทำไว้แล้ว 29 ก.ค.)
+
+```
+Accessories/
+  Hair/     Hair_Messy
+  Hat/      Hat_Beanie · Hat_Cap
+  Glasses/  Glasses_Oliver · Glasses_Round
+  Neck/     Scarf_Knit
+  Back/     Backpack_Basic
+  Waist/    Belt_Simple
+```
+
+ตัวอย่างใส่ครบชุดดูได้ที่ `NPC_03_ปาล์ม` (หมวก+แว่น+ผ้าพันคอ+กระเป๋า+เข็มขัด) · `NPC_02_เจ` (ผม)
+
+> ⚠️ **ของฟรีใน Toolbox เชื่อไม่ได้** — ที่เจอมากับตัว: แถม Script/RemoteEvent มา 12 ตัว (backdoor เสี่ยงเกมโดนแฮก), เข็มขัดที่จริงเป็นโมเดลตัวละครทั้งตัวพร้อมไฟล์เสียง, กระเป๋าติดหน้าอกแทนหลัง, ผ้าพันคอใหญ่คลุมหัว
+> → **ห้ามลากของจาก Toolbox เข้าเกมตรงๆ** ให้ผ่าน `tools/normalize_accessories.luau` ทุกชิ้น มันจะ:
+> ลบ script/เสียงที่แถมมา · เปลี่ยนชื่อ Handle/attachment ให้ถูก · รีเซ็ต offset ที่ตั้งมามั่ว · ย่อขนาดให้พอดีตัว R6 · จัดเข้าโฟลเดอร์หมวด
+>
+> **ตั้งชื่อของใหม่ให้ขึ้นต้นด้วยหมวด** (`Hair_` `Hat_` `Glasses_` `Scarf_` `Backpack_` `Belt_`) ไม่งั้นสคริปต์ไม่รู้ว่าจะเอาไปแปะจุดไหน
+
 #### ใส่ Accessory ยังไง (ตัวอย่างทำไว้แล้วที่ `NPC_02_เจ`)
 
 ⚠️ **ลาก Accessory เข้าโมเดลเฉยๆ ใน Edit mode มันไม่ติด** — ต้องเชื่อม attachment เอง ใช้ `tools/attach_accessory.luau` แทน

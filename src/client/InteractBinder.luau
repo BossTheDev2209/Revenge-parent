@@ -28,26 +28,27 @@ end
 
 -- Interact_NPC_<ชื่อ> → ไฟล์บทใน Content/Dialogue (ชื่อ Part = ชื่อโมเดลตัด prefix — docs/05 §4)
 --   5 พิเศษ (StoryNPC) → ไฟล์บทเดิมที่มีอยู่แล้ว | 12 ประจำเฟส (WorldNPC) → ไฟล์ชื่อตัวเอง
+-- key ต้อง bracket-quote: Luau identifier รับ ASCII เท่านั้น ชื่อ Part ไทยเป็น key เปล่าไม่ได้ (คอมไพล์ไม่ผ่าน)
 local NPC_DIALOGUE = {
 	-- ===== 5 พิเศษ (เนื้อเรื่อง) =====
-	Interact_NPC_แม่ = "Mom",
-	Interact_NPC_พ่อ = "Dad",
-	Interact_NPC_เพื่อนร่วมทาง1 = "Friend1", -- ทรยศ 500K
-	Interact_NPC_เพื่อนร่วมทาง2 = "Friend2", -- อยู่จนจบ
-	Interact_NPC_CC = "CC1", -- คู่แข่ง
+	["Interact_NPC_แม่"] = "Mom",
+	["Interact_NPC_พ่อ"] = "Dad",
+	["Interact_NPC_เพื่อนร่วมทาง1"] = "Friend1", -- ทรยศ 500K
+	["Interact_NPC_เพื่อนร่วมทาง2"] = "Friend2", -- อยู่จนจบ
+	["Interact_NPC_CC"] = "CC1", -- คู่แข่ง
 	-- ===== 12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — ไฟล์บทอยู่ Content/Dialogue ชื่อเดียวกับ NPC =====
-	Interact_NPC_ลุงสืบ = "ลุงสืบ",
-	Interact_NPC_พี่แหนม = "พี่แหนม",
-	Interact_NPC_ลุงชัย = "ลุงชัย",
-	Interact_NPC_ป้าไหม = "ป้าไหม",
-	Interact_NPC_หมวย = "หมวย",
-	Interact_NPC_ออโต้ = "ออโต้",
-	Interact_NPC_ลุงฮาซาน = "ลุงฮาซาน",
-	Interact_NPC_พี่โชคชัย = "พี่โชคชัย",
-	Interact_NPC_น้ำปั่น = "น้ำปั่น",
-	Interact_NPC_เกรซ = "เกรซ",
-	Interact_NPC_พี่มีนา = "พี่มีนา",
-	Interact_NPC_ลุงนรินท์ = "ลุงนรินท์",
+	["Interact_NPC_ลุงสืบ"] = "ลุงสืบ",
+	["Interact_NPC_พี่แหนม"] = "พี่แหนม",
+	["Interact_NPC_ลุงชัย"] = "ลุงชัย",
+	["Interact_NPC_ป้าไหม"] = "ป้าไหม",
+	["Interact_NPC_หมวย"] = "หมวย",
+	["Interact_NPC_ออโต้"] = "ออโต้",
+	["Interact_NPC_ลุงฮาซาน"] = "ลุงฮาซาน",
+	["Interact_NPC_พี่โชคชัย"] = "พี่โชคชัย",
+	["Interact_NPC_น้ำปั่น"] = "น้ำปั่น",
+	["Interact_NPC_เกรซ"] = "เกรซ",
+	["Interact_NPC_พี่มีนา"] = "พี่มีนา",
+	["Interact_NPC_ลุงนรินท์"] = "ลุงนรินท์",
 }
 
 -- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด

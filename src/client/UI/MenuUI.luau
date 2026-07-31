@@ -19,7 +19,7 @@ local SCREEN_CAM = {
 	home = "MenuCam_Home",
 	book = "MenuCam_Book",
 	setting = "MenuCam_Setting",
-	credit = "MenuCam_Credit",
+	credit = "MenuCam_Credits", -- ชื่อจริงในห้องมี s (ยืนยัน 29 ก.ค.)
 	launching = "MenuCam_PC",
 }
 
@@ -60,50 +60,44 @@ local UIAssets = require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 local CAM_TIME = 1.2
 local FLASH_IN, FLASH_HOLD, FLASH_OUT = 0.35, 2.4, 0.6
 
+-- ★ ชื่อของจริงที่ทีมตั้งไว้ในห้องเมนู (ยืนยัน 29 ก.ค. 2569) — **ชื่อเดียว ไม่มีเดา ไม่มีสำรอง**
+-- เปลี่ยนชื่อของใน Studio เมื่อไหร่ = มาแก้ตารางนี้ให้ตรง (ตั้งใจให้พังดังๆ ดีกว่าไปหยิบของผิดชิ้นมาใช้)
+local SCENE = "MenuScreen" -- Workspace.MenuScreen
+local CLICK = { -- ของที่กดได้ (ลูกของ MenuScreen)
+	pc = "PC",
+	book = "OpenBook",
+	setting = "setting",
+	credit = "credit",
+}
+local CAM = { -- Part มุมกล้อง (ลูกของ MenuScreen)
+	home = "MenuCam_Home",
+	book = "MenuCam_Book",
+	setting = "MenuCam_Setting",
+	credit = "MenuCam_Credits",
+	launching = "MenuCam_PC", -- ⚠️ ยังไม่มีในห้อง — ไม่มี = ตอนกด PC กล้องอยู่ที่เดิม
+}
+
 -- client เริ่มก่อน workspace replicate เสร็จ → ต้องรอ ไม่ใช่ FindFirstChild เฉยๆ
 local function scene()
-	local r = workspace:FindFirstChild("MenuScene") or workspace:FindFirstChild("MenuScreen")
+	local r = workspace:FindFirstChild(SCENE)
 	if r then return r end
 	local t0 = os.clock()
 	while os.clock() - t0 < 8 do
 		task.wait(0.1)
-		r = workspace:FindFirstChild("MenuScene") or workspace:FindFirstChild("MenuScreen")
+		r = workspace:FindFirstChild(SCENE)
 		if r then return r end
 	end
 	return nil
 end
 
--- ชื่อสำรองของแต่ละชิ้น: ชื่อตามสเปกก่อน ไม่เจอค่อยเดาจากชื่อที่ทีมตั้งเอง
--- (ทีมปั้นห้องมาก่อนสเปกจะนิ่ง — โค้ดยอมปรับตามของจริง ดีกว่าให้ไปไล่เปลี่ยนชื่อทั้งห้อง)
-local ALIAS = {
-	pc = { "MenuScreen_PC", "PC", "Monitor", "Computer" },
-	book = { "MenuScreen_Book", "OpenBook", "Open Book", "Book", "Notebook" },
-	setting = { "MenuScreen_Setting", "setting", "Setting", "Settings" },
-	credit = { "MenuScreen_Credit", "MenuScreen_Credits", "credit", "Credit", "Credits" },
-}
-local CAM_ALIAS = {
-	home = { "MenuCam_Home" },
-	book = { "MenuCam_Book" },
-	setting = { "MenuCam_Setting", "MenuCam_Settings" },
-	credit = { "MenuCam_Credit", "MenuCam_Credits" },
-	launching = { "MenuCam_PC", "MenuCam_Computer" },
-}
-
-local function findAny(root, names)
-	for _, n in names do
-		local f = root:FindFirstChild(n, true)
-		if f then return f end
+-- หาชิ้นเดียวตามชื่อที่ระบุ ไม่เจอ = warn บอกชื่อที่หา (ไปเปลี่ยนชื่อใน Studio หรือแก้ตารางข้างบน)
+local function findExact(root, name: string)
+	local f = root:FindFirstChild(name)
+	if not f then
+		warn(("[MenuUI] ไม่เจอ Workspace.%s.%s — ตรวจชื่อใน Studio หรือแก้ตาราง CLICK/CAM ใน MenuUI")
+			:format(SCENE, name))
 	end
-	-- ไม่เจอชื่อเป๊ะ → เดาจากชื่อที่มีคำนั้นอยู่ (ทีมเปลี่ยนชื่อของแล้วเมนูไม่พัง)
-	for _, n in names do
-		local key = n:lower():gsub("%s+", "")
-		for _, d in root:GetDescendants() do
-			if d:IsA("BasePart") or d:IsA("Model") then
-				if d.Name:lower():gsub("%s+", ""):find(key, 1, true) then return d end
-			end
-		end
-	end
-	return nil
+	return f
 end
 
 -- หน้าจอที่ใช้แปะ UI = BasePart ที่มี "หน้ากว้างสุด" ในกลุ่มนั้น
@@ -341,14 +335,15 @@ function MenuUI.open(playerGui, deps)
 		end
 	end
 
-	-- ===== หาของในห้อง (ยอมรับทั้งชื่อตามสเปกและชื่อที่ทีมตั้งเอง) =====
-	local pcScreen = screenPartOf(findAny(root, ALIAS.pc))
-	local bookPart = screenPartOf(findAny(root, ALIAS.book))
-	local setPart = screenPartOf(findAny(root, ALIAS.setting))
-	local credPart = screenPartOf(findAny(root, ALIAS.credit))
+	-- ===== หาของในห้องตามชื่อจริงที่ทีมตั้ง (ตาราง CLICK/CAM ข้างบน) =====
+	local bookModel = findExact(root, CLICK.book)
+	local pcScreen = screenPartOf(findExact(root, CLICK.pc))
+	local bookPart = screenPartOf(bookModel)
+	local setPart = screenPartOf(findExact(root, CLICK.setting))
+	local credPart = screenPartOf(findExact(root, CLICK.credit))
 
 	local camParts = {}
-	for key, names in CAM_ALIAS do camParts[key] = findAny(root, names) end
+	for key, name in CAM do camParts[key] = root:FindFirstChild(name) end
 
 	-- ไม่มี Part กล้องหน้าจอคอม → คำนวณเอง: ลอยหน้าจอพอดีเฟรม (ทีมไม่ต้องวางเพิ่ม)
 	local pcCamCF = nil
@@ -425,7 +420,7 @@ function MenuUI.open(playerGui, deps)
 		if p then table.insert(canvasParts, p) end
 		return sg
 	end
-	local bookGui = canvasFor(findAny(root, ALIAS.book), "book", "Gui_MenuBook")
+	local bookGui = canvasFor(bookModel, "book", "Gui_MenuBook")
 	local setGui = canvasFor(setPart, "setting", "Gui_MenuSetting")
 	local credGui = canvasFor(credPart, "credit", "Gui_MenuCredit")
 	local pcPart = pcScreen

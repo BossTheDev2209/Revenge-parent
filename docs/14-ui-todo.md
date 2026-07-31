@@ -28,8 +28,18 @@
 | `ProgressFill` | ความกว้างแถบ progress สู่ 1M |
 | `MentalFill` | ความสูง + สีหลอดใจ |
 
-- **ย้ายไปไว้ที่ไหนก็ได้** โค้ดหาแบบ recursive (ซ้อนกี่ชั้นก็เจอ)
-- ลบชิ้นไหนทิ้ง = ช่องนั้นไม่อัปเดต **เกมไม่พัง** ขึ้น warn บอกชื่อใน Output
+**โค้ดผูกด้วย path เป๊ะๆ ไม่มีการค้นหา ไม่มีการเดาชื่อ** — ตาราง `BINDINGS` ใน `HUD.luau`:
+
+```
+Gui_HUD.FollowerBox.FollowerLabel      Gui_HUD.ClockLabel
+Gui_HUD.MoneyBox.MoneyLabel            Gui_HUD.CalendarBox.DayLabel
+Gui_HUD.ProgressTrack.PhaseLabel       Gui_HUD.StorageBox.StorageLabel
+Gui_HUD.ProgressTrack.ProgressFill     Gui_HUD.CameraBox.CameraLabel
+Gui_HUD.MentalTrack.MentalFill
+```
+
+- **ย้าย/เปลี่ยนชื่อ = มาแก้ตาราง `BINDINGS` ให้ตรง** (จงใจไม่ให้โค้ดไปเดาเอง เดี๋ยวหยิบผิดชิ้น)
+- path ไม่ตรง = ช่องนั้นไม่อัปเดต **เกมไม่พัง** ขึ้น warn บอก path เต็มที่หาไม่เจอ
 - ลบ `Gui_HUD` ทั้งอันทิ้ง = โค้ดสร้างเวอร์ชันเดิมจาก `HUD.build()` ให้อัตโนมัติ (กลับไปตั้งต้นได้)
 - อยากรีเซ็ตกลับเป็นของ default: ลบ `StarterGui.Gui_HUD` แล้วรัน `require(StarterPlayerScripts.UI.HUD).build(game.StarterGui)` ใน command bar
 

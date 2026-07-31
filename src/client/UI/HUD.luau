@@ -310,31 +310,36 @@ function HUD.build(parent): ScreenGui
 	return gui
 end
 
--- ผูกโค้ดเข้ากับ instance ที่มีอยู่ (ทีมแต่งเองใน StarterGui) — หาแบบ recursive จะได้ย้ายกล่องไปไหนก็ยังเจอ
--- ขาดชิ้นไหน = warn บอกชื่อ แล้วข้าม (HUD ส่วนที่เหลือยังอัปเดตปกติ)
+-- ★ ผูกโค้ดเข้ากับ instance ที่มีอยู่ใน StarterGui — **ระบุ path ตรงๆ ไม่มีการค้นหา ไม่มีการเดาชื่อ**
+-- ย้ายของใน Studio แล้ว path เปลี่ยน = มาแก้ตารางนี้ให้ตรง (พังดังๆ ดีกว่าไปหยิบชิ้นผิดมาใช้)
+-- path = ลำดับชื่อจาก Gui_HUD ลงไป เช่น { "FollowerBox", "FollowerLabel" } = Gui_HUD.FollowerBox.FollowerLabel
 local BINDINGS = {
-	followerLabel = "FollowerLabel",
-	moneyLabel = "MoneyLabel",
-	phaseLabel = "PhaseLabel",
-	progressFill = "ProgressFill",
-	clockLabel = "ClockLabel",
-	dayLabel = "DayLabel",
-	storageLabel = "StorageLabel",
-	cameraLabel = "CameraLabel",
-	mentalFill = "MentalFill",
+	{ field = "followerLabel", path = { "FollowerBox", "FollowerLabel" } },
+	{ field = "moneyLabel", path = { "MoneyBox", "MoneyLabel" } },
+	{ field = "phaseLabel", path = { "ProgressTrack", "PhaseLabel" } },
+	{ field = "progressFill", path = { "ProgressTrack", "ProgressFill" } },
+	{ field = "clockLabel", path = { "ClockLabel" } },
+	{ field = "dayLabel", path = { "CalendarBox", "DayLabel" } },
+	{ field = "storageLabel", path = { "StorageBox", "StorageLabel" } },
+	{ field = "cameraLabel", path = { "CameraBox", "CameraLabel" } },
+	{ field = "mentalFill", path = { "MentalTrack", "MentalFill" } },
 }
 
 function HUD.bind(gui)
 	HUD.gui = gui
 	HUD.prev = nil
 	local missing = {}
-	for field, name in BINDINGS do
-		local inst = gui:FindFirstChild(name, true)
-		HUD[field] = inst
-		if not inst then table.insert(missing, name) end
+	for _, b in BINDINGS do
+		local node = gui
+		for _, step in b.path do
+			node = node and node:FindFirstChild(step)
+		end
+		HUD[b.field] = node
+		if not node then table.insert(missing, "Gui_HUD." .. table.concat(b.path, ".")) end
 	end
 	if #missing > 0 then
-		warn("[HUD] ไม่เจอชิ้นส่วน (โค้ดอัปเดตค่าตรงนั้นไม่ได้): " .. table.concat(missing, ", "))
+		warn("[HUD] ไม่เจอชิ้นส่วนตาม path (ช่องนั้นจะไม่อัปเดต — แก้ตาราง BINDINGS ใน HUD.luau ให้ตรงของจริง):\n  "
+			.. table.concat(missing, "\n  "))
 	end
 end
 

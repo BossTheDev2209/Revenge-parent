@@ -74,7 +74,17 @@ Workspace/NPC/
 
 ทุกตัวเตรียมให้แล้ว: `Animator` (ไม่มีอันนี้ท่าไม่เล่น) · `Shirt`/`Pants` ว่างรอ id · attachment ครบ 19 จุด (ผม/หมวก/แว่น/กระเป๋าหลังแปะติดหมด) · `Head.face` · ป้ายชื่อลอย · `Interact_NPC_0X` ในตัวโมเดล · ปิดชื่อ+หลอดเลือดของ Roblox · **anchor เฉพาะ HumanoidRootPart** (anchor ทั้งตัว = ท่าไม่ขยับ)
 
-**เหลือให้ทีมทำ:** ใส่ `ShirtTemplate`/`PantsTemplate` id → ลาก Accessory (ผม/หมวก) เข้าโมเดล → เปลี่ยน `Head.face.Texture` → ลากตัวไปวางจุดที่ต้องการในแมพ (ลากทั้งโมเดล `Interact_` ติดไปเอง)
+**เหลือให้ทีมทำ:** ใส่ `ShirtTemplate`/`PantsTemplate` id → ใส่ Accessory (ผม/หมวก) → เปลี่ยน `Head.face.Texture` → ลากตัวไปวางจุดที่ต้องการในแมพ (ลากทั้งโมเดล `Interact_` ติดไปเอง)
+
+#### ใส่ Accessory ยังไง (ตัวอย่างทำไว้แล้วที่ `NPC_02_เจ`)
+
+⚠️ **ลาก Accessory เข้าโมเดลเฉยๆ ใน Edit mode มันไม่ติด** — ต้องเชื่อม attachment เอง ใช้ `tools/attach_accessory.luau` แทน
+
+1. หาของ: Toolbox ค้น "hair"/"hat" (หรือให้ agent ใช้ `search_asset`) → เอา asset id
+2. insert เข้า `ReplicatedStorage.Accessories` (คลังกลาง เอาไปใช้ซ้ำกับตัวอื่นได้)
+3. แก้ 2 บรรทัด `CONFIG` ในไฟล์ (ชื่อ NPC + ชื่อ Accessory) แล้วรันผ่าน `tools/mcp_driver.py`
+   → สคริปต์หา attachment คู่กันเอง (`HairAttachment`/`HatAttachment`/...) วางตำแหน่ง + weld ให้ครบ
+   → ของชนิดเดียวกันที่ใส่อยู่เดิมถูกถอดออกก่อน (ใส่ผมทับผมจะทะลุ)
 สร้างใหม่/สร้างซ้ำ: `tools/build_npc_template.luau` (รันผ่าน `tools/mcp_driver.py`)
 
 **คลังท่าทาง/สีหน้า สร้างแล้วเช่นกัน:** `ReplicatedStorage.Animations` และ `.Faces` มีโฟลเดอร์ย่อยต่อตัวละครรออยู่ (วิธีใส่ → `docs/engines/dialogue.md §2.5`)

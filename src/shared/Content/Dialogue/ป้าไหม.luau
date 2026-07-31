@@ -1,0 +1,6 @@
+-- ป้าไหม — NPC ประจำเฟส 1 (WorldNPC) · docs/05 §4
+-- บททางเดียว หรือใส่ช้อยได้ (บางตัวมีช้อย — docs/engines/dialogue.md §2.5)
+-- ⚠️ [placeholder] — รอเขียนบทจริง
+return {
+	"[placeholder ป้าไหม]",
+}

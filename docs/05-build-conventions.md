@@ -53,13 +53,34 @@ Interact_Camera      ถ่าย/ตัดคลิป
 Interact_Bed         พักผ่อน   → mental +25
 Interact_Kitchen     กินข้าว   → mental +15
 Interact_Exercise    ออกกำลังกาย → mental +20
-Interact_NPC_01      ป้าแดง เจ้าของห้องเช่า (เฟส 1-2)
-Interact_NPC_02      เจ — เพื่อนร่วมทางคนแรก (เฟส 1-2 + หลังทรยศ)
-Interact_NPC_03      ปาล์ม — เพื่อนร่วมทางคนสอง (เฟส 3)
-Interact_NPC_04      ไคโตะ — Content Creator คู่แข่ง (เฟส 2-3)
-Interact_NPC_05      เกรียน (เฟส 2)
-Interact_NPC_Mom     แม่ — **พักไว้** (พ่อแม่ขีดดำ docs/02 §9.4) ยังไม่ต้องวาง
+Interact_NPC_<ชื่อ>  คุย NPC — ชื่อ Part = ชื่อโมเดลตัด prefix (ดู §4 ล่าง)
 ```
+
+### NPC roster (อัป 30 ก.ค. 2569 — 17 ตัว)
+
+ชื่อ Part interact ในแต่ละโมเดล = `Interact_NPC_<ชื่อ>` (สคริปต์ `tools/rename_npc_interacts.luau` ตั้งให้)
+บทผูกจากชื่อนี้ในตาราง `NPC_DIALOGUE` (InteractBinder) → ไฟล์ใน `Content/Dialogue`
+
+**5 พิเศษ (เนื้อเรื่อง) — `Workspace.NPC.StoryNPC`** เจอได้หลายเฟส บทเปลี่ยนตามเฟส (p1/p2/p3/after):
+
+| โมเดล | บท | ใคร |
+|---|---|---|
+| `NPC_special_แม่` | `Mom` | แม่ |
+| `NPC_special_พ่อ` | `Dad` | พ่อ |
+| `NPC_special_เพื่อนร่วมทาง1` | `Friend1` | เพื่อนคนแรก (ทรยศ 500K) |
+| `NPC_special_เพื่อนร่วมทาง2` | `Friend2` | เพื่อนคนสอง (อยู่จนจบ) |
+| `NPC_special_CC` | `CC1` | Content Creator คู่แข่ง |
+
+**12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — `Workspace.NPC.WorldNPC`** บทเดี่ยว บางตัวมีช้อย:
+
+| เฟส | โมเดล → ไฟล์บท |
+|---|---|
+| 1 | ลุงสืบ · พี่แหนม · ลุงชัย · ป้าไหม |
+| 2 | หมวย · ออโต้ · ลุงฮาซาน · พี่โชคชัย |
+| 3 | น้ำปั่น · เกรซ · พี่มีนา · ลุงนรินท์ |
+
+> ไฟล์บททั้ง 17 อยู่ `ReplicatedStorage.Shared.Content.Dialogue.*` (12 world ยัง `[placeholder]` รอเขียน)
+> ⚠️ ไฟล์เก่า `Landlord` / `Hater` ยังอยู่แต่**ไม่มี NPC ผูก** — บอสจะรีไซเคิลเป็นตัวไหนก็ map เพิ่มใน `NPC_DIALOGUE` เอง หรือลบทิ้ง
 
 **บทเปลี่ยนเองตามเฟส** — NPC ตัวเดียววางครั้งเดียวพอ ระบบเลือกบทให้ตามเฟสปัจจุบัน + สถานะทรยศ (ทีมไม่ต้องทำอะไรเพิ่ม)
 

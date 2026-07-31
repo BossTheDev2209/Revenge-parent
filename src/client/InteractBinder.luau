@@ -26,15 +26,28 @@ function InteractBinder.doorCheck(follower: number, minFollower: number?): (bool
 		need >= 1000 and ("%dK"):format(need / 1000) or tostring(need))
 end
 
--- Interact_NPC_* → ไฟล์บทใน Content/Dialogue (ทีมวาง NPC ตามเลขนี้ — docs/05 §3)
--- พ่อแม่ = ขีดดำ ตัดชั่วคราว (docs/02 §9.4) — ไฟล์ Mom/Dad ยังอยู่ ถ้าดึงกลับค่อยผูก Interact_NPC_Mom
+-- Interact_NPC_<ชื่อ> → ไฟล์บทใน Content/Dialogue (ชื่อ Part = ชื่อโมเดลตัด prefix — docs/05 §4)
+--   5 พิเศษ (StoryNPC) → ไฟล์บทเดิมที่มีอยู่แล้ว | 12 ประจำเฟส (WorldNPC) → ไฟล์ชื่อตัวเอง
 local NPC_DIALOGUE = {
-	Interact_NPC_Mom = "Mom",
-	Interact_NPC_01 = "Landlord", -- ป้าแดง เจ้าของห้องเช่า
-	Interact_NPC_02 = "Friend1", -- เจ (ทรยศ 500K)
-	Interact_NPC_03 = "Friend2", -- ปาล์ม
-	Interact_NPC_04 = "CC1", -- ไคโตะ
-	Interact_NPC_05 = "Hater",
+	-- ===== 5 พิเศษ (เนื้อเรื่อง) =====
+	Interact_NPC_แม่ = "Mom",
+	Interact_NPC_พ่อ = "Dad",
+	Interact_NPC_เพื่อนร่วมทาง1 = "Friend1", -- ทรยศ 500K
+	Interact_NPC_เพื่อนร่วมทาง2 = "Friend2", -- อยู่จนจบ
+	Interact_NPC_CC = "CC1", -- คู่แข่ง
+	-- ===== 12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — ไฟล์บทอยู่ Content/Dialogue ชื่อเดียวกับ NPC =====
+	Interact_NPC_ลุงสืบ = "ลุงสืบ",
+	Interact_NPC_พี่แหนม = "พี่แหนม",
+	Interact_NPC_ลุงชัย = "ลุงชัย",
+	Interact_NPC_ป้าไหม = "ป้าไหม",
+	Interact_NPC_หมวย = "หมวย",
+	Interact_NPC_ออโต้ = "ออโต้",
+	Interact_NPC_ลุงฮาซาน = "ลุงฮาซาน",
+	Interact_NPC_พี่โชคชัย = "พี่โชคชัย",
+	Interact_NPC_น้ำปั่น = "น้ำปั่น",
+	Interact_NPC_เกรซ = "เกรซ",
+	Interact_NPC_พี่มีนา = "พี่มีนา",
+	Interact_NPC_ลุงนรินท์ = "ลุงนรินท์",
 }
 
 -- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด
@@ -158,7 +171,9 @@ function InteractBinder.init(deps)
 		trackLabel(inst)
 		if inst:FindFirstChildOfClass("ProximityPrompt") then return end
 		local prompt = Instance.new("ProximityPrompt")
-		prompt.ActionText = PROMPT_TEXT[inst.Name] or inst.Name:gsub("Interact_", "")
+		prompt.ActionText = PROMPT_TEXT[inst.Name]
+			or (inst.Name:match("^Interact_NPC") and "คุย")
+			or inst.Name:gsub("Interact_", "")
 		prompt.ObjectText = ""
 		prompt.HoldDuration = 0.3
 		prompt.Triggered:Connect(function()

@@ -267,19 +267,73 @@ local function makeCanvas(target, camCF, playerGui, name, marginScale)
 	return sg, p
 end
 
-local function textButton(parent, text, pos, size, color)
+-- ===== ปุ่มกระดาษโน้ต (พอร์ตจาก Figma component MenuButton — ธีมสมุดเล่าเรื่อง) =====
+-- ฟอนต์ Mali (ลายมือไทย) อยู่ในทะเบียน Roblox แล้ว ไม่ต้องอัป · variant Hover = พื้นแดงอ่อน
+local MENU_FONT = Font.fromName("Mali", Enum.FontWeight.SemiBold)
+local INK = Color3.fromRGB(51, 41, 33)
+local CREAM = Color3.fromRGB(250, 245, 230)
+local CREAM_HOVER = Color3.fromRGB(247, 229, 217)
+local ACCENT = Color3.fromRGB(204, 89, 82) -- แดงอิฐ
+
+-- rot = องศาเอียง (imperfect) — ไม่ใส่ = 0 · color param เก่าเลิกใช้ (คง signature กันของพัง)
+local function textButton(parent, text, pos, size, _color, rot)
+	rot = rot or 0
+	-- เงา = frame ข้างหลัง สร้างก่อน = ถูกวาดใต้ปุ่ม
+	local shadow = Instance.new("Frame")
+	shadow.Position = pos + UDim2.fromOffset(4, 6)
+	shadow.Size = size
+	shadow.Rotation = rot
+	shadow.BackgroundColor3 = Color3.fromRGB(60, 45, 30)
+	shadow.BackgroundTransparency = 0.72
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 0
+	shadow.Parent = parent
+	local sc = Instance.new("UICorner")
+	sc.CornerRadius = UDim.new(0, 12)
+	sc.Parent = shadow
+
 	local b = Instance.new("TextButton")
 	b.Position = pos
 	b.Size = size
-	b.BackgroundColor3 = color or Color3.fromRGB(30, 30, 45)
-	b.BackgroundTransparency = 0.15
-	b.TextColor3 = Color3.new(1, 1, 1)
+	b.Rotation = rot
+	b.BackgroundColor3 = CREAM
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.TextColor3 = INK
+	b.FontFace = MENU_FONT
 	b.TextScaled = true
-	b.Text = text
+	b.TextXAlignment = Enum.TextXAlignment.Left
+	b.Text = text -- ข้อความล้วน (ฟอนต์ Mali ไม่มี glyph สัญลักษณ์ → bullet ทำเป็นรูปแยก)
+	b.ZIndex = 1
 	b.Parent = parent
 	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 8)
+	c.CornerRadius = UDim.new(0, 12)
 	c.Parent = b
+	local st = Instance.new("UIStroke")
+	st.Color = INK
+	st.Thickness = 2.5
+	st.Transparency = 0.15
+	st.Parent = b
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 52) -- เว้นที่ให้ bullet
+	pad.PaddingRight = UDim.new(0, 14)
+	pad.PaddingTop = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.Parent = b
+	-- bullet = จุดกลมแดง (Frame + UICorner วงกลม) ไม่พึ่ง glyph ฟอนต์
+	local bullet = Instance.new("Frame")
+	bullet.Size = UDim2.new(0, 14, 0, 14)
+	bullet.Position = UDim2.new(0, 20, 0.5, -7)
+	bullet.BackgroundColor3 = ACCENT
+	bullet.BorderSizePixel = 0
+	bullet.ZIndex = 2
+	bullet.Parent = b
+	local bc = Instance.new("UICorner")
+	bc.CornerRadius = UDim.new(1, 0)
+	bc.Parent = bullet
+	b.MouseEnter:Connect(function() b.BackgroundColor3 = CREAM_HOVER end)
+	b.MouseLeave:Connect(function() b.BackgroundColor3 = CREAM end)
+	b.Destroying:Connect(function() shadow:Destroy() end) -- ปุ่มหาย เงาหายด้วย
 	return b
 end
 
@@ -585,21 +639,20 @@ function MenuUI.open(playerGui, deps)
 
 	-- ===== ปุ่มหน้า home =====
 	local latest = nil
-	local continueBtn = textButton(homePanel, "▶ เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
-		Color3.fromRGB(45, 95, 175))
+	local continueBtn = textButton(homePanel, "เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
+		nil, -1.4)
 	continueBtn.Name = "Btn_Continue"
-	continueBtn.Parent = homePanel
 	continueBtn.Activated:Connect(function()
 		launch(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
 	end)
-	local function navBtn(label, y, target)
-		local b = textButton(homePanel, label, UDim2.new(0, 40, 0, y), UDim2.new(0, 340, 0, 62))
+	local function navBtn(label, y, target, rot)
+		local b = textButton(homePanel, label, UDim2.new(0, 40, 0, y), UDim2.new(0, 340, 0, 62), nil, rot)
 		b.Name = "Btn_" .. target
 		b.Activated:Connect(function() goto_(target) end)
 	end
-	navBtn("📖 สมุดบันทึก (โหลดเซฟ)", 284, "book")
-	navBtn("⚙️ ตั้งค่า", 358, "setting")
-	navBtn("👥 เครดิต", 432, "credit")
+	navBtn("ไฟล์เซฟ", 284, "book", 1.0)
+	navBtn("ตั้งค่า", 358, "setting", -0.7)
+	navBtn("เครดิต", 432, "credit", 1.3)
 
 	for i = 1, 4 do
 		local b = slotBtns[i]
@@ -617,7 +670,7 @@ function MenuUI.open(playerGui, deps)
 		local slots = state.slotList
 		if not slots then return end
 		latest = MenuUI.latestSlot(slots)
-		continueBtn.Text = latest and ("▶ เล่นต่อ (หน้า %d)"):format(latest) or "▶ เริ่มเรื่องใหม่"
+		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		for i = 1, 4 do
 			local b = slotBtns[i]
 			if b then

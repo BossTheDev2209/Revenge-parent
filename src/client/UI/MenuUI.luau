@@ -652,6 +652,8 @@ function MenuUI.openFallback(playerGui, deps)
 		if action then deps.fireAction(action) end
 		deps.fireAction({ type = "FreezeTime", on = false })
 		MenuUI.updateSlots = nil
+		local hud = playerGui:FindFirstChild("Gui_HUD")
+		if hud then hud.Enabled = true end -- เปิด HUD ตอนเข้าเกมจริง (path เมนูสำรอง)
 		gui:Destroy()
 	end
 	local continueBtn = textButton(bg, "เล่นต่อ", UDim2.new(0.5, -160, 0, 130), UDim2.new(0, 320, 0, 48),

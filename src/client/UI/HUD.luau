@@ -99,6 +99,7 @@ function HUD.build(parent): ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_HUD"
 	gui.ResetOnSpawn = false
+	gui.Enabled = false -- เริ่มซ่อน — เกมเปิดที่เมนู เมนูค่อยเปิด HUD ตอนกดเล่น (ไม่งั้นแฟลชทับฉากเมนู)
 
 	-- ---------- บนกลาง: follower + money เรียงข้างกัน (ภาพร่าง: กล่องม่วง | กล่องเขียว) ----------
 	local half = STAT_W + 5

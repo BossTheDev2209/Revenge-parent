@@ -67,7 +67,8 @@ local function statLabel(parent, assetKey, fallbackEmoji, text)
 	return l
 end
 
-local function setStat(l: TextLabel, text: string)
+local function setStat(l: TextLabel?, text: string)
+	if not l then return end
 	l.Text = (l:GetAttribute("prefix") or "") .. text
 end
 
@@ -90,8 +91,11 @@ function HUD.progressPct(follower: number): number
 end
 
 -- ===== UI =====
+-- build() = สร้างโครงจากศูนย์ | init() = ถ้ามีของจริงใน StarterGui อยู่แล้วให้ใช้อันนั้น (ทีมแก้หน้าตาใน Studio ได้)
+-- ชื่อ instance ที่โค้ดอ้างถึงห้ามเปลี่ยน: FollowerLabel MoneyLabel PhaseLabel ProgressFill
+--   ClockLabel DayLabel StorageLabel CameraLabel MentalFill  (ที่เหลือแต่ง/ย้าย/ลบได้ตามใจ)
 
-function HUD.init(playerGui)
+function HUD.build(parent): ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_HUD"
 	gui.ResetOnSpawn = false
@@ -100,14 +104,20 @@ function HUD.init(playerGui)
 	local half = STAT_W + 5
 	local fBox = panel(gui, UDim2.new(0.5, -half, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
 	local mBox = panel(gui, UDim2.new(0.5, 5, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
+	fBox.Name = "FollowerBox"
+	mBox.Name = "MoneyBox"
 	HUD.followerLabel = statLabel(fBox, "hud_follower", "👤", "0")
 	HUD.moneyLabel = statLabel(mBox, "hud_money", "💰", "฿0")
+	HUD.followerLabel.Name = "FollowerLabel"
+	HUD.moneyLabel.Name = "MoneyLabel"
 	HUD.statTopY = 10 + STAT_H -- ให้ popup เกาะขอบล่างกล่อง
 
 	-- แถบ progress อยู่ "ใต้กล่องทั้งสอง" ตามภาพร่าง (ไม่ใช่เหนือ)
 	local track = panel(gui, UDim2.new(0.5, -BAR_W / 2, 0, 10 + STAT_H + 6),
 		UDim2.new(0, BAR_W, 0, BAR_H), Color3.fromRGB(15, 15, 20))
+	track.Name = "ProgressTrack"
 	local pfill = Instance.new("Frame")
+	pfill.Name = "ProgressFill"
 	pfill.Size = UDim2.new(0, 0, 1, -6)
 	pfill.Position = UDim2.new(0, 3, 0, 3)
 	pfill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
@@ -122,6 +132,7 @@ function HUD.init(playerGui)
 		tick.Parent = track
 	end
 	HUD.phaseLabel = Instance.new("TextLabel") -- ป้ายเฟสซ้อนบนบาร์ (ภาพร่างเขียนชื่อช่วงในบาร์)
+	HUD.phaseLabel.Name = "PhaseLabel"
 	HUD.phaseLabel.Size = UDim2.new(1, -8, 1, 0)
 	HUD.phaseLabel.Position = UDim2.new(0, 4, 0, 0)
 	HUD.phaseLabel.BackgroundTransparency = 1
@@ -144,6 +155,7 @@ function HUD.init(playerGui)
 
 	-- ---------- บนขวา: นาฬิกา + ป้ายปฏิทิน (ภาพร่าง: "15:24" ตัวเปล่า + ปฏิทินฉีกเลข 24) ----------
 	HUD.clockLabel = Instance.new("TextLabel")
+	HUD.clockLabel.Name = "ClockLabel"
 	HUD.clockLabel.Size = UDim2.new(0, 110, 0, 40)
 	HUD.clockLabel.Position = UDim2.new(1, -186, 0, 12)
 	HUD.clockLabel.BackgroundTransparency = 1
@@ -166,10 +178,12 @@ function HUD.init(playerGui)
 		calBox.BackgroundTransparency = 0.25
 		corner(calBox)
 	end
+	calBox.Name = "CalendarBox"
 	calBox.Size = UDim2.new(0, 62, 0, 62)
 	calBox.Position = UDim2.new(1, -70, 0, 8)
 	calBox.Parent = gui
 	HUD.dayLabel = Instance.new("TextLabel") -- เลขวันพิมพ์ทับกลางรูปปฏิทิน (docs/13 กติกา 5)
+	HUD.dayLabel.Name = "DayLabel"
 	HUD.dayLabel.Size = UDim2.new(1, 0, 0.55, 0)
 	HUD.dayLabel.Position = UDim2.new(0, 0, 0.38, 0)
 	HUD.dayLabel.BackgroundTransparency = 1
@@ -181,8 +195,12 @@ function HUD.init(playerGui)
 	-- ---------- ซ้ายกลาง: storage / กล้อง + ปุ่มกลม ----------
 	local stBox = panel(gui, UDim2.new(0, 16, SIDE_Y, 0), UDim2.new(0, SIDE_W, 0, SIDE_H))
 	local camBox = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H + 8), UDim2.new(0, SIDE_W, 0, SIDE_H))
+	stBox.Name = "StorageBox"
+	camBox.Name = "CameraBox"
 	HUD.storageLabel = statLabel(stBox, "hud_storage", "💾", "0 GB / 128 GB")
 	HUD.cameraLabel = statLabel(camBox, "hud_camera", "📷", "720p")
+	HUD.storageLabel.Name = "StorageLabel"
+	HUD.cameraLabel.Name = "CameraLabel"
 	HUD.sideAnchorY = SIDE_Y
 
 	local function roundBtn(assetKey, fallback, x)
@@ -245,8 +263,10 @@ function HUD.init(playerGui)
 	-- ---------- ขวาสุด: mental bar แนวตั้ง ----------
 	local barBack = panel(gui, UDim2.new(1, -46, MENTAL_TOP, 0),
 		UDim2.new(0, MENTAL_W, MENTAL_BOT - MENTAL_TOP, 0), Color3.fromRGB(15, 15, 20))
+	barBack.Name = "MentalTrack"
 	barBack.BackgroundTransparency = 0.1
 	local fill = Instance.new("Frame")
+	fill.Name = "MentalFill"
 	fill.AnchorPoint = Vector2.new(0, 1)
 	fill.Position = UDim2.new(0, 2, 1, -2)
 	fill.Size = UDim2.new(1, -4, 0.8, 0)
@@ -286,7 +306,46 @@ function HUD.init(playerGui)
 
 	HUD.gui = gui
 	HUD.prev = nil
-	gui.Parent = playerGui
+	gui.Parent = parent
+	return gui
+end
+
+-- ผูกโค้ดเข้ากับ instance ที่มีอยู่ (ทีมแต่งเองใน StarterGui) — หาแบบ recursive จะได้ย้ายกล่องไปไหนก็ยังเจอ
+-- ขาดชิ้นไหน = warn บอกชื่อ แล้วข้าม (HUD ส่วนที่เหลือยังอัปเดตปกติ)
+local BINDINGS = {
+	followerLabel = "FollowerLabel",
+	moneyLabel = "MoneyLabel",
+	phaseLabel = "PhaseLabel",
+	progressFill = "ProgressFill",
+	clockLabel = "ClockLabel",
+	dayLabel = "DayLabel",
+	storageLabel = "StorageLabel",
+	cameraLabel = "CameraLabel",
+	mentalFill = "MentalFill",
+}
+
+function HUD.bind(gui)
+	HUD.gui = gui
+	HUD.prev = nil
+	local missing = {}
+	for field, name in BINDINGS do
+		local inst = gui:FindFirstChild(name, true)
+		HUD[field] = inst
+		if not inst then table.insert(missing, name) end
+	end
+	if #missing > 0 then
+		warn("[HUD] ไม่เจอชิ้นส่วน (โค้ดอัปเดตค่าตรงนั้นไม่ได้): " .. table.concat(missing, ", "))
+	end
+end
+
+-- ใช้ของจริงใน StarterGui ถ้ามี (ทีมแก้หน้าตาใน Studio ได้เลย) ไม่มีค่อยสร้างจากโค้ด
+function HUD.init(playerGui)
+	local gui = playerGui:FindFirstChild("Gui_HUD")
+	if gui then
+		HUD.bind(gui)
+	else
+		HUD.build(playerGui)
+	end
 end
 
 -- ตัวเลขเด้งจางหาย 1.5 วิ ข้างช่องที่เปลี่ยน (PDF หน้า 5 "1,024 +300")
@@ -343,23 +402,26 @@ function HUD.update(state)
 	end
 	HUD.prev = { follower = state.follower, money = state.money, footageGB = state.footageGB or 0 }
 
+	-- ทุกช่องเช็ค nil — ทีมลบ/เปลี่ยนชื่อชิ้นไหนใน StarterGui เกมต้องไม่พัง แค่ช่องนั้นไม่อัปเดต
 	setStat(HUD.followerLabel, HUD.comma(state.follower))
 	setStat(HUD.moneyLabel, ("฿%s"):format(HUD.comma(state.money)))
 	if HUD.progressFill then
 		HUD.progressFill.Size = UDim2.new(HUD.progressPct(state.follower), -6, 1, -6)
 	end
-	HUD.clockLabel.Text = ("%02d:00"):format(state.timeOfDay)
-	HUD.dayLabel.Text = tostring(state.day)
-	HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase)
+	if HUD.clockLabel then HUD.clockLabel.Text = ("%02d:00"):format(state.timeOfDay) end
+	if HUD.dayLabel then HUD.dayLabel.Text = tostring(state.day) end
+	if HUD.phaseLabel then HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase) end
 	setStat(HUD.storageLabel, HUD.storageText(state))
 	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[state.upgrades.camera] or "?"))
 
-	local pct = math.clamp(state.mental, 0, 100) / 100
-	HUD.mentalFill.Size = UDim2.new(1, -4, pct, 0)
-	-- สีตามโซน (design doc §3): เขียว ≥70 / เหลือง 40-69 / แดง <40
-	HUD.mentalFill.BackgroundColor3 = state.mental >= 70 and Color3.fromRGB(80, 220, 120)
-		or state.mental >= 40 and Color3.fromRGB(240, 200, 80)
-		or Color3.fromRGB(230, 80, 80)
+	if HUD.mentalFill then
+		local pct = math.clamp(state.mental, 0, 100) / 100
+		HUD.mentalFill.Size = UDim2.new(1, -4, pct, 0)
+		-- สีตามโซน (design doc §3): เขียว ≥70 / เหลือง 40-69 / แดง <40
+		HUD.mentalFill.BackgroundColor3 = state.mental >= 70 and Color3.fromRGB(80, 220, 120)
+			or state.mental >= 40 and Color3.fromRGB(240, 200, 80)
+			or Color3.fromRGB(230, 80, 80)
+	end
 end
 
 return HUD

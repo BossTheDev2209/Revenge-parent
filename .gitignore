@@ -1,6 +1,10 @@
 *.rbxl
 *.rbxlx.lock
 
+# Rojo gen ใหม่ทุกครั้ง + ตั้งค่า editor เฉพาะเครื่อง
+sourcemap.json
+.vscode/
+
 # caveman rule files — เฉพาะเครื่องบอส ไม่ push ให้ทีม
 .clinerules/
 .cursor/

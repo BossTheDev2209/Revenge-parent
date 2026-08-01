@@ -90,6 +90,9 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
 9. **ก่อนสร้างระบบใหม่แก้ปัญหา ลองทางที่ง่ายกว่าก่อนเสมอ** — คลิป YouTube สอน, script แจกฟรี, Toolbox, plugin, built-in ของ Roblox
    สร้างระบบใหม่เองเป็นทางเลือกสุดท้าย · เจอทางง่ายแล้วเสนอ user ก่อนลงมือ
    *(⚠️ Toolbox/free script เชื่อไม่ได้ 100% — เช็ค/ล้าง script แถม backdoor ก่อนใช้เสมอ)*
+10. **พฤติกรรมใน Studio ไม่ตรงกับโค้ด → เช็ค Rojo sync ก่อน ห้ามแก้ logic** — ยืนยันว่าโค้ดเข้า Studio จริงก่อน (เทียบ `.Source` ที่ sync กับไฟล์ใน `src/`) แล้วค่อย debug logic
+    Rojo plugin หลุดทุกครั้งที่ restart Studio → ต้องกด Connect ใหม่ · edit ที่ไม่ sync = กำลัง debug โค้ดคนละตัวกับที่รันอยู่ (เสียเวลาเปล่า)
+    *(ตัวอย่างจริง 1 ส.ค.: prompt กดไม่ทำงาน → เกือบ rewrite bind logic แต่จริงๆ InteractBinder fix ไม่ sync เข้า Studio เพราะ plugin หลุดหลัง restart)*
 
 ## Layout
 

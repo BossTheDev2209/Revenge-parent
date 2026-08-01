@@ -12,6 +12,8 @@
 
 **ขอบเขตชัด:** agent สร้างกลไก + template ว่าง + คู่มือ · **บทพูด/ชื่อฉาก/พิกัดกล้อง Boss กรอกเอง** (เก็บบทเป็นความลับได้) ระบบต้องทำงานแม้ template ยังว่าง (แค่ warn ไม่ crash)
 
+**plan แรกทำแค่:** ScreenTransition (module ทั่วไป) + Opening cutscene. ScreenTransition ออกแบบให้ทั่วไป Boss เอาไป reuse เองกับ ending / ฉากรับรางวัล BCA / เปลี่ยนเฟส ทีหลัง (ไม่อยู่ใน plan นี้)
+
 ## Non-goals
 
 - ไม่เขียนเนื้อเรื่องจริง (งาน Boss)
@@ -24,34 +26,39 @@
 
 ---
 
-## Component 1 — ScreenTransition (module ใหม่)
+## Component 1 — ScreenTransition (module ใหม่, ทั่วไป)
 
 **ไฟล์:** `src/client/ScreenTransition.luau`
 
-จอดำ fade เข้า → (ตอนดำสนิท) ทำงานที่สั่ง → ขึ้นข้อความทีละบรรทัด → fade กลับ
+จอดำ fade เข้า → (ตอนดำสนิท) ทำงานที่สั่ง → **ขึ้นข้อความผ่าน DialogueUI** → fade กลับ
 
 ```lua
 ScreenTransition.play({
-  lines = { "ในที่สุดฉันก็เก็บเงินพอ..." }, -- ข้อความบนจอดำ (ว่างได้ = ดำเฉยๆ)
+  lines = { "ในที่สุดฉันก็เก็บเงินพอ..." }, -- ส่งเข้า DialogueUI ตรงๆ (ว่างได้ = ดำเฉยๆ)
   onBlack = function() ... end,  -- เรียกตอนจอดำสนิท (teleport / สลับของ) — optional
   fadeTime = 0.6,                -- วิ fade เข้า/ออก
-  hold = 2,                      -- วิ/บรรทัด (คลิกข้ามได้)
   onDone = function() ... end,   -- เรียกตอน fade กลับเสร็จ — optional
 })
 ```
 
 **พฤติกรรม:**
-- สร้าง ScreenGui `Gui_Transition` DisplayOrder สูง (ทับทุกอย่าง) · Frame ดำเต็มจอ
-- fade `BackgroundTransparency` 1→0 (`fadeTime`) → `onBlack()` → โชว์ line ทีละบรรทัด (รอ `hold` วิ หรือคลิก) → fade 0→1 → destroy → `onDone()`
-- guard `ScreenTransition.running` กันซ้อน (เหมือน DialogueUI/CutscenePlayer)
+- สร้าง ScreenGui `Gui_Transition` · Frame ดำเต็มจอ · fade `BackgroundTransparency` 1→0 (`fadeTime`)
+- ดำสนิท → `onBlack()` → **`DialogueUI.show(playerGui, lines, ...)`** โชว์ข้อความ (บรรทัดไม่มี speaker = reuse ตัวเดียวกับตอนคุย NPC, typewriter + คลิกไปต่อ) → รอ DialogueUI จบ
+- fade 0→1 → destroy → `onDone()`
+- guard `ScreenTransition.running` กันซ้อน
 
-**pure ที่เทสได้:** ไม่มี logic คำนวณมาก — ทดสอบด้วย demo/manual · ข้ามเทส pure (YAGNI)
+**reuse ข้อความจาก DialogueUI (Boss สั่ง):** ไม่ render text เอง — เรียก `DialogueUI.show` บนพื้นจอดำ ให้หน้าตา/typewriter เหมือนบรรทัดไม่ระบุคนพูดทุกที่ในเกม
+- **impl detail:** จอดำต้องอยู่ใต้กล่อง DialogueUI — ตั้ง `Gui_Transition.DisplayOrder` แล้วดัน `Gui_Dialogue.DisplayOrder` สูงกว่า (DialogueUI สร้าง gui เอง ScreenTransition set order หลัง show)
 
-**แนวทางที่เลือก:** module แยกเล็ก ไม่ยัดใน CutscenePlayer เพราะ (ก) reuse ตอนเปลี่ยนเฟสที่ไม่ใช่ cutscene เต็ม (ข) CutscenePlayer มีหน้าที่ letterbox+ซับ+กล้อง คนละงาน
+**pure ที่เทสได้:** ไม่มี logic คำนวณ — ทดสอบ manual ใน Play · ข้ามเทส pure (YAGNI)
+
+**แนวทางที่เลือก:** module แยกเล็ก ไม่ยัดใน CutscenePlayer — reuse ได้กว้าง (opening/ending/BCA/เปลี่ยนเฟส) · text delegate ให้ DialogueUI (ไม่ทำ UI ซ้ำ)
 
 ---
 
 ## Component 2 — Opening cutscene + trigger
+
+**ใช้ CutscenePlayer = mode 1 "หนัง" จริง** (ยืนยัน): ตัวละคร **animate** ได้ (`anim` one-shot/loop, `face` สีหน้า), กล้อง **ขยับ** (`camera` tween), ซับแบบ letterbox **ไม่มีกล่องข้อความ ไม่มีช้อย ไม่รอ input** — เดินตามเวลา (`wait`) เอง · คนละตัวกับ DialogueUI (โหมด 2 ที่ยืนนิ่ง+ตอบโต้). ตัวละครจะขยับจริงเมื่อ Boss ใส่ animation ใน `ReplicatedStorage.Animations` + เขียน `anim` step
 
 **Content template:** `src/shared/Content/Cutscenes/Opening.luau`
 - return ลิสต์ steps ของ CutscenePlayer (`camera`/`text`/`wait`/`anim`/`face`/`bgm`/`sound`)
@@ -75,44 +82,44 @@ ScreenTransition.play({
 - subfolder ไว้ให้คนอ่าน/จัดกลุ่ม · engine ไม่ต้องแก้ (recursive find ทำงานข้าม subfolder อยู่แล้ว)
 - อัปเดต `docs/engines/cutscene.md` ให้บอก convention นี้
 
-### FilmSpots ต่อเฟส
+### FilmSpots ต่อเฟส — **follow-up แยก ไม่อยู่ใน plan opening**
 - โครง: `Workspace.FilmSpots/Phase1|Phase2|Phase3/<spot>` · ชื่อ spot unique ทั้งไฟล์
 - แก้ `filmSpots(state)` ใน `Main.server`: คืน BasePart เฉพาะใต้ `FilmSpots["Phase"..state.phase]` (เดิม scan ทั้ง workspace หา prefix `FilmSpot_`)
-- **⚠️ flag:** แตะระบบ record (lock design doc §9.5) — แต่เปลี่ยนแค่ *ขอบเขตว่าใช้ spot ไหน* ไม่แตะสูตร/cooldown/cap/ตัวเลข · สอดคล้อง "ไม่ย้อนแมพ" · ยืนยันกับ design doc ก่อน merge
+- **⚠️ flag:** แตะระบบ record (lock design doc §9.5) — เปลี่ยนแค่ *ขอบเขตว่าใช้ spot ไหน* ไม่แตะสูตร/cooldown/cap/ตัวเลข · สอดคล้อง "ไม่ย้อนแมพ" · ยืนยันกับ design doc ก่อน merge
+- แยกทำทีหลัง ไม่เกี่ยวกับ opening
 
 ---
 
-## Component 4 — Phase-transition hook (reuse Transition)
+## Component 4 — reuse ทีหลัง (ไม่อยู่ใน plan นี้)
 
-- **Server:** ตรวจ `state.phase` เพิ่มขึ้น (หลัง uploadClip ข้าม gate) → push event ชนิด transition เข้า `state.pendingEvents` เช่น `"phase_2"` (ใช้ pipeline pendingEvents เดิม)
-- **Client:** `StateChanged` เจอ event `phase_N` → เล่น `ScreenTransition.play` (บรรทัดที่ Boss เขียนใน template ต่อเฟส) `onBlack` = teleport ไป spawn เฟสใหม่ → fireAction `EventSeen`
-- Content: `Content/Cutscenes/PhaseTransition.luau` = แมพ `{ phase_2 = {lines=..., spawn=...}, phase_3 = {...} }` (Boss เติม)
-- teleport target: Part spawn ต่อเฟส เช่น `Workspace.Map_Phase2` มี Part ชื่อ `Spawn_Phase2` (attribute หรือ convention)
+ScreenTransition ออกแบบทั่วไปพอให้ Boss/agent เอาไป reuse เองกับ:
+- **เปลี่ยนเฟส:** server เห็น `state.phase` เพิ่ม → คิว event → client `ScreenTransition.play(onBlack = teleport spawn เฟสใหม่)`
+- **ending / ฉากรับรางวัล BCA:** เรียก `ScreenTransition.play` คั่นก่อน/หลัง cutscene
+- teleport target ต่อเฟส: convention `Spawn_PhaseN` (ออกแบบตอนทำ follow-up)
+
+plan opening **ไม่ต้องทำพวกนี้** — แค่ ScreenTransition ต้อง API ทั่วไปพอ reuse ได้
 
 ---
 
-## Data flow สรุป
+## Data flow (plan นี้)
 
 ```
 New Game:  MenuUI → NewGame action → Main.client: CutscenePlayer.play(Opening)
            → onDone → ScreenTransition.play(onBlack=teleport เฟส1) → เล่นเกม
-
-เปลี่ยนเฟส: server phase↑ → pendingEvents "phase_N" → StateChanged
-           → client ScreenTransition.play(onBlack=teleport เฟสN) → EventSeen
-
-Record:    Main.server filmSpots(state) → เฉพาะ FilmSpots/Phase{state.phase}
 ```
+
+(เปลี่ยนเฟส / ending / filmSpots = follow-up แยก reuse ScreenTransition/แก้ filmSpots ทีหลัง)
 
 ## คู่มือที่ต้องอัปเดต (ให้ Boss ใช้เป็น)
 
-- `docs/engines/cutscene.md` — วิธีเขียน Opening.luau + PhaseTransition.luau + convention CutsceneCams subfolder + ScreenTransition
-- `docs/05-build-conventions.md` — โครง FilmSpots/PhaseN + Spawn_PhaseN + CutsceneCams/Scene
+- `docs/engines/cutscene.md` — วิธีเขียน Opening.luau + convention CutsceneCams subfolder + วิธีเรียก ScreenTransition
+- `docs/05-build-conventions.md` — โครง CutsceneCams/\<Scene\> (FilmSpots/PhaseN + Spawn_PhaseN เพิ่มตอน follow-up)
 
-## Testing
+## Testing (plan นี้)
 
 - `ScreenTransition` / opening flow = glue (กล้อง/จอ) → เทส manual ใน Play (ไม่มี pure logic คุ้มเทส)
-- `filmSpots(state)` เปลี่ยน = เพิ่มเทสใน RunTests: วาง spot จำลอง 2 เฟส → เรียก filmSpots ด้วย state.phase ต่างกัน → คืนเฉพาะเฟสนั้น
-- Opening/PhaseTransition template = เพิ่ม content guard ใน RunTests (format ถูก, ผ่าน validate) เหมือน Endings/Dialogue
+- Opening template = เพิ่ม content guard ใน RunTests (format ถูก ผ่าน `CutscenePlayer.validate`) เหมือน Endings/Dialogue
+- (`filmSpots(state)` test = ตอนทำ follow-up FilmSpots)
 
 ## ความเสี่ยง / flag
 

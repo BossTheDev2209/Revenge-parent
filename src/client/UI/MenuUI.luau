@@ -584,6 +584,7 @@ function MenuUI.open(playerGui, deps)
 	local function launch(action)
 		if MenuUI.busy then return end
 		MenuUI.busy = true
+		local isNewGame = action ~= nil and action.type == "NewGame"
 		homePanel.Visible = false
 		back.Visible = false
 		showSurface(nil)
@@ -632,7 +633,10 @@ function MenuUI.open(playerGui, deps)
 
 				local out = TweenService:Create(flash, TweenInfo.new(FLASH_OUT), { BackgroundTransparency = 1 })
 				out:Play()
-				out.Completed:Connect(function() gui:Destroy() end)
+				out.Completed:Connect(function()
+					gui:Destroy()
+					if isNewGame and deps.onNewGame then deps.onNewGame() end
+				end)
 			end)
 		end)
 	end
@@ -702,12 +706,14 @@ function MenuUI.openFallback(playerGui, deps)
 
 	local btns, latest = {}, nil
 	local function startGame(action)
+		local isNewGame = action ~= nil and action.type == "NewGame"
 		if action then deps.fireAction(action) end
 		deps.fireAction({ type = "FreezeTime", on = false })
 		MenuUI.updateSlots = nil
 		local hud = playerGui:FindFirstChild("Gui_HUD")
 		if hud then hud.Enabled = true end -- เปิด HUD ตอนเข้าเกมจริง (path เมนูสำรอง)
 		gui:Destroy()
+		if isNewGame and deps.onNewGame then deps.onNewGame() end
 	end
 	local continueBtn = textButton(bg, "เล่นต่อ", UDim2.new(0.5, -160, 0, 130), UDim2.new(0, 320, 0, 48),
 		Color3.fromRGB(45, 95, 175))

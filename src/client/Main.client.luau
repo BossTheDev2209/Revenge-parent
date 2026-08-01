@@ -18,6 +18,7 @@ local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
 local CameraFocus = require(script.Parent.CameraFocus)
+local ScreenTransition = require(script.Parent.ScreenTransition)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -33,8 +34,30 @@ end
 Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเดิน
 RecordTool.init(Players.LocalPlayer, fireAction, function() return latestState end) -- Tool อัดคลิป + วงโซน
 
+-- ฉากเปิดเกม (cutscene mode 1) เล่นหลังกด New Game → จบต่อ transition วาปเข้าห้องเฟส 1
+local function playOpening()
+	local Opening = require(Content.Cutscenes.Opening)
+	fireAction({ type = "FreezeTime", on = true })
+	CutscenePlayer.play(playerGui, Opening, function()
+		ScreenTransition.play({
+			onBlack = function()
+				local target = workspace:FindFirstChild("Spawn_Phase1", true)
+				local char = Players.LocalPlayer.Character
+				local root = char and char:FindFirstChild("HumanoidRootPart")
+				if target and target:IsA("BasePart") and root then
+					root.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+				elseif not target then
+					warn("[Main.client] ไม่มี Spawn_Phase1 ในแมพ — intro ไม่วาป (วาง Part ชื่อนี้ในห้องเฟส 1)")
+				end
+			end,
+			onDone = function() fireAction({ type = "FreezeTime", on = false }) end,
+		})
+	end)
+end
+
 HUD.init(playerGui)
-MenuUI.open(playerGui, { fireAction = fireAction }) -- เกมเริ่มที่เมนู (freeze จนกดเล่น)
+-- เกมเริ่มที่เมนู (freeze จนกดเล่น) · onNewGame = เล่น intro หลังเริ่มเกมใหม่
+MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening })
 
 -- ปุ่มเซฟเล็กมุมซ้ายล่างระหว่างเล่น
 local saveGui = Instance.new("ScreenGui")

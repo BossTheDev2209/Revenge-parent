@@ -878,6 +878,20 @@ for _, name in EndingFiles do
 	check(("Endings.%s ไม่มี [placeholder] ค้าง"):format(name), not hasPlaceholder(texts))
 end
 
+-- ===== Cutscenes (Opening ฯลฯ — format ผ่าน CutscenePlayer.validate + track placeholder) =====
+local CutsceneFiles = { "Opening" }
+for _, name in CutsceneFiles do
+	local steps = if isStudio
+		then require(game:GetService("ReplicatedStorage").Shared.Content.Cutscenes[name])
+		else require("../src/shared/Content/Cutscenes/" .. name)
+	check(("Cutscenes.%s format ผ่าน validate"):format(name), CutscenePlayer.validate(steps) == true)
+	local texts = {}
+	for _, s in steps do
+		if s.type == "text" and s.text then table.insert(texts, s.text) end
+	end
+	check(("Cutscenes.%s ไม่มี [placeholder] ค้าง"):format(name), not hasPlaceholder(texts))
+end
+
 -- ===== Comments pool schema (docs/02 §9.6 — ทีมเติม comment แล้ว format ต้องไม่พัง) =====
 local CommentsPool = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.Comments)

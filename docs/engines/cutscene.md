@@ -104,3 +104,39 @@ Part ที่ plugin สร้างเป็น `Cam_01`, `Cam_02`... → **�
 | ไม่มีเพลงชื่อนั้น | warn ครั้งเดียว เงียบ เล่นต่อปกติ |
 
 **เช็คงานตัวเอง:** เทสมีตัวตรวจว่าไฟล์ ending ทั้ง 6 `validate` ผ่าน — บอก agent ให้รันเทสหลังแก้บท
+
+---
+
+## 6. ฉากเปิดเกม (Opening) — เล่นตอนกด New Game (เพิ่ม 1 ส.ค. 2569)
+
+ใช้ engine เดียวกับ ending (mode 1) — ต่างแค่ trigger + ไฟล์เนื้อหา
+
+**ไฟล์เนื้อหา:** `Content.Cutscenes.Opening` — list step เหมือน ending ทุกอย่าง (`camera`/`text`/`anim`/`face`/`wait`/`bgm`/`sound`)
+**trigger:** กด New Game → เล่น Opening → จบต่อ **transition วาปเข้าห้องเฟส 1** อัตโนมัติ (โค้ด Main.client — ไม่ต้องแตะ)
+
+**ที่ต้องเตรียมในแมพ:**
+1. โฟลเดอร์ `Workspace.CutsceneCams/Opening/` วาง Cam ด้วย plugin แล้วลากเข้าโฟลเดอร์นี้ · **ชื่อ Cam ต้อง unique ทั้งไฟล์** เช่น `Opening_1`, `Opening_2` (เพราะ engine หา Cam แบบ recursive — ชื่อซ้ำข้าม scene = เจอผิดตัว)
+2. Part ชื่อ **`Spawn_Phase1`** ในห้องเฟส 1 = จุดที่ player โผล่หลัง intro (ไม่มี = warn + ไม่วาป ไม่ crash)
+
+**จัดโฟลเดอร์ cam ต่อ scene:** `CutsceneCams/<Scene>/<cam>` เช่น `CutsceneCams/Opening/Opening_1` · subfolder ไว้ให้คนอ่าน engine หาข้าม subfolder เองอยู่แล้ว
+
+---
+
+## 7. ScreenTransition — จอดำ + ข้อความ + วาป (ของกลาง)
+
+`StarterPlayerScripts.ScreenTransition` — จอดำ fade → ทำงานตอนดำ (teleport/สลับของ) → ข้อความ (ผ่าน DialogueUI บรรทัดไม่มีชื่อ) → fade กลับ
+
+```lua
+local ScreenTransition = require(StarterPlayerScripts.ScreenTransition)
+ScreenTransition.play({
+    lines = { "ในที่สุดฉันก็เก็บเงินพอ..." }, -- ข้อความบนจอดำ (ว่างได้ = ดำเฉยๆ)
+    onBlack = function() -- ตอนจอดำสนิท: วาป player / สลับแมพ
+        local root = game.Players.LocalPlayer.Character.HumanoidRootPart
+        root.CFrame = workspace.Spawn_Phase2.CFrame + Vector3.new(0, 3, 0)
+    end,
+    fadeTime = 0.6,
+    onDone = function() end, -- fade กลับเสร็จ
+})
+```
+
+reuse ได้ทุกที่: intro (โค้ดทำให้แล้ว), เปลี่ยนเฟส, ending, ฉากรับรางวัล BCA — เรียก `ScreenTransition.play` เอง

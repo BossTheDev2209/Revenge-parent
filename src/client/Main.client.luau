@@ -40,16 +40,8 @@ local function playOpening()
 	fireAction({ type = "FreezeTime", on = true })
 	CutscenePlayer.play(playerGui, Opening, function()
 		ScreenTransition.play({
-			onBlack = function()
-				local target = workspace:FindFirstChild("Spawn_Phase1", true)
-				local char = Players.LocalPlayer.Character
-				local root = char and char:FindFirstChild("HumanoidRootPart")
-				if target and target:IsA("BasePart") and root then
-					root.CFrame = target.CFrame + Vector3.new(0, 3, 0)
-				elseif not target then
-					warn("[Main.client] ไม่มี Spawn_Phase1 ในแมพ — intro ไม่วาป (วาง Part ชื่อนี้ในห้องเฟส 1)")
-				end
-			end,
+			-- วาปที่ server (StreamingEnabled อาจ stream Spawn_Phase1 ออกจาก client)
+			onBlack = function() fireAction({ type = "TeleportTo", target = "Spawn_Phase1" }) end,
 			onDone = function() fireAction({ type = "FreezeTime", on = false }) end,
 		})
 	end)

@@ -155,6 +155,17 @@ ActionRouter.register("DeleteSlot", function(s, a, player)
 	GameState.deleteSlot(player.UserId, tonumber(a.slot) or 0)
 	s.slotList = GameState.listSlots(player.UserId) -- refresh สมุดหน้าเมนู
 end)
+-- วาป player ไป Part ตามชื่อ — ทำที่ server เพราะ StreamingEnabled อาจ stream part ออกจาก client
+ActionRouter.register("TeleportTo", function(s, a, player)
+	local part = type(a.target) == "string" and workspace:FindFirstChild(a.target, true)
+	local char = player and player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if part and part:IsA("BasePart") and root then
+		root.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+	elseif not part then
+		warn("[Main.server] TeleportTo: ไม่เจอ Part", tostring(a.target))
+	end
+end)
 ActionRouter.register("NewGame", function(s, a)
 	local fresh = GameState.newGame()
 	fresh.slot = tonumber(a.slot) or 1

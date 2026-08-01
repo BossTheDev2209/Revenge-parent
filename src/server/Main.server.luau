@@ -151,6 +151,10 @@ ActionRouter.register("SaveSlot", function(s, a, player)
 	s.slot = tonumber(a.slot) or s.slot
 	GameState.saveSlot(player.UserId, s)
 end)
+ActionRouter.register("DeleteSlot", function(s, a, player)
+	GameState.deleteSlot(player.UserId, tonumber(a.slot) or 0)
+	s.slotList = GameState.listSlots(player.UserId) -- refresh สมุดหน้าเมนู
+end)
 ActionRouter.register("NewGame", function(s, a)
 	local fresh = GameState.newGame()
 	fresh.slot = tonumber(a.slot) or 1

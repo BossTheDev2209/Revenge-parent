@@ -129,6 +129,14 @@ function GameState.loadSlot(userId: number, slot: number)
 	return GameState.mergeDefaults(data, GameState.newGame())
 end
 
+function GameState.deleteSlot(userId: number, slot: number)
+	local ok, err = pcall(function()
+		store():RemoveAsync(userId .. "_" .. slot)
+	end)
+	if not ok then warn("[GameState] delete ไม่สำเร็จ:", err) end
+	return ok
+end
+
 -- คืน {[slot] = summary} เฉพาะ slot ที่มี save — หน้า Main Menu ใช้ (Continue = savedAt มากสุด)
 function GameState.listSlots(userId: number)
 	local out = {}

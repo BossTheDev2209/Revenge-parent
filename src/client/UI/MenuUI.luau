@@ -480,6 +480,7 @@ function MenuUI.open(playerGui, deps)
 	local pcPart = pcScreen
 
 	local slotBtns = {}
+	local delBtns = {}
 	if bookGui then
 		local paper = UIAssets.book_page
 		if paper ~= "" then -- texture กระดาษ (ไม่มีก็ปล่อยเป็นสีพื้นของ Part)
@@ -507,6 +508,24 @@ function MenuUI.open(playerGui, deps)
 			b.TextColor3 = Color3.fromRGB(40, 35, 30)
 			b.BackgroundTransparency = 0.1
 			slotBtns[i] = b
+			-- ปุ่มลบเซฟ (โชว์เฉพาะ slot ที่มี save) — มุมขวาของหน้า
+			local del = Instance.new("TextButton")
+			del.Size = UDim2.new(0.1, 0, 0.1, 0)
+			del.Position = UDim2.new(0.83, 0, 0.155 + (i - 1) * 0.2, 0)
+			del.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
+			del.TextColor3 = Color3.new(1, 1, 1)
+			del.TextScaled = true
+			del.Text = "✕"
+			del.ZIndex = 5
+			del.Visible = false
+			del.Parent = bookGui
+			local dc = Instance.new("UICorner")
+			dc.CornerRadius = UDim.new(0, 8)
+			dc.Parent = del
+			del.Activated:Connect(function()
+				deps.fireAction({ type = "DeleteSlot", slot = i }) -- server ลบ + refresh slotList
+			end)
+			delBtns[i] = del
 		end
 	end
 
@@ -681,6 +700,7 @@ function MenuUI.open(playerGui, deps)
 				b.Text = MenuUI.slotLine(i, slots[i])
 				b:SetAttribute("HasSave", slots[i] ~= nil)
 			end
+			if delBtns[i] then delBtns[i].Visible = slots[i] ~= nil end
 		end
 	end
 end

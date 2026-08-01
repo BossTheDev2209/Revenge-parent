@@ -246,7 +246,7 @@ local function makeCanvas(target, camCF, playerGui, name, marginScale)
 	p.CFrame = cf
 	p.Anchored = true
 	p.CanCollide = false
-	p.CanQuery = false
+	p.CanQuery = true -- ต้อง true ไม่งั้นเมาส์ยิง ray ไม่โดน = ปุ่ม SurfaceGui บนสมุด/หน้าจอกดไม่ได้
 	p.CanTouch = false
 	p.Transparency = 1
 	p.Parent = workspace

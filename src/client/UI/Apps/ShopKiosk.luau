@@ -116,6 +116,20 @@ function ShopKiosk.clampPage(page: number, total: number, perPage: number): numb
 	return math.clamp(page, 1, ShopKiosk.pageCount(total, perPage))
 end
 
+-- ===== ย่อแผงให้พอดีจอ (responsive) =====
+-- layout การ์ด/ลูกศรวางเป็นพิกเซลตายตัวตามภาพร่าง PDF — ย่อทั้งแผงด้วย UIScale
+-- แทนที่จะรื้อ layout ใหม่ สัดส่วนเลยตรงภาพร่างทุกจอ แค่เล็กลงตามพื้นที่ที่มี
+ShopKiosk.SCREEN_MARGIN = 24 -- เว้นขอบจอกันชิดขอบ (px ต่อด้าน)
+ShopKiosk.MIN_SCALE = 0.35 -- ย่อต่ำกว่านี้อ่านไม่ออกแล้ว ยอมให้ล้นดีกว่า
+
+-- คืนตัวคูณขนาด: ≤1 เสมอ (จอใหญ่ใช้ขนาดที่ออกแบบไว้เป๊ะ ไม่ขยายจนเบลอ)
+-- viewH ที่ส่งเข้ามาต้องหักแถบบนของ Roblox (GuiInset) มาแล้ว
+function ShopKiosk.fitScale(panelW: number, panelH: number, viewW: number, viewH: number, margin: number?): number
+	local m = margin or ShopKiosk.SCREEN_MARGIN
+	local fit = math.min((viewW - m * 2) / panelW, (viewH - m * 2) / panelH)
+	return math.clamp(fit, ShopKiosk.MIN_SCALE, 1)
+end
+
 -- ===== Roblox UI =====
 
 local COLORS = {
@@ -157,10 +171,24 @@ function ShopKiosk.open(playerGui, deps)
 	local gui = mk("ScreenGui", nil, { Name = "Gui_ShopKiosk", ResetOnSpawn = false, DisplayOrder = 5 })
 	local panel = mk("Frame", gui, {
 		Size = UDim2.new(0, panelW, 0, panelH),
-		Position = UDim2.new(0.5, -panelW / 2, 0.5, -panelH / 2),
+		-- AnchorPoint กลาง = UIScale ย่อออกจากจุดกึ่งกลาง แผงอยู่กลางจอเสมอไม่ว่าย่อเท่าไหร่
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
 		BackgroundColor3 = COLORS.bg,
 	})
 	mk("UICorner", panel, {})
+
+	-- ย่อให้พอดีจอ + ตามขนาดหน้าต่างที่เปลี่ยนระหว่างเล่น (ย่อหน้าต่าง/หมุนจอมือถือ)
+	local uiScale = mk("UIScale", panel, {})
+	local cam = workspace.CurrentCamera
+	local GuiService = game:GetService("GuiService")
+	local function fitToScreen()
+		local vp = cam.ViewportSize
+		local inset = GuiService:GetGuiInset() -- แถบบนของ Roblox กินพื้นที่จริง
+		uiScale.Scale = ShopKiosk.fitScale(panelW, panelH, vp.X, vp.Y - inset.Y)
+	end
+	fitToScreen()
+	local fitConn = cam:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen)
 
 	mk("TextLabel", panel, {
 		Size = UDim2.new(0, 300, 0, 34), Position = UDim2.new(0, 20, 0, 12),
@@ -341,6 +369,7 @@ function ShopKiosk.open(playerGui, deps)
 	local function shut()
 		ShopKiosk.running = false
 		ShopKiosk.refresh = nil
+		fitConn:Disconnect() -- ไม่ตัด = ยิงหา uiScale ที่ถูกทำลายไปแล้วทุกครั้งที่ย่อจอ
 		gui:Destroy()
 	end
 	close.Activated:Connect(shut)

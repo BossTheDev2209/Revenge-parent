@@ -1169,6 +1169,21 @@ check("ระดับ 1-4 อยู่หน้า 1", ShopKiosk.pageOf(1, 4) =
 check("ระดับ 5 ขึ้นหน้า 2", ShopKiosk.pageOf(5, 4) == 2)
 check("ระดับ 15 อยู่หน้า 4", ShopKiosk.pageOf(15, 4) == 4)
 check("เลื่อนเกินขอบถูก clamp", ShopKiosk.clampPage(99, 15, 4) == 4 and ShopKiosk.clampPage(-3, 15, 4) == 1)
+
+-- ===== responsive: ย่อแผงให้พอดีจอ (user feedback 1 ส.ค. — ตกขอบบน PC) =====
+-- แผงออกแบบไว้ 778 × 704 px ตามภาพร่าง PDF
+local PW, PH = 778, 704
+check("จอใหญ่กว่าแผง = ไม่ขยาย (คงขนาดออกแบบ)", ShopKiosk.fitScale(PW, PH, 2560, 1400) == 1)
+check("จอ 1080p (หัก topbar) = ยังพอดี ไม่ต้องย่อ", ShopKiosk.fitScale(PW, PH, 1920, 1080 - 36) == 1)
+-- เตี้ยกว่าแผง = ต้องย่อ ไม่ใช่ปล่อยล้น
+local narrow = ShopKiosk.fitScale(PW, PH, 1280, 720 - 36)
+check("จอ 720p เตี้ยกว่าแผง = ย่อลง", narrow < 1 and narrow > ShopKiosk.MIN_SCALE)
+check("ย่อแล้วสูงไม่เกินจอจริง", PH * narrow + ShopKiosk.SCREEN_MARGIN * 2 <= 720 - 36 + 0.01)
+check("ย่อแล้วกว้างไม่เกินจอจริง", PW * narrow + ShopKiosk.SCREEN_MARGIN * 2 <= 1280 + 0.01)
+-- ยึดด้านที่คับที่สุดเสมอ (จอกว้างมากแต่เตี้ย ต้องย่อตามความสูง)
+check("จอกว้างแต่เตี้ย = ย่อตามความสูง",
+	math.abs(ShopKiosk.fitScale(PW, PH, 3000, 500) - (500 - 48) / PH) < 0.001)
+check("จอเล็กมาก = ไม่ย่อต่ำกว่า MIN_SCALE", ShopKiosk.fitScale(PW, PH, 200, 200) == ShopKiosk.MIN_SCALE)
 -- รูปสินค้ามีแค่ระดับ 1-6 (UIAssets) — ระดับ 7+ ต้องคืน nil ให้การ์ดใช้ emoji แทน ไม่ใช่รูปพัง
 check("ระดับ 7+ ไม่มีคีย์รูป = nil (ใช้ emoji แทน)", ShopKiosk.imageFor("camera", 9) == nil)
 check("ระดับ 1-6 ยังไม่ได้วาด (ค่าว่าง) = nil ไม่ใช่ \"\"", ShopKiosk.imageFor("camera", 1) == nil)

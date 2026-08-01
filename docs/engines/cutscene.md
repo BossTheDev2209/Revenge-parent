@@ -118,6 +118,13 @@ Part ที่ plugin สร้างเป็น `Cam_01`, `Cam_02`... → **�
 1. โฟลเดอร์ `Workspace.CutsceneCams/Opening/` วาง Cam ด้วย plugin แล้วลากเข้าโฟลเดอร์นี้ · **ชื่อ Cam ต้อง unique ทั้งไฟล์** เช่น `Opening_1`, `Opening_2` (เพราะ engine หา Cam แบบ recursive — ชื่อซ้ำข้าม scene = เจอผิดตัว)
 2. Part ชื่อ **`Spawn_Phase1`** ในห้องเฟส 1 = จุดที่ player โผล่หลัง intro (ไม่มี = warn + ไม่วาป ไม่ crash)
 
+⚠️ **ชื่อต้องเป๊ะ ห้ามมีเว้นวรรคท้าย** — `"Spawn_Phase1 "` หาไม่เจอ (โค้ดไม่เดา ไม่ trim ให้)
+⚠️ **plugin ตั้งชื่อ Cam ให้เป็น `Cam_01`** — ต้องเปลี่ยนเป็น `Opening_1` เองให้ตรงกับที่อ้างในบท
+
+**ลำดับที่โค้ดทำให้ (ไม่ต้องแตะ):** เมนูส่งต่อกล้องให้ cutscene ใต้ผ้าขาว (ไม่เห็นแวบ baseplate) → เล่น Opening → จอดำ → วาป + คืนกล้องให้ player → fade กลับ + เปิด HUD
+- **วาปทำที่ server** (`TeleportTo` action) เพราะ StreamingEnabled อาจ stream `Spawn_Phase1` ออกจาก client → client หา Part ไม่เจอ
+- **ต้องคืนกล้องเอง** หลัง cutscene: `CutscenePlayer` คืน CameraType ที่จับตอนเริ่ม ซึ่งตอน intro คือ `Scriptable` (เมนูตั้งไว้) → ถ้าไม่ตั้ง `Custom` + `CameraSubject` player จะค้างมุม cutscene
+
 **จัดโฟลเดอร์ cam ต่อ scene:** `CutsceneCams/<Scene>/<cam>` เช่น `CutsceneCams/Opening/Opening_1` · subfolder ไว้ให้คนอ่าน engine หาข้าม subfolder เองอยู่แล้ว
 
 ---

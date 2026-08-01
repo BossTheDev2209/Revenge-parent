@@ -132,11 +132,13 @@ Accessories/
 
 - ทำเป็น Part โปร่งใส (Transparency 1) วางทับจุดนั้นก็ได้ ไม่ต้องสวย
 - **ห้องสวยแค่ไหน ถ้าไม่มี `Interact_` = ต่อ logic ไม่ได้**
+- ⚠️ **ชื่อห้ามมีเว้นวรรคหน้า/ท้าย** — `"Spawn_Phase1 "` กับ `"Spawn_Phase1"` คนละชื่อ โค้ดหาไม่เจอ (เจอจริง 2 ส.ค.) · โค้ดจะไม่เดา/ไม่ trim ให้ ต้องตั้งชื่อให้ตรงเป๊ะ
 
 ชื่อพิเศษเพิ่มเติม (ระบบใหม่):
 ```
-CutsceneCams (Folder ใน Workspace) → Cam_<ending>_<เลข>   มุมกล้อง cutscene (docs/10 §3)
+CutsceneCams (Folder ใน Workspace) → <Scene>/<Scene>_<เลข>  มุมกล้อง cutscene เช่น Opening/Opening_1
 FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
+Spawn_Phase<N>                                            จุดที่ player โผล่เมื่อเข้าเฟสนั้น (intro ใช้ Spawn_Phase1)
 Interact_Shop                                             ร้านขายอุปกรณ์ในแมพ (docs/09 §10)
 ReplicatedStorage.ToolModels → Camera_1..6 / Selfie / Notebook / NotebookPlaced   โมเดล Tool (§3.6)
 Zone_<ชื่อ>                                               โซนเพลง (Attribute Music/Ambient/Priority)

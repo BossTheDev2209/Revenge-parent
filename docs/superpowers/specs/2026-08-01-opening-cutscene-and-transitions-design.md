@@ -1,6 +1,12 @@
 # Spec — Opening cutscene + reusable scene transition
 
-**วันที่:** 1 ส.ค. 2569 · **สถานะ:** design (รอ implement)
+**วันที่:** 1 ส.ค. 2569 · **สถานะ: ✅ implement + playtest ผ่านแล้ว (2 ส.ค. 2569)**
+
+**ต่างจากแผนตอน implement (เจอตอน playtest):**
+- วาปต้องทำที่ **server** (`TeleportTo` action) ไม่ใช่ client — StreamingEnabled stream `Spawn_Phase1` ออกจาก client
+- เมนูต้อง **ส่งต่อกล้องให้ cutscene ใต้ผ้าขาว** ไม่คืนกล้องให้ player ก่อน ไม่งั้นเห็นแวบ baseplate
+- ต้อง **คืนกล้อง (Custom + CameraSubject) เองตอนจอดำ** — CutscenePlayer คืน CameraType ที่จับตอนเริ่ม ซึ่งเป็น Scriptable
+- Component 3 (FilmSpots ต่อเฟส) + Component 4 = ยัง **ไม่ได้ทำ** ตามแผน (follow-up)
 
 ## เป้าหมาย
 

@@ -4,13 +4,15 @@
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
+local Config = require(game:GetService("ReplicatedStorage").Shared.Config)
 
 local CameraFocus = {}
 
-local LEVELS = { 6, 10, 16 } -- ระยะจากหน้า NPC (studs): ใกล้ / ปกติ / ไกล
-local NORMAL = 2 -- index เริ่มต้น
-local EYE_HEIGHT = 1.5 -- ยกกล้องเหนือจุดหัวเล็กน้อยให้เห็นหน้า
-local TWEEN = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+-- ค่าปรับได้ที่ Config.Dialogue (ที่เดียว)
+local LEVELS = Config.Dialogue.zoomLevels -- ระยะจากหน้า NPC ใกล้/ปกติ/ไกล
+local NORMAL = Config.Dialogue.zoomDefault
+local EYE_HEIGHT = Config.Dialogue.camHeight
+local TWEEN = TweenInfo.new(Config.Dialogue.camTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local target: BasePart? = nil
 local levelIndex = NORMAL

@@ -257,8 +257,14 @@ Config.EndingThresholds = {
 -- Bad1 = เงินหมด โดนไล่ที่ 2 รอบ (phase 1–2) | Bad2 = mental ≤ 0 (phase 2–3) — ทั้งคู่ optional
 -- Neutral/Good ต้องถึง 1M ก่อน
 
--- Dialogue typewriter (design doc §7) — วิ/ตัวอักษร (เลขเลือกเอง ปรับได้)
-Config.Dialogue = { charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 } }
+-- Dialogue: typewriter + กล้องตอนคุย NPC (ปรับค่าที่นี่ที่เดียว)
+Config.Dialogue = {
+	charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 }, -- วิ/ตัวอักษร (น้อย = เร็ว)
+	zoomLevels = { 6, 10, 16 }, -- ระยะกล้อง ใกล้/ปกติ/ไกล (studs, น้อย = ซูมเข้า)
+	zoomDefault = 2, -- เริ่มที่ระดับไหน (index ใน zoomLevels)
+	camHeight = 1.5, -- ความสูงกล้องเหนือจุดหัว NPC
+	camTweenTime = 0.45, -- ความลื่นตอนเปลี่ยนซูม (วิ)
+}
 
 -- ระบบเสียง (docs/02 §9.9) — ความดังปรับที่ Sound object ใน Studio ไม่ใช่ที่นี่
 Config.Audio = {

@@ -76,13 +76,29 @@ function RecordTool.init(player, fireAction, getState)
 		end)
 	end
 	local function bindAll()
-		for _, t in player.Backpack:GetChildren() do bindTool(t) end
+		local bp = player:FindFirstChildOfClass("Backpack")
+		if bp then
+			for _, t in bp:GetChildren() do bindTool(t) end
+		end
 		if player.Character then
 			for _, t in player.Character:GetChildren() do bindTool(t) end
 		end
 	end
+
+	-- ★ Roblox สร้าง Backpack "ตัวใหม่" ทุกครั้งที่ตัวละครเกิด — ต้องต่อ ChildAdded กับตัวใหม่ทุกรอบ
+	--   เดิมต่อครั้งเดียวตอนโหลดสคริปต์ → พอเกิดตัวละคร connection ตายไปกับ Backpack ตัวเก่า
+	--   ของที่มีตอนเกิดยังใช้ได้ (bindAll ใน CharacterAdded อ่าน Backpack สดทุกรอบ)
+	--   แต่ Tool ที่มาทีหลัง — ซื้อกล้องใหม่ / ข้ามเฟส — ไม่มีใครผูกให้ = คลิกแล้วเงียบสนิท ไม่มี error
+	local function hookBackpack(child)
+		if not child:IsA("Backpack") then return end
+		for _, t in child:GetChildren() do bindTool(t) end
+		child.ChildAdded:Connect(bindTool) -- Tool ใหม่ตอนอัปเกรด/ข้ามเฟส
+	end
+
 	bindAll()
-	player.Backpack.ChildAdded:Connect(bindTool) -- Tool ใหม่ตอนอัปเกรด/ข้ามเฟส
+	local bp0 = player:FindFirstChildOfClass("Backpack")
+	if bp0 then hookBackpack(bp0) end
+	player.ChildAdded:Connect(hookBackpack) -- Backpack ตัวใหม่ตอนเกิดใหม่
 	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
 
 	-- ตัวเลขลอยรอบตัวตอนอัดติด "+1.2" / "+2.4 Bonus!" (ภาพร่าง `CameraTool clicking number pop-up ui.png`)

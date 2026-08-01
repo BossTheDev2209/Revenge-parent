@@ -13,7 +13,8 @@ player เดินไปกด Part ชื่อ `Interact_NPC_0X` → **หย
 
 คลิกระหว่างพิมพ์ = โชว์ทั้งบรรทัดทันที (ข้าม typewriter)
 
-**กล้อง (เพิ่ม 1 ส.ค. 2569):** กดคุย NPC จากทางไหนก็ได้ กล้อง tween มาโฟกัสหน้า NPC ให้อยู่กลางจอ · scroll wheel ปรับ zoom 3 ระดับ (ใกล้/ปกติ/ไกล) tween ลื่น · จบบทกล้องคืนสู่ player · โค้ด `CameraFocus.luau` เรียกจาก `startDialogue` (ไม่ใช่ใน DialogueUI — engine เรนเดอร์กล่องเหมือนเดิม)
+**กล้อง (เพิ่ม 1 ส.ค. 2569):** กดคุย NPC จากทางไหนก็ได้ กล้อง tween มาโฟกัสหน้า NPC ให้อยู่กลางจอ · scroll wheel ปรับ zoom (ตามจำนวนระดับใน `zoomLevels`) tween ลื่น · จบบทกล้องคืนสู่ player · โค้ด `CameraFocus.luau` เรียกจาก `startDialogue` (ไม่ใช่ใน DialogueUI — engine เรนเดอร์กล่องเหมือนเดิม)
+ปรับค่ากล้องที่ `Config.Dialogue`: `zoomLevels` (ระยะแต่ละระดับ) · `zoomDefault` · `camHeight` · `camTweenTime`
 
 ---
 

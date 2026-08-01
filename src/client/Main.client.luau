@@ -40,8 +40,16 @@ local function playOpening()
 	fireAction({ type = "FreezeTime", on = true })
 	CutscenePlayer.play(playerGui, Opening, function()
 		ScreenTransition.play({
-			-- วาปที่ server (StreamingEnabled อาจ stream Spawn_Phase1 ออกจาก client)
-			onBlack = function() fireAction({ type = "TeleportTo", target = "Spawn_Phase1" }) end,
+			onBlack = function()
+				-- วาปที่ server (StreamingEnabled อาจ stream Spawn_Phase1 ออกจาก client)
+				fireAction({ type = "TeleportTo", target = "Spawn_Phase1" })
+				-- คืนกล้องให้ player ตอนจอดำ — เมนูข้ามขั้นนี้ให้ new game และ CutscenePlayer
+				-- คืนเป็น savedType ซึ่งตอนนั้นยังเป็น Scriptable (เมนูตั้งไว้) กล้องเลยค้าง
+				local char = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+				local cam = workspace.CurrentCamera
+				cam.CameraSubject = char:FindFirstChildOfClass("Humanoid") or char:FindFirstChild("HumanoidRootPart")
+				cam.CameraType = Enum.CameraType.Custom
+			end,
 			onDone = function()
 				fireAction({ type = "FreezeTime", on = false })
 				-- เริ่มเล่นจริงหลัง intro: เปิด HUD + วงโซนถ่าย (เมนูข้ามให้ new game)

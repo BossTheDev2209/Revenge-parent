@@ -42,7 +42,19 @@ local function playOpening()
 		ScreenTransition.play({
 			-- วาปที่ server (StreamingEnabled อาจ stream Spawn_Phase1 ออกจาก client)
 			onBlack = function() fireAction({ type = "TeleportTo", target = "Spawn_Phase1" }) end,
-			onDone = function() fireAction({ type = "FreezeTime", on = false }) end,
+			onDone = function()
+				fireAction({ type = "FreezeTime", on = false })
+				-- เริ่มเล่นจริงหลัง intro: เปิด HUD + วงโซนถ่าย (เมนูข้ามให้ new game)
+				local hudGui = playerGui:FindFirstChild("Gui_HUD")
+				if hudGui then hudGui.Enabled = true end
+				local ring = workspace:FindFirstChild("FilmZoneRing")
+				if ring then
+					ring.Transparency = 0.7
+					for _, b in ring:GetDescendants() do
+						if b:IsA("BillboardGui") then b.Enabled = true end
+					end
+				end
+			end,
 		})
 	end)
 end

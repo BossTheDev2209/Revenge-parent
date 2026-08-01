@@ -630,19 +630,24 @@ function MenuUI.open(playerGui, deps)
 				camGuard:Disconnect()
 				-- คืนกล้องให้ default camera script: ต้องตั้ง CameraSubject ด้วย
 				-- ไม่งั้นกล้องค้างอยู่กลางอากาศ ไม่ตามตัวผู้เล่น
-				local char = player.Character or player.CharacterAdded:Wait()
-				local hum = char:FindFirstChildOfClass("Humanoid")
-				camera.CameraSubject = hum or char:FindFirstChild("HumanoidRootPart")
-				camera.CameraType = Enum.CameraType.Custom
 				freezeCharacter(player, false)
-				if hud then hud.Enabled = true end
-				if ring then
-					ring.Transparency = 0.7
-					for _, b in ring:GetDescendants() do
-						if b:IsA("BillboardGui") then b.Enabled = true end
+				if isNewGame and deps.onNewGame then
+					-- New Game: cutscene ยึดกล้องใต้ผ้าขาว fade เผยเห็น cutscene ไม่เห็นแวบ baseplate
+					deps.onNewGame() -- HUD/ring/unfreeze ให้ intro จัดการหลังจบ
+				else
+					local char = player.Character or player.CharacterAdded:Wait()
+					local hum = char:FindFirstChildOfClass("Humanoid")
+					camera.CameraSubject = hum or char:FindFirstChild("HumanoidRootPart")
+					camera.CameraType = Enum.CameraType.Custom
+					if hud then hud.Enabled = true end
+					if ring then
+						ring.Transparency = 0.7
+						for _, b in ring:GetDescendants() do
+							if b:IsA("BillboardGui") then b.Enabled = true end
+						end
 					end
+					deps.fireAction({ type = "FreezeTime", on = false })
 				end
-				deps.fireAction({ type = "FreezeTime", on = false })
 				MenuUI.running = false
 				MenuUI.updateSlots = nil
 				if bookGui then bookGui:Destroy() end
@@ -652,10 +657,7 @@ function MenuUI.open(playerGui, deps)
 
 				local out = TweenService:Create(flash, TweenInfo.new(FLASH_OUT), { BackgroundTransparency = 1 })
 				out:Play()
-				out.Completed:Connect(function()
-					gui:Destroy()
-					if isNewGame and deps.onNewGame then deps.onNewGame() end
-				end)
+				out.Completed:Connect(function() gui:Destroy() end)
 			end)
 		end)
 	end

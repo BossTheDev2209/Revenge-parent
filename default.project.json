@@ -1,0 +1,40 @@
+{
+  "name": "getting-1m-follower",
+  "globIgnorePaths": ["**/.gitkeep"],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "Shared": {
+        "$path": "src/shared",
+        "$ignoreUnknownInstances": true
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
+      "Main": { "$path": "src/server/Main.server.luau" },
+      "Services": {
+        "$path": "src/server/Services",
+        "$ignoreUnknownInstances": true
+      },
+      "Tests": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+        "RunTests": { "$path": "tests/RunTests.luau" }
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+      "StarterPlayerScripts": {
+        "$path": "src/client",
+        "$ignoreUnknownInstances": true
+      }
+    }
+  }
+}

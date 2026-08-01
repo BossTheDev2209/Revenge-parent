@@ -3,7 +3,23 @@
 **เขียนเมื่อ:** 19 ก.ค. 2569 | **สถานะ: ✅ SYNC เสร็จแล้ว (19 ก.ค.)** — Config/Formulas/RunTests อยู่ใน Studio, เทส 46 ข้อผ่านใน Studio จริง
 **อ่านก่อน:** `CLAUDE.md` → `docs/02` (ตัวเลข) → `docs/06` (โครง Studio) → ไฟล์นี้ (§6 วิธีคุย Studio MCP)
 
-## ⭐ Workflow หลัก (user สั่ง 20 ก.ค.): **Studio = ของจริงทุกอย่าง**
+## ⭐⭐ Workflow ใหม่ (user สั่ง 1 ส.ค. 2569): **Rojo — disk = source of truth**
+
+**แทนที่ Studio-first ด้านล่างสำหรับ "สคริปต์" · gen_sync/mcp_driver เหลือเป็น fallback**
+
+- แก้ไฟล์ใน `src/` บนดิสก์ → **Rojo push เข้า Studio สดๆ อัตโนมัติ** (ไม่เปลือง token, ไม่ต้อง gen_sync/driver)
+- ตั้งค่า: `rokit.toml` (pin rojo 7.7.0) + `default.project.json` (map เฉพาะ container ที่ src/ mirror)
+- **ทุก node ใส่ `$ignoreUnknownInstances: true`** — Rojo แตะเฉพาะสคริปต์ที่ mirror · ของที่ Boss สร้างใน Studio (NPC, Remotes, HUD, map, รูป) **ไม่โดนแตะ** · Workspace/StarterGui/Lighting ไม่อยู่ใน map เลย
+- เปิดใช้: `rojo serve` (terminal) → ใน Studio กดปุ่ม Rojo → **Connect** (localhost:34872) ครั้งเดียวต่อ session
+- ⚠️ **หลัง connect: แก้สคริปต์บนดิสก์เท่านั้น** — แก้สคริปต์ใน Studio จะโดนดิสก์ทับตอน sync รอบถัดไป
+  (ของ **ไม่ใช่สคริปต์** — โมเดล/NPC/รูป/UI instance — ยังทำใน Studio ตามเดิม ปลอดภัยด้วย ignoreUnknownInstances)
+- รันเทสยังใช้ MCP `execute_luau` → `require(SSS.Tests.RunTests)` เหมือนเดิม (Rojo ทำแค่ sync)
+
+---
+
+## ⚠️ Workflow เก่า (user สั่ง 20 ก.ค.) — **superseded โดย Rojo ข้างบนสำหรับสคริปต์**: Studio = ของจริงทุกอย่าง
+
+*(ยังใช้ได้ถ้าไม่ได้เปิด Rojo — เช่น pull เนื้อหาที่ทีมแก้ใน Studio กลับมา, หรือ sync ผ่าน gen_sync/mcp_driver ตอน plugin ไม่ต่อ)*
 
 - **ข้อมูลเกมทั้งหมด (script, Content, UIAssets, รูป) อยู่ใน Studio ที่เดียว** — เสมือนทีม 3 คนทำใน Studio ล้วนๆ
 - repo `getting-1m-follower` = **backup + สะพาน**: docs ให้ agent อ่าน + git history กันงานหาย — ไม่ใช่ที่ทำงานจริง

@@ -6,12 +6,15 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../../shared/Formulas")
 
 local RecordService = {}
 
 -- ความจุที่เก็บตามระดับที่ซื้อ (Shop สาย storage)
 function RecordService.capacity(state): number
-	local lv = state.upgrades and state.upgrades.storage or 1
+	local lv = Formulas.activeLevel(state, "storage")
 	return Config.StorageLadderGB[lv] or Config.StorageLadderGB[1]
 end
 
@@ -51,7 +54,7 @@ function RecordService.record(state, o)
 	local rng = o.rng or math.random
 	local bonus = rng() < R.bonusChance
 	local mult = o.inZone and RecordService.zoneMult(state.phase) or 1
-	local gain = RecordService.gainFor(state.upgrades and state.upgrades.camera or 1, bonus, mult)
+	local gain = RecordService.gainFor(Formulas.activeLevel(state, "camera"), bonus, mult)
 
 	-- ล้นความจุ = ตัดให้พอดี (คลิกสุดท้ายไม่หายเปล่า แต่ไม่เกิน cap)
 	local cap = RecordService.capacity(state)

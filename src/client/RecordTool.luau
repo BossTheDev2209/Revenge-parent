@@ -8,6 +8,9 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../shared/Config")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../shared/Formulas")
 
 local RecordTool = {}
 
@@ -143,7 +146,7 @@ function RecordTool.init(player, fireAction, getState)
 			local now = s and s.footageGB or nil
 			if prev and now and now > prev + 0.001 then
 				local gained = now - prev
-				local base = Config.Record.footagePerClickGB[s.upgrades and s.upgrades.camera or 1]
+				local base = Config.Record.footagePerClickGB[Formulas.activeLevel(s, "camera")]
 					or Config.Record.footagePerClickGB[1]
 				floatGain(gained, gained > base + 0.001) -- ได้เกิน base = ติดโบนัสโซน
 			end

@@ -114,6 +114,10 @@ end)
 ActionRouter.register("BuyUpgrade", function(s, a)
 	MoneyService.buyUpgrade(s, a.item)
 end)
+-- ย้อนไปใช้อุปกรณ์ระดับเก่าที่ซื้อไว้แล้ว (ผลลดลงจริง) — ToolService.sync หลัง route จะสลับ Tool ให้เอง
+ActionRouter.register("EquipLevel", function(s, a)
+	MoneyService.equipLevel(s, a.item, a.level)
+end)
 ActionRouter.register("AdjustSpending", function(s, a) -- ⊖⊕ ใน Bank
 	MoneyService.adjustSpending(s, a.card, a.dir)
 end)

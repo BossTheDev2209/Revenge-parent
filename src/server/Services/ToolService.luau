@@ -7,13 +7,16 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../../shared/Formulas")
 
 local ToolService = {}
 
 -- Tool ที่ควรอยู่ในมือ ณ state นี้ (ชื่อ = ชื่อโมเดลใน ToolModels)
 -- อุปกรณ์ถ่ายมีสายเดียว: Camera_1..6 (ระดับ 1 = มือถือ) — ไม่มี Tool มือถือ/ไม้เซลฟี่แยก
 function ToolService.desiredTools(state)
-	local lv = math.clamp(state.upgrades and state.upgrades.camera or 1, 1, #Config.ResolutionLadder)
+	local lv = math.clamp(Formulas.activeLevel(state, "camera"), 1, #Config.ResolutionLadder)
 	-- ระดับกล้องมี 15 แต่โมเดลใน ToolModels มีถึง Camera_6 — เกินนั้นใช้โมเดลตัวท้ายสุด
 	-- (ไม่ clamp = หาโมเดลไม่เจอ = มือเปล่า อัดคลิปไม่ได้ทั้งเกม)
 	local modelLv = math.min(lv, Config.CameraModelCount)

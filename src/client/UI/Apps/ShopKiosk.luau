@@ -18,6 +18,9 @@ local Config = if isStudio
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else require("../../../shared/UIAssets")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../../../shared/Formulas")
 -- ยืมแค่ HUD.comma (pure) — เลขเงินต้องคั่นหลักแบบเดียวกับ HUD ทั้งเกม
 local HUD = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.HUD)
@@ -81,13 +84,15 @@ end
 -- บันไดทั้งหมดของหมวด พร้อมสถานะแต่ละขั้น — UI วาดตามนี้ตรงๆ
 --   owned = ผ่านมาแล้ว | current = ใช้อยู่ | next = ซื้อได้ขั้นถัดไป | locked = ต้องไล่ซื้อก่อน
 function ShopKiosk.tiersFor(entry, state)
-	local level = state.upgrades and state.upgrades[entry.key] or 1
+	local owned = state.upgrades and state.upgrades[entry.key] or 1 -- ซื้อถึงระดับไหน
+	local equipped = Formulas.activeLevel(state, entry.key) -- ใช้ระดับไหนอยู่ (ย้อนกลับได้)
 	local costs = Config.UpgradeCosts[entry.key] or {}
 	local out = {}
 	for tier = 1, ShopKiosk.tierCount(entry) do
-		local status = if tier < level then "owned"
-			elseif tier == level then "current"
-			elseif tier == level + 1 then "next"
+		-- เช็ค equipped ก่อน owned เสมอ — ไม่งั้นตัวที่ถืออยู่จะโดนนับเป็น "ซื้อแล้ว" เฉยๆ
+		local status = if tier == equipped then "current"
+			elseif tier <= owned then "owned" -- ซื้อแล้วแต่ไม่ได้ใช้ → กดย้อนกลับมาใช้ได้
+			elseif tier == owned + 1 then "next"
 			else "locked"
 		table.insert(out, {
 			tier = tier,
@@ -141,6 +146,7 @@ local COLORS = {
 	buy = Color3.fromRGB(70, 175, 95),
 	broke = Color3.fromRGB(122, 68, 68),
 	current = Color3.fromRGB(70, 130, 200),
+	equip = Color3.fromRGB(96, 84, 150), -- ม่วง = กดย้อนกลับไปใช้ของเก่า (คนละสีกับ Buy เขียว)
 	arrow = Color3.fromRGB(56, 56, 76),
 	text = Color3.fromRGB(240, 240, 245),
 	dim = Color3.fromRGB(152, 152, 170),
@@ -281,13 +287,21 @@ function ShopKiosk.open(playerGui, deps)
 				BackgroundColor3 = COLORS.buy, TextColor3 = COLORS.text, TextSize = 14, Text = "",
 			})
 			mk("UICorner", btn, {})
+			local ui -- ประกาศก่อน handler อ่าน status/tier ล่าสุดที่ refresh เขียนไว้
 			btn.Activated:Connect(function()
-				-- ปุ่มเปิดเฉพาะการ์ด "ซื้อได้ขั้นถัดไป" — server ตัดสินเงิน/ระดับอีกชั้น
-				deps.fireAction({ type = "BuyUpgrade", item = entry.key })
+				-- เปิดเฉพาะ 2 สถานะ: next = ซื้อขั้นถัดไป · owned = ย้อนกลับไปใช้ระดับนั้น
+				-- server ตัดสินเงิน/ระดับอีกชั้นเสมอ (ไม่เชื่อ client)
+				if ui.status == "next" then
+					deps.fireAction({ type = "BuyUpgrade", item = entry.key })
+				elseif ui.status == "owned" then
+					deps.fireAction({ type = "EquipLevel", item = entry.key, level = ui.tier })
+				end
 			end)
 
-			cards[c] = { card = card, badge = badge, img = img, emoji = emoji,
-				name = name, spec = spec, btn = btn }
+			-- status/tier อัปทุกครั้งที่ refresh — handler อ่านค่าล่าสุด ไม่ผูกตายตอนสร้างปุ่ม
+			ui = { card = card, badge = badge, img = img, emoji = emoji,
+				name = name, spec = spec, btn = btn, status = nil, tier = nil }
+			cards[c] = ui
 		end
 
 		local function turn(dir)
@@ -330,6 +344,7 @@ function ShopKiosk.open(playerGui, deps)
 					ui.card.Visible = false
 				else
 					ui.card.Visible = true
+					ui.status, ui.tier = t.status, t.tier -- handler ปุ่มอ่านค่านี้
 					ui.badge.Text = ("L%d"):format(t.tier)
 					ui.name.Text = t.name or "?"
 					ui.spec.Text = t.spec or ""
@@ -339,7 +354,8 @@ function ShopKiosk.open(playerGui, deps)
 						ui.img.Visible, ui.emoji.Visible = false, true
 					end
 
-					local dim = t.status == "owned" or t.status == "locked"
+					-- หรี่เฉพาะ locked — "owned" กดย้อนกลับมาใช้ได้ ต้องเห็นชัด
+					local dim = t.status == "locked"
 					ui.card.BackgroundColor3 = if t.status == "next" then COLORS.cardNext
 						elseif dim then COLORS.cardDim
 						else COLORS.card
@@ -348,7 +364,8 @@ function ShopKiosk.open(playerGui, deps)
 					ui.img.ImageTransparency = dim and 0.55 or 0
 
 					if t.status == "owned" then
-						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "✓ มีแล้ว", COLORS.cardDim, false
+						-- ซื้อไว้แล้วแต่ไม่ได้ใช้ → กดย้อนกลับมาใช้ได้ (ผลลดลงจริงตามระดับ)
+						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "↩ ใช้อันนี้", COLORS.equip, true
 					elseif t.status == "current" then
 						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "⭐ ใช้อยู่", COLORS.current, false
 					elseif t.status == "next" then

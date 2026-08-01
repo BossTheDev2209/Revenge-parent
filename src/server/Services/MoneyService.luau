@@ -65,6 +65,21 @@ function MoneyService.buyUpgrade(state, item: string): boolean
 	if not cost or state.money < cost then return false end
 	state.money -= cost
 	state.upgrades[item] += 1
+	-- ซื้อของใหม่ = สวมให้ทันที (ไม่งั้นจ่ายเงินแล้วยังถือของเก่าอยู่ งง)
+	if state.equipped then state.equipped[item] = state.upgrades[item] end
+	return true
+end
+
+-- เลือกย้อนกลับไปใช้ของที่ซื้อไว้แล้ว (ระดับเก่า) — ผลลดลงจริงตามตัวที่ถือ
+-- คืน false ถ้าสายมั่ว/ระดับยังไม่ได้ซื้อ/ระดับต่ำกว่า 1 — server เป็นคนตัดสิน ไม่เชื่อ client
+function MoneyService.equipLevel(state, item: string, level: number): boolean
+	if not Config.UpgradeCosts[item] then return false end
+	local owned = state.upgrades and state.upgrades[item]
+	if not owned then return false end
+	if type(level) ~= "number" or level ~= math.floor(level) then return false end
+	if level < 1 or level > owned then return false end
+	state.equipped = state.equipped or {}
+	state.equipped[item] = level
 	return true
 end
 

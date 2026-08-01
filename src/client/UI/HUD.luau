@@ -9,6 +9,9 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../../shared/Formulas")
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else require("../../shared/UIAssets")
@@ -379,7 +382,7 @@ end
 -- ช่อง storage = footage ที่อัดมา (GB) ไม่ใช่จำนวนคลิป — PDF หน้า 5 "790 GB / 1T", เต็ม = FULL
 -- pure: เทสได้ด้วย lune
 function HUD.storageText(state): string
-	local cap = Config.StorageLadderGB[state.upgrades and state.upgrades.storage or 1]
+	local cap = Config.StorageLadderGB[Formulas.activeLevel(state, "storage")]
 		or Config.StorageLadderGB[1]
 	local used = math.floor(state.footageGB or 0)
 	local function fmt(gb)
@@ -418,7 +421,7 @@ function HUD.update(state)
 	if HUD.dayLabel then HUD.dayLabel.Text = tostring(state.day) end
 	if HUD.phaseLabel then HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase) end
 	setStat(HUD.storageLabel, HUD.storageText(state))
-	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[state.upgrades.camera] or "?"))
+	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[Formulas.activeLevel(state, "camera")] or "?"))
 
 	if HUD.mentalFill then
 		local pct = math.clamp(state.mental, 0, 100) / 100

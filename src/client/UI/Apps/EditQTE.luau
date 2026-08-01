@@ -249,7 +249,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		statsLabel.Text = ("stats:   %d  S\n           %d  A\n           %d  B\n           %d  C\n\nตัดอีกคลิป เสียใจอีก %d")
 			:format(buckets.S, buckets.A, buckets.B, buckets.C, math.abs(Config.Mental.deltas.clipEdit))
 		local st = getState()
-		local capGB = Config.StorageLadderGB[st and st.upgrades and st.upgrades.storage or 1]
+		local capGB = Config.StorageLadderGB[st and Formulas.activeLevel(st, "storage") or 1]
 			or Config.StorageLadderGB[1]
 		footageLabel.Text = ("footage left: %d GB / %d GB"):format(
 			math.floor(st and st.footageGB or 0), capGB)

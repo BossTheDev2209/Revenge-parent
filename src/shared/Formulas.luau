@@ -110,4 +110,21 @@ function Formulas.resolveEnding(stats): string
 	return "Neutral2" -- ถึง 1M แต่ไม่เข้าเงื่อนไขไหน — ending กลางสุดคือตาข่ายสุดท้าย
 end
 
+-- ===== อุปกรณ์: แยก "ซื้อถึงระดับไหน" ออกจาก "ใช้ระดับไหนอยู่" =====
+-- state.upgrades[key] = ระดับสูงสุดที่ซื้อแล้ว (ขึ้นอย่างเดียว — MoneyService.buyUpgrade)
+-- state.equipped[key] = ระดับที่เลือกใช้อยู่ (ย้อนกลับไปใช้ของเก่าได้ — action EquipLevel)
+--
+-- ทุกจุดที่ถามว่า "ตอนนี้ใช้อุปกรณ์ระดับไหน" ต้องเรียกฟังก์ชันนี้ ห้ามอ่าน upgrades ตรงๆ
+-- (อ่าน upgrades ตรงๆ = ได้ระดับสูงสุดที่ซื้อ ไม่ใช่ตัวที่ถืออยู่จริง)
+--
+-- ไม่มี equipped / equipped[key] เป็น nil = ใช้ระดับสูงสุดที่ซื้อ
+--   → save เก่าที่ไม่มี field นี้โหลดมาแล้วไม่โดนลดระดับเงียบๆ
+-- clamp ที่ owned เสมอ = ต่อให้ค่าใน save เพี้ยน/โดนแก้ ก็ใช้เกินที่ซื้อไว้ไม่ได้
+function Formulas.activeLevel(state, key: string): number
+	local owned = state.upgrades and state.upgrades[key] or 1
+	local picked = state.equipped and state.equipped[key]
+	if not picked then return owned end
+	return math.clamp(picked, 1, owned)
+end
+
 return Formulas

@@ -1201,6 +1201,59 @@ check("ระดับ 5 ขึ้นหน้า 2", ShopKiosk.pageOf(5, 4) == 
 check("ระดับ 15 อยู่หน้า 4", ShopKiosk.pageOf(15, 4) == 4)
 check("เลื่อนเกินขอบถูก clamp", ShopKiosk.clampPage(99, 15, 4) == 4 and ShopKiosk.clampPage(-3, 15, 4) == 1)
 
+-- ===== ย้อนกลับไปใช้อุปกรณ์ระดับเก่า (user lock 1 ส.ค. — ผลลดลงจริงตามตัวที่ถือ) =====
+local eq = GameState.newGame()
+eq.upgrades.camera = 4
+check("ไม่เคยเลือก = ใช้ระดับสูงสุดที่ซื้อ", Formulas.activeLevel(eq, "camera") == 4)
+check("save เก่าไม่มี field equipped ก็ไม่โดนลดระดับ",
+	Formulas.activeLevel({ upgrades = { camera = 5 } }, "camera") == 5)
+
+check("เลือกย้อนกลับได้ถ้าซื้อไว้แล้ว", MoneyService.equipLevel(eq, "camera", 2) == true
+	and Formulas.activeLevel(eq, "camera") == 2)
+check("ซื้อไว้ระดับ 4 ยังอยู่ครบ ไม่หายไปกับการย้อน", eq.upgrades.camera == 4)
+check("ระดับที่ยังไม่ได้ซื้อ เลือกไม่ได้", MoneyService.equipLevel(eq, "camera", 5) == false
+	and Formulas.activeLevel(eq, "camera") == 2)
+check("ระดับต่ำกว่า 1 / ไม่ใช่จำนวนเต็ม เลือกไม่ได้",
+	MoneyService.equipLevel(eq, "camera", 0) == false
+	and MoneyService.equipLevel(eq, "camera", 2.5) == false
+	and MoneyService.equipLevel(eq, "camera", "สอง") == false)
+check("สายมั่วไม่ crash", MoneyService.equipLevel(eq, "รถ", 1) == false)
+
+-- ผลต้องลดจริงทุกระบบที่เกี่ยวข้อง ไม่ใช่แค่หน้าตา
+local eqRec = GameState.newGame()
+eqRec.upgrades.camera, eqRec.upgrades.storage = 4, 4
+eqRec.lastRecordAt = -999
+local full = RecordService.record(eqRec, { now = 500, inZone = false, rng = function() return 0.9 end })
+check("ระดับ 4 อัดได้ 8 GB", full.gained == Config.Record.footagePerClickGB[4])
+check("ระดับ 4 ความจุ 1024 GB", RecordService.capacity(eqRec) == Config.StorageLadderGB[4])
+
+MoneyService.equipLevel(eqRec, "camera", 1)
+MoneyService.equipLevel(eqRec, "storage", 1)
+eqRec.lastRecordAt = -999
+local low = RecordService.record(eqRec, { now = 900, inZone = false, rng = function() return 0.9 end })
+check("ย้อนกล้องเป็นระดับ 1 = อัดได้ 1 GB จริง", low.gained == Config.Record.footagePerClickGB[1])
+check("ย้อน storage เป็นระดับ 1 = ความจุลดเหลือ 128 GB", RecordService.capacity(eqRec) == Config.StorageLadderGB[1])
+check("Tool ในมือเปลี่ยนตามตัวที่เลือก", ToolService.desiredTools(eqRec)[1] == "Camera_1")
+
+-- ซื้อของใหม่ = สวมให้ทันที (ไม่งั้นจ่ายเงินแล้วยังถือของเก่า)
+local eqBuy = GameState.newGame()
+eqBuy.money = 2_000
+MoneyService.equipLevel(eqBuy, "camera", 1)
+check("ซื้อแล้วสวมตัวใหม่ให้อัตโนมัติ", MoneyService.buyUpgrade(eqBuy, "camera") == true
+	and Formulas.activeLevel(eqBuy, "camera") == 2)
+
+-- การ์ดในร้านต้องแยก "ใช้อยู่" กับ "ซื้อแล้วแต่ไม่ได้ใช้"
+local eqShop = GameState.newGame()
+eqShop.upgrades.camera = 3
+MoneyService.equipLevel(eqShop, "camera", 1)
+local camEnt
+for _, e in Config.ShopCatalog do if e.key == "camera" then camEnt = e end end
+local st = ShopKiosk.tiersFor(camEnt, eqShop)
+check("ขั้นที่ถืออยู่ = current", st[1].status == "current")
+check("ขั้นที่ซื้อแล้วแต่ไม่ได้ถือ = owned (กดใช้ได้)", st[2].status == "owned" and st[3].status == "owned")
+check("ขั้นถัดจากที่ซื้อสูงสุด = next", st[4].status == "next")
+check("เลยกว่านั้น = locked", st[5].status == "locked")
+
 -- ===== responsive: ย่อแผงให้พอดีจอ (user feedback 1 ส.ค. — ตกขอบบน PC) =====
 -- แผงออกแบบไว้ 778 × 704 px ตามภาพร่าง PDF
 local PW, PH = 778, 704

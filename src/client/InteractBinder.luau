@@ -153,7 +153,7 @@ function InteractBinder.init(deps)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			if root then root.CFrame = target.CFrame + Vector3.new(0, 3, 0) end
 		elseif NPC_DIALOGUE[name] then
-			deps.startDialogue(NPC_DIALOGUE[name])
+			deps.startDialogue(NPC_DIALOGUE[name], part)
 		else
 			warn("[InteractBinder] ยังไม่ผูก logic:", name)
 		end

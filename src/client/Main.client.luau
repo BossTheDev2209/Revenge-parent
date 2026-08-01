@@ -17,6 +17,7 @@ local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
+local CameraFocus = require(script.Parent.CameraFocus)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -79,8 +80,9 @@ local PC_APPS = {
 	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
 }
 
--- คุย NPC: freeze เวลา → typewriter → unfreeze (design doc §7 — ทางเดียว ไม่นับ choice)
-local function startDialogue(dialogueName)
+-- คุย NPC: freeze เวลา → กล้องโฟกัส NPC → typewriter → unfreeze + คืนกล้อง
+-- interactPart = Part Interact_NPC ในโมเดล NPC (ใช้หา Head ให้กล้องเล็ง) — ไม่ส่งมา = ไม่ขยับกล้อง
+local function startDialogue(dialogueName, interactPart)
 	local mod = Content.Dialogue:FindFirstChild(dialogueName)
 	if not mod then
 		warn("[Main.client] ไม่มีบท:", dialogueName)
@@ -92,9 +94,13 @@ local function startDialogue(dialogueName)
 		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
 		return
 	end
+	local npc = interactPart and interactPart:FindFirstAncestorWhichIsA("Model")
+	local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
 	fireAction({ type = "FreezeTime", on = true })
+	if head then CameraFocus.focus(head) end
 	-- เสียงพิมพ์ใช้ SoundService.Voice.<ชื่อบท> (เช่น Voice.Friend1) — ไม่มี = Voice.Default
 	DialogueUI.show(playerGui, lines, function()
+		if head then CameraFocus.release() end
 		fireAction({ type = "FreezeTime", on = false })
 	end, dialogueName)
 end

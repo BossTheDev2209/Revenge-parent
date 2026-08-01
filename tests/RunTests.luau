@@ -710,6 +710,17 @@ check("ช้อยครบ ผ่าน", DialogueUI.validate({
 	{ choices = { { text = "ขอโทษ", tone = "plus", reply = { "…" } }, { text = "เงียบ" } } },
 }) == true)
 check("ช้อยว่าง = ไม่ผ่าน", DialogueUI.validate({ { choices = {} } }) == false)
+
+-- ===== CameraFocus.frameCFrame (โฟกัสกล้องหน้า NPC ตอนคุย) =====
+local CameraFocus = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.CameraFocus)
+	else require("../src/client/CameraFocus")
+-- NPC ที่ CFrame.new(0,5,0) หันหน้า -Z, ระยะ 10: กล้องต้องอยู่หน้า NPC ยกระดับตา มองกลับมาหา NPC
+local camCF = CameraFocus.frameCFrame(CFrame.new(0, 5, 0), 10)
+check("กล้องถอยตามระยะ (รวมความสูงตา)",
+	math.abs((camCF.Position - Vector3.new(0, 5, 0)).Magnitude - math.sqrt(10 ^ 2 + 1.5 ^ 2)) < 0.01)
+check("กล้องยกสูงระดับตา 6.5", math.abs(camCF.Position.Y - 6.5) < 0.01)
+check("กล้องอยู่หน้า NPC (ฝั่ง -Z) มองกลับหา NPC", camCF.Position.Z < 0 and camCF.LookVector.Z > 0)
 check("ช้อยไม่มี text = ไม่ผ่าน", DialogueUI.validate({ { choices = { { tone = "plus" } } } }) == false)
 check("tone มั่ว = ไม่ผ่าน", DialogueUI.validate({ { choices = { { text = "ก", tone = "angry" } } } }) == false)
 check("reply พังข้างใน = ไม่ผ่าน", DialogueUI.validate({

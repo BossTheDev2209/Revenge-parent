@@ -166,21 +166,30 @@ function InteractBinder.init(deps)
 		if bb then labels[bb] = inst end
 	end
 
+	local wired = {} -- กัน wire ซ้ำเวลา DescendantAdded ยิงหลายรอบ
 	local function bind(inst)
 		if not inst:IsA("BasePart") then return end
 		if not inst.Name:match("^Interact_") then return end
 		trackLabel(inst)
-		if inst:FindFirstChildOfClass("ProximityPrompt") then return end
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.ActionText = PROMPT_TEXT[inst.Name]
-			or (inst.Name:match("^Interact_NPC") and "คุย")
-			or inst.Name:gsub("Interact_", "")
-		prompt.ObjectText = ""
-		prompt.HoldDuration = 0.3
-		prompt.Triggered:Connect(function()
-			onTriggered(inst.Name, inst)
-		end)
-		prompt.Parent = inst
+		-- รองรับทั้ง 2 แบบ: วาง ProximityPrompt เองใน Studio ก็ได้ / ไม่มีก็สร้างให้
+		local prompt = inst:FindFirstChildOfClass("ProximityPrompt")
+		if not prompt then
+			prompt = Instance.new("ProximityPrompt")
+			prompt.ActionText = PROMPT_TEXT[inst.Name]
+				or (inst.Name:match("^Interact_NPC") and "คุย")
+				or inst.Name:gsub("Interact_", "")
+			prompt.ObjectText = ""
+			prompt.HoldDuration = 0.3
+			-- part interact มักฝังในตัว NPC — ปิด line of sight ไม่งั้นโดนตัวบัง prompt ไม่ขึ้น
+			prompt.RequiresLineOfSight = false
+			prompt.Parent = inst
+		end
+		if not wired[prompt] then
+			wired[prompt] = true
+			prompt.Triggered:Connect(function()
+				onTriggered(inst.Name, inst)
+			end)
+		end
 	end
 
 	for _, d in workspace:GetDescendants() do

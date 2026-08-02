@@ -807,6 +807,15 @@ check("betrayed แต่ NPC ไม่มี after → บทเฟสปกต
 check("format เก่า (list string) ใช้ได้เหมือนเดิม",
 	InteractBinder.pickLines({ "เก่า" }, { phase = 3, flags = {} })[1] == "เก่า")
 
+-- คุยซ้ำ (seen): มีตาราง again = เล่น again, ไม่มี = ถอยไปบทเฟส
+local seenSample = { p1 = { "เต็ม" }, again = { "ซ้ำ" } }
+check("seen + มี again = ได้บท again",
+	InteractBinder.pickLines(seenSample, { phase = 1, flags = {} }, true)[1] == "ซ้ำ")
+check("seen แต่ไม่มี again = ได้บทเฟสปกติ",
+	InteractBinder.pickLines(sample, { phase = 1, flags = {} }, true)[1] == "หนึ่ง")
+check("ไม่ seen = ได้บทเฟสเสมอ (ไม่แตะ again)",
+	InteractBinder.pickLines(seenSample, { phase = 1, flags = {} }, false)[1] == "เต็ม")
+
 -- content จริง: ทุก NPC ที่ผูกใน binder ต้องมีบทให้ทุกเฟสที่เจอได้
 local DialogueFolder = if isStudio then game:GetService("ReplicatedStorage").Shared.Content.Dialogue else nil
 for _, name in { "Friend1", "Friend2", "CC1", "Hater", "Landlord" } do
@@ -890,6 +899,14 @@ for _, name in CutsceneFiles do
 		if s.type == "text" and s.text then table.insert(texts, s.text) end
 	end
 	check(("Cutscenes.%s ไม่มี [placeholder] ค้าง"):format(name), not hasPlaceholder(texts))
+end
+
+-- PhaseTransitions — map เฟส→บรรทัด (ไม่ใช่ step list ไม่ผ่าน validate) · track placeholder ต่อเฟส
+local PhaseTransitions = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.Cutscenes.PhaseTransitions)
+	else require("../src/shared/Content/Cutscenes/PhaseTransitions")
+for _, ph in { 2, 3 } do
+	check(("PhaseTransitions[%d] ไม่มี [placeholder] ค้าง"):format(ph), not hasPlaceholder(PhaseTransitions[ph] or {}))
 end
 
 -- ===== Comments pool schema (docs/02 §9.6 — ทีมเติม comment แล้ว format ต้องไม่พัง) =====

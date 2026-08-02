@@ -37,6 +37,7 @@ function GameState.newGame()
 		staffClips = {},     -- คลิปที่ทีมผลิต {tier=, by=} — นับ VidQ% ครึ่งเดียว
 		staffClipCarry = {}, -- [id] = เศษคลิปสะสมข้ามวัน
 		flags = {},    -- canon event ที่ผ่านแล้ว
+		seenDialogue = {}, -- [ชื่อบท] = เฟสที่คุยจบบทเต็มล่าสุด (คุยซ้ำเฟสเดิม = เล่นบท repeat)
 		activity = { streak = 0, cooldownUntilDay = 0 }, -- ฟื้นใจติดกัน 3 ครั้ง → cooldown
 		pendingComments = {}, -- comment รอตอบ {id=} (CommentService)
 		pendingEvents = {},   -- canon event รอเล่นฝั่ง client เช่น "milestone_1000"

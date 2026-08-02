@@ -133,6 +133,10 @@ Accessories/
 - ทำเป็น Part โปร่งใส (Transparency 1) วางทับจุดนั้นก็ได้ ไม่ต้องสวย
 - **ห้องสวยแค่ไหน ถ้าไม่มี `Interact_` = ต่อ logic ไม่ได้**
 - ⚠️ **ชื่อห้ามมีเว้นวรรคหน้า/ท้าย** — `"Spawn_Phase1 "` กับ `"Spawn_Phase1"` คนละชื่อ โค้ดหาไม่เจอ (เจอจริง 2 ส.ค.) · โค้ดจะไม่เดา/ไม่ trim ให้ ต้องตั้งชื่อให้ตรงเป๊ะ
+- ⚠️ **NPC จัดท่านิ่งใน cutscene ต้อง anchor ทุก part** — R6 rig ที่ไม่ anchored พอ play จริง physics + Motor6D joint ประกอบร่างกลับท่ายืน (+ Animate script เล่น idle ทับ) = ท่าที่จัดหายหมด (เจอจริง 2 ส.ค. ฉากพ่อแม่ที่ `Map_Phase0.npc`) · **fix:** anchor **ทุก** BasePart (ไม่ใช่แค่ HumanoidRootPart) + `Humanoid.AutoRotate = false` · anchored part นิ่งสนิท joint/physics/Animate ขยับไม่ได้ · จะขยับจริงค่อยใช้ระบบ `anim` (ต้อง unanchored + มี Animation object)
+- ⚠️ **Lighting ผูกนาฬิกาเกม — ห้ามใส่ day/night loop แยก** — `Lighting.ClockTime` ขับจาก `state.timeOfDay` ที่ Main.server (`syncLighting`) เท่านั้น freeze เวลา (cutscene/เมนู/คุย) = ฟ้าหยุดด้วย · Toolbox `ServerScriptService.DayNight` เดิน ClockTime เองไม่สน freeze → **ปิด (Disabled=true) แล้ว 2 ส.ค.** อย่าเปิดคืน/อย่าใส่ script เดินฟ้าเองใหม่ (เจอจริง: cutscene ฟ้าเพี้ยน/ข้ามวันเพราะ 2 นาฬิกาแยกกัน) · `autoturnlight` (ไฟถนน Toolbox) อ่าน ClockTime = ตามเวลาเกมเอง
+- ⚠️ **วาปข้ามแมพ (TeleportTo) ต้องรอ stream โหลดก่อนเผยจอ** — StreamingEnabled ทำให้แมพปลายทางยังไม่โหลดตอนวาปถึง (เห็นห้องโล่ง/ตกทะลุพื้น) · `Main.client.waitStreamedAround` เรียกตอนจอดำใน transition: anchor ตัวกันตก → รอ raycast เจอพื้น → ค่อย fade กลับ (timeout 6s) · server `TeleportTo` เรียก `RequestStreamingAround` สั่ง preload จุดปลายทาง (มีเฉพาะ live Roblox — Studio เก่าไม่มี pcall กันไว้) · **teleport ใหม่ให้ผ่าน pattern นี้ อย่าวาปแล้วเผยจอทันที**
+- ⚠️ **CutsceneCams ต้อง Persistent (StreamingEnabled เปิดอยู่)** — cam มักวางไกลจุดที่ player ยืนตอนเล่น cutscene → streaming ตัด Part ออกจาก client → `CutscenePlayer` (รัน client) หา cam ไม่เจอ กล้องค้าง (เจอจริง 2 ส.ค.) · **fix:** cam ต้องอยู่ใน `Model` ที่ `ModelStreamingMode = Persistent` · **CutsceneCamTool ทำให้อัตโนมัติ** (Model ต่อ cutscene = `CutsceneCams/<Scene>/`) — วางด้วย plugin ก็ปลอดภัยเลย ไม่ต้องห่อเอง
 
 ชื่อพิเศษเพิ่มเติม (ระบบใหม่):
 ```

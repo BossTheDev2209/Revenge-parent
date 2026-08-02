@@ -66,18 +66,19 @@ map easing (style คง `Quad`):
 คุย NPC ซ้ำในเฟสเดิมไม่เล่นบทเต็มซ้ำ เล่นบทสั้นแทน (Undertale-style) — เหตุผล feel/immersion ล้วน
 (**หมายเหตุ:** `tone` ไม่ผูก mental — ล็อก 28 ก.ค. dialogue.md §tone — ไม่มี exploit ให้กัน)
 
-### content — ตารางเสริม `repeat` (optional)
+### content — ตารางเสริม `again` (optional)
+(ชื่อ field ต้อง `again` ไม่ใช่ `repeat` — `repeat` เป็น keyword Lua parse ไม่ผ่าน)
 ```lua
-repeat = {
+again = {
   { speaker = "แม่", text = "บอกไปแล้วไง ไปทำงานได้แล้ว" },
 }
 ```
-ไม่เขียน `repeat` = คุยซ้ำเล่นบทเต็มเหมือนเดิม (ไม่ regress)
+ไม่เขียน `again` = คุยซ้ำเล่นบทเต็มเหมือนเดิม (ไม่ regress)
 
 ### pickLines (src/client/InteractBinder.luau) — เพิ่ม param `seen`
 ```
 InteractBinder.pickLines(mod, state, seen)
-  seen == true และ mod.repeat → return mod.repeat
+  seen == true และ mod.again → return mod.again
   ไม่งั้น → เลือกตามเฟส/after เหมือนเดิม
 ```
 
@@ -97,8 +98,8 @@ InteractBinder.pickLines(mod, state, seen)
 
 ### test (tests/RunTests.luau)
 pickLines pure:
-- seen=true + มี `repeat` → ได้ `repeat`
-- seen=true + ไม่มี `repeat` → ได้บทเฟส (fallback)
+- seen=true + มี `again` → ได้ `again`
+- seen=true + ไม่มี `again` → ได้บทเฟส (fallback)
 - seen=false → ได้บทเฟสเสมอ
 
 ---

@@ -162,6 +162,10 @@ ActionRouter.register("TeleportTo", function(s, a, player)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if part and part:IsA("BasePart") and root then
 		root.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+		-- สั่ง stream แมพรอบจุดปลายทางเข้ามาก่อน (client รอจอดำจนโหลดเสร็จ — waitStreamedAround)
+		if player then
+			pcall(function() player:RequestStreamingAround(part.Position) end)
+		end
 	elseif not part then
 		warn("[Main.server] TeleportTo: ไม่เจอ Part", tostring(a.target))
 	end
@@ -170,6 +174,14 @@ ActionRouter.register("NewGame", function(s, a)
 	local fresh = GameState.newGame()
 	fresh.slot = tonumber(a.slot) or 1
 	GameState.replaceWith(s, fresh)
+	-- freeze เวลาที่ server ทันที (กัน lighting เพี้ยน/ข้ามวันตอนเล่น intro) — client unfreeze หลัง intro จบ
+	TimeService.setFrozen(true)
+end)
+-- คุย NPC จบบทเต็ม → จำเฟสไว้ (คุยซ้ำเฟสเดิมเล่นบท repeat) persist ในเซฟ
+ActionRouter.register("DialogueSeen", function(s, a)
+	if type(a.name) == "string" then
+		s.seenDialogue[a.name] = s.phase
+	end
 end)
 ActionRouter.register("EventSeen", function(s, a)
 	for i, id in s.pendingEvents do
@@ -180,10 +192,18 @@ ActionRouter.register("EventSeen", function(s, a)
 	end
 end)
 
+-- lighting ผูกกับนาฬิกาเกม (แทน Toolbox DayNight เดิมที่เดินแยก ไม่สน freeze) — freeze เวลา = ฟ้าหยุด
+-- ClockTime = ชั่วโมงเกมตรงๆ (0-23) · เรียกทุกจุดที่ timeOfDay เปลี่ยน (action/onHour/boot)
+local Lighting = game:GetService("Lighting")
+local function syncLighting(s)
+	Lighting.ClockTime = s.timeOfDay
+end
+
 -- client action ทุกอันวิ่งผ่านเส้นนี้เส้นเดียว
 RS.Shared.Remotes.Action.OnServerEvent:Connect(function(player, action)
 	if ActionRouter.route(state, action, player) then
 		ToolService.sync(player, state) -- อัปกล้อง/ข้ามเฟส/วางโน้ตบุ๊ค = Tool ในมือเปลี่ยนทันที
+		syncLighting(state) -- NewGame/LoadSlot/Sleep เปลี่ยน timeOfDay = ฟ้าตรงทันที
 		GameState.push(state)
 	end
 end)
@@ -212,6 +232,7 @@ end)
 -- นาฬิกาเกม: เดินตลอด, ทุกชั่วโมง mental drain + push (client เห็นนาฬิกา/หลอดใจขยับ)
 TimeService.onHour(function(s)
 	MentalService.onHour(s)
+	syncLighting(s)
 	GameState.push(s)
 end)
 -- ทุกวันใหม่: ครบ 7 วันหักรายจ่าย — จ่ายไม่ไหวหัก mental ต่อ + block ปฏิทิน + เช็คจบเกม
@@ -246,6 +267,7 @@ TimeService.onDay(function(s)
 	checkEnding(s)
 end)
 TimeService.start(state)
+syncLighting(state) -- ตั้งฟ้าให้ตรงเวลาเริ่ม (ไม่งั้นค้างค่า default จนชั่วโมงแรก)
 
 -- โซนถ่ายย้ายจุดเอง (กัน AFK จุดเดิม) — เช็คทุก 2 วิ ย้ายจริงเมื่อครบ 120 วิ
 task.spawn(function()

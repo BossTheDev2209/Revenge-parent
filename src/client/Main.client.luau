@@ -34,6 +34,31 @@ end
 Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเดิน
 RecordTool.init(Players.LocalPlayer, fireAction, function() return latestState end) -- Tool อัดคลิป + วงโซน
 
+-- รอให้แมพรอบจุดวาปใหม่ stream โหลดเข้า client ก่อน (StreamingEnabled ทำให้แมพไกลยังไม่โหลดตอนวาปถึง)
+-- ใช้ตอนจอดำระหว่าง transition · anchor ตัวกันตกทะลุพื้นระหว่างรอ · มีพื้นข้างล่าง = โหลดแล้ว · timeout กันค้าง
+local function waitStreamedAround(timeout)
+	local char = Players.LocalPlayer.Character
+	local lockRoot = char and char:FindFirstChild("HumanoidRootPart")
+	local wasAnchored = lockRoot and lockRoot.Anchored or false
+	if lockRoot then lockRoot.Anchored = true end -- กันตกทะลุพื้นก่อนแมพโหลด (server ยัง set CFrame วาปได้อยู่)
+	task.wait(0.3) -- รอ teleport ของ server replicate ถึง client ก่อน (ไม่งั้น raycast เจอพื้นจุดเดิม)
+	local t0, done = os.clock(), false
+	repeat
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			local rp = RaycastParams.new()
+			rp.FilterType = Enum.RaycastFilterType.Exclude
+			rp.FilterDescendantsInstances = { char }
+			if workspace:Raycast(root.Position + Vector3.new(0, 5, 0), Vector3.new(0, -80, 0), rp) then
+				done = true -- มีพื้นข้างล่าง = แมพโหลดแล้ว
+			end
+		end
+		if not done then task.wait(0.1) end
+	until done or os.clock() - t0 > (timeout or 6)
+	if lockRoot and lockRoot.Parent then lockRoot.Anchored = wasAnchored end
+	return done
+end
+
 -- ฉากเปิดเกม (cutscene mode 1) เล่นหลังกด New Game → จบต่อ transition วาปเข้าห้องเฟส 1
 local function playOpening()
 	local Opening = require(Content.Cutscenes.Opening)
@@ -41,14 +66,16 @@ local function playOpening()
 	CutscenePlayer.play(playerGui, Opening, function()
 		ScreenTransition.play({
 			onBlack = function()
+				local char = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+				local root = char:FindFirstChild("HumanoidRootPart")
 				-- วาปที่ server (StreamingEnabled อาจ stream Spawn_Phase1 ออกจาก client)
 				fireAction({ type = "TeleportTo", target = "Spawn_Phase1" })
 				-- คืนกล้องให้ player ตอนจอดำ — เมนูข้ามขั้นนี้ให้ new game และ CutscenePlayer
 				-- คืนเป็น savedType ซึ่งตอนนั้นยังเป็น Scriptable (เมนูตั้งไว้) กล้องเลยค้าง
-				local char = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
 				local cam = workspace.CurrentCamera
-				cam.CameraSubject = char:FindFirstChildOfClass("Humanoid") or char:FindFirstChild("HumanoidRootPart")
+				cam.CameraSubject = char:FindFirstChildOfClass("Humanoid") or root
 				cam.CameraType = Enum.CameraType.Custom
+				waitStreamedAround(6) -- รอแมพเฟส 1 โหลดก่อน fade กลับ (กันเห็นห้องโล่ง)
 			end,
 			onDone = function()
 				fireAction({ type = "FreezeTime", on = false })
@@ -68,6 +95,27 @@ local function playOpening()
 end
 
 HUD.init(playerGui)
+
+-- ซ่อน backpack/hotbar เวลามีหน้าต่างเต็มจอบัง (cutscene/บทคุย/เมนู/คอม/ร้าน/ตัดคลิป/เตียง)
+-- ที่เดียวคุมรวม: เฝ้า ScreenGui ชื่อพวกนี้โผล่/หายใต้ playerGui แล้ว toggle CoreGui.Backpack
+local StarterGui = game:GetService("StarterGui")
+local MODAL_GUIS = {
+	Gui_Cutscene = true, Gui_Dialogue = true, Gui_MainMenu = true,
+	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PCExit = true,
+}
+local function refreshBackpack()
+	local anyOpen = false
+	for _, g in playerGui:GetChildren() do
+		if MODAL_GUIS[g.Name] and (not g:IsA("ScreenGui") or g.Enabled) then
+			anyOpen = true
+			break
+		end
+	end
+	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, not anyOpen)
+end
+playerGui.ChildAdded:Connect(refreshBackpack)
+playerGui.ChildRemoved:Connect(refreshBackpack)
+
 -- เกมเริ่มที่เมนู (freeze จนกดเล่น) · onNewGame = เล่น intro หลังเริ่มเกมใหม่
 MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening })
 
@@ -123,8 +171,11 @@ local function startDialogue(dialogueName, interactPart)
 		warn("[Main.client] ไม่มีบท:", dialogueName)
 		return
 	end
-	-- บทเปลี่ยนตามเฟส + หลังทรยศ (docs/02 §9.4)
-	local lines = InteractBinder.pickLines(require(mod), latestState)
+	-- เคยคุยจบบทเต็มในเฟสนี้แล้ว → เล่นบท repeat (docs/02 §9.4)
+	local seen = latestState and latestState.seenDialogue
+		and latestState.seenDialogue[dialogueName] == latestState.phase
+	-- บทเปลี่ยนตามเฟส + หลังทรยศ + คุยซ้ำ
+	local lines = InteractBinder.pickLines(require(mod), latestState, seen)
 	if not lines then
 		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
 		return
@@ -137,12 +188,15 @@ local function startDialogue(dialogueName, interactPart)
 	DialogueUI.show(playerGui, lines, function()
 		if head then CameraFocus.release() end
 		fireAction({ type = "FreezeTime", on = false })
+		-- คุยจบบทเต็มครั้งแรกของเฟสนี้ → จำไว้ (คุยซ้ำจะได้บท repeat) · seen แล้วไม่ต้องยิงซ้ำ
+		if not seen then fireAction({ type = "DialogueSeen", name = dialogueName }) end
 	end, dialogueName)
 end
 
 -- state มาใหม่ทุกครั้ง: HUD + PC + menu + canon event + ending
 local endingPlayed = false
 local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
+local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
 	HUD.update(state)
@@ -176,6 +230,31 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		else
 			fireAction({ type = "EventSeen", id = eventId })
 		end
+	end
+
+	-- ข้ามเฟส: follower ทะลุ gate → state.phase เพิ่ม → จอดำ + วาปเข้าแมพเฟสใหม่ (reuse ScreenTransition)
+	-- รอบท milestone (pendingEvents) + ฉากอื่นให้จบก่อนค่อยย้ายที่ · ไม่ย้อนเฟส (ไม่วาปตอน phase ลด)
+	if not phasePrimed then
+		prevPhase, phasePrimed = state.phase, true
+	elseif state.phase < prevPhase then
+		prevPhase = state.phase -- New Game / โหลดเซฟเฟสต่ำกว่า: sync เฉยๆ ไม่วาป
+	elseif state.phase > prevPhase and not state.flags.ending
+		and #state.pendingEvents == 0
+		and not DialogueUI.running and not CutscenePlayer.running and not ScreenTransition.running then
+		prevPhase = state.phase
+		local PhaseText = require(Content.Cutscenes.PhaseTransitions)
+		local target = "Spawn_Phase" .. state.phase
+		fireAction({ type = "FreezeTime", on = true })
+		ScreenTransition.play({
+			lines = PhaseText[state.phase],
+			onBlack = function()
+				fireAction({ type = "TeleportTo", target = target })
+				waitStreamedAround(6) -- รอแมพเฟสใหม่โหลดก่อน fade กลับ
+			end,
+			onDone = function()
+				fireAction({ type = "FreezeTime", on = false })
+			end,
+		})
 	end
 
 	-- จบเกม → เล่น cutscene ending (ครั้งเดียว) — รอ canon event ค้างให้จบก่อน (เช่น BCA หลัง 1M)

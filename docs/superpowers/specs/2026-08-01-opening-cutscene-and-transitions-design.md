@@ -99,7 +99,7 @@ ScreenTransition.play({
 ## Component 4 — reuse ทีหลัง (ไม่อยู่ใน plan นี้)
 
 ScreenTransition ออกแบบทั่วไปพอให้ Boss/agent เอาไป reuse เองกับ:
-- **เปลี่ยนเฟส:** server เห็น `state.phase` เพิ่ม → คิว event → client `ScreenTransition.play(onBlack = teleport spawn เฟสใหม่)`
+- **เปลี่ยนเฟส:** ✅ ทำแล้ว 2 ส.ค. 2569 — `Main.client` เห็น `state.phase` เพิ่ม (client-side detect แบบเดียวกับ prevClips) → `ScreenTransition.play(onBlack = TeleportTo Spawn_PhaseN)` · ข้อความต่อเฟสอยู่ `Content.Cutscenes.PhaseTransitions` (Boss เติม) · ไม่เพิ่ม remote/server queue (ไม่จำเป็น)
 - **ending / ฉากรับรางวัล BCA:** เรียก `ScreenTransition.play` คั่นก่อน/หลัง cutscene
 - teleport target ต่อเฟส: convention `Spawn_PhaseN` (ออกแบบตอนทำ follow-up)
 

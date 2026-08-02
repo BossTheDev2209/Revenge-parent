@@ -53,23 +53,37 @@ return {
 ### ติดตั้ง plugin (ครั้งเดียวต่อเครื่อง)
 
 copy `tools/CutsceneCamTool.plugin.luau` ไปที่ `%LOCALAPPDATA%\Roblox\Plugins\CutsceneCamTool.lua` แล้วเปิด Studio ใหม่
-จะได้ toolbar **Cutscene Cams** 4 ปุ่ม
+จะได้ toolbar **Cutscene Cams** 5 ปุ่ม + panel
+
+⚠️ **plugin ที่ติดตั้งเป็นสำเนา** — แก้ไฟล์ `tools/CutsceneCamTool.plugin.luau` แล้วต้อง **copy ทับใน `%LOCALAPPDATA%\Roblox\Plugins\` + restart Studio** ทุกครั้ง ไม่งั้นยังรันตัวเก่า
+
+**Cam Panel** = property editor ของกล้อง:
+- ช่อง **Cutscene** — ชื่อกลุ่มที่ Place ลง · กล้องลง Model `CutsceneCams/<ชื่อ>/` ชื่อ `<ชื่อ>_01`, `_02`... เลขรันเอง · Model set `ModelStreamingMode=Persistent` ให้ (client เห็นเสมอ)
+- **เลือก Part กล้อง** → panel โชว์ **Ease** (dropdown) / **TweenTime** / **FOV** ของ Part นั้น · แก้ = เขียนลง**ทุก Part ที่เลือกพร้อมกัน** (เหมือน Properties ของ Studio) · เลือกหลายตัวค่าต่างกัน = โชว์ `—`
+- ไม่เลือกอะไร = ค่าในช่อง = default ของ Part ที่จะ Place ถัดไป
 
 | ปุ่ม | ทำอะไร |
 |---|---|
-| **Place Cam** | เลื่อนมุมมอง Studio ให้ได้ช็อตที่ชอบ แล้วกด → ได้ Part กล้องหันถูกทางอัตโนมัติ + จำ FOV ไว้ใน attribute |
+| **Cam Panel** | เปิด/ปิด property panel |
+| **Place Cam** | เลื่อนมุมมอง Studio ให้ได้ช็อตที่ชอบ แล้วกด → Part กล้องหันถูกทาง + ใส่ FOV/Ease/TweenTime ตาม panel · ลงกลุ่มตามช่อง Cutscene ตั้งชื่อให้เลย |
 | **Aim Cam** | เลือก Part เดิม + เลื่อนมุมมองให้สวยกว่าเดิม แล้วกด → อัปเดตช็อตนั้น |
 | **Look Thru** | เลือก Part แล้วกด → มุมมอง Studio กระโดดไปยืนตรงนั้น = **เห็นภาพจริงที่ player จะเห็น** |
-| **Tour** | เลือกหลาย Part แล้วกด → ไล่กล้องผ่านทีละตัวตามลำดับชื่อ = พรีวิวทั้งฉากก่อนเขียนบท (กดซ้ำ = หยุด) |
+| **Tour** | เลือกหลาย Part แล้วกด → ไล่กล้องผ่านทีละตัวตามลำดับชื่อ ใช้ Ease/TweenTime จริง = พรีวิวทั้งฉาก (กดซ้ำ = หยุด) |
 
-Part ที่ plugin สร้างเป็น `Cam_01`, `Cam_02`... → **เปลี่ยนชื่อเป็น `Cam_<ending>_<เลข>`** เช่น `Cam_Good1_01` แล้วอ้างชื่อในบท
-(ทำมือก็ได้: Part เล็กๆ Anchored ✓ Transparency 1 CanCollide ✗ หัน Front ไปทางที่อยากให้มอง — แต่เสียเวลากว่าเยอะ)
+(ทำมือก็ได้: Part เล็กๆ Anchored ✓ Transparency 1 CanCollide ✗ หัน Front ไปทางที่อยากให้มอง อยู่ใน Model Persistent — แต่เสียเวลากว่าเยอะ)
 
-### FOV และการเลื่อนกล้อง
+### FOV / easing / การเลื่อนกล้อง
 
 - attribute **`FOV`** บน Part (plugin ใส่ให้เอง) → ตอนเล่นจริงกล้องใช้ค่านี้ ไม่มี = ใช้ค่าเดิมของ player
-- ใส่ `t` ใน step camera = เลื่อนกล้องนุ่มๆ กี่วินาที เช่น `{ type="camera", cam="Cam_Good1_02", t=3 }`
+- attribute **`Ease`** = `InOut` / `In` / `Out` / `Linear` / `Cut` + **`TweenTime`** (วินาที) บน Part — plugin ปุ่ม **Ease** วนค่าให้ (เลือก Part อยู่ = set ให้เลย)
+  ตอนเล่น step `{ type="camera", cam="..." }` อ่าน 2 ค่านี้เอง — **ไม่ต้องใส่ `t` ในบท** · `Cut` หรือ TweenTime 0 = ตัดภาพทันที · `Linear` = เลื่อนเร็วคงที่ (In/Out/InOut = Quad นุ่มหัว/ท้าย)
+- override ในโค้ดได้: `{ type="camera", cam="...", t=3, ease="In" }` (step ทับ attribute)
   **ไม่หยุดรอ** — บทเดินต่อทันที (ให้ข้อความขึ้นระหว่างกล้องเลื่อนได้) อยากรอให้ใส่ `{type="wait", t=3}` ต่อท้าย
+
+**step `text` คุมเวลาได้ 2 ทาง:**
+- ใส่ `t` ในตัว text เลย: `{ type="text", text="...", t=3 }` = โชว์ค้าง 3 วิ แล้วไปต่อ
+- หรือปล่อย text ไม่มี `t` (ไม่รอ) แล้วต่อ `{ type="wait", t=... }` เอง
+subtitle ค้างจนสั่ง `text` ใหม่/จบฉากเสมอ · ไม่ใส่ `t` ทั้งสองที่ = เด้ง step ถัดไปทันที
 
 **ข้อจำกัดที่ต้องคิดตอนเขียนบท:** กล้องมองได้เฉพาะของที่**มีอยู่จริงในแมพ** — อยากได้ฉาก "บ้านพ่อแม่" ต้องมีห้องนั้นก่อน เขียนฉากจบให้เกิดในที่ที่มีอยู่แล้ว (ข้างถนน/ห้องเช่า/บ้าน) จะรอดกว่า
 
@@ -115,11 +129,10 @@ Part ที่ plugin สร้างเป็น `Cam_01`, `Cam_02`... → **�
 **trigger:** กด New Game → เล่น Opening → จบต่อ **transition วาปเข้าห้องเฟส 1** อัตโนมัติ (โค้ด Main.client — ไม่ต้องแตะ)
 
 **ที่ต้องเตรียมในแมพ:**
-1. โฟลเดอร์ `Workspace.CutsceneCams/Opening/` วาง Cam ด้วย plugin แล้วลากเข้าโฟลเดอร์นี้ · **ชื่อ Cam ต้อง unique ทั้งไฟล์** เช่น `Opening_1`, `Opening_2` (เพราะ engine หา Cam แบบ recursive — ชื่อซ้ำข้าม scene = เจอผิดตัว)
+1. พิมพ์ `Opening` ในช่อง Cutscene ของ panel แล้วกด Place Cam → ได้ Model `CutsceneCams/Opening/` (Persistent) พร้อม Part `Opening_01`, `Opening_02`... ชื่อ unique + streaming-safe ให้เอง อ้างชื่อนี้ในบท
 2. Part ชื่อ **`Spawn_Phase1`** ในห้องเฟส 1 = จุดที่ player โผล่หลัง intro (ไม่มี = warn + ไม่วาป ไม่ crash)
 
 ⚠️ **ชื่อต้องเป๊ะ ห้ามมีเว้นวรรคท้าย** — `"Spawn_Phase1 "` หาไม่เจอ (โค้ดไม่เดา ไม่ trim ให้)
-⚠️ **plugin ตั้งชื่อ Cam ให้เป็น `Cam_01`** — ต้องเปลี่ยนเป็น `Opening_1` เองให้ตรงกับที่อ้างในบท
 
 **ลำดับที่โค้ดทำให้ (ไม่ต้องแตะ):** เมนูส่งต่อกล้องให้ cutscene ใต้ผ้าขาว (ไม่เห็นแวบ baseplate) → เล่น Opening → จอดำ → วาป + คืนกล้องให้ player → fade กลับ + เปิด HUD
 - **วาปทำที่ server** (`TeleportTo` action) เพราะ StreamingEnabled อาจ stream `Spawn_Phase1` ออกจาก client → client หา Part ไม่เจอ
@@ -146,4 +159,14 @@ ScreenTransition.play({
 })
 ```
 
-reuse ได้ทุกที่: intro (โค้ดทำให้แล้ว), เปลี่ยนเฟส, ending, ฉากรับรางวัล BCA — เรียก `ScreenTransition.play` เอง
+reuse ได้ทุกที่: intro (โค้ดทำให้แล้ว), เปลี่ยนเฟส (โค้ดทำให้แล้ว), ending, ฉากรับรางวัล BCA — เรียก `ScreenTransition.play` เอง
+
+### ข้ามเฟส — ต่อสายอัตโนมัติแล้ว (เพิ่ม 2 ส.ค. 2569)
+
+follower ทะลุ gate (10K → เฟส 2, 100K → เฟส 3) → `Main.client` เห็น `state.phase` เพิ่ม → จอดำ + วาปเข้าแมพเฟสใหม่เอง **ไม่ต้องแตะโค้ด**
+
+**ที่ต้องเตรียมในแมพ:** Part ชื่อ **`Spawn_Phase2`** และ **`Spawn_Phase3`** = จุดที่ player โผล่ในแมพเฟสนั้น (เหมือน `Spawn_Phase1`) · ไม่มี = warn + ไม่วาป ไม่ crash
+
+**ข้อความบนจอดำต่อเฟส:** `Content.Cutscenes.PhaseTransitions` — `{ [2] = {บรรทัด...}, [3] = {บรรทัด...} }` · Boss เติมบทเอง · ว่าง = จอดำเฉยๆ แล้ววาป
+
+**ลำดับที่โค้ดทำให้:** รอบท milestone (เช่น "ทะลุ 10K") เล่นจบก่อน → หยุดเวลา → จอดำ → วาป `Spawn_PhaseN` → fade กลับ + เดินเวลาต่อ · ไม่ย้อนเฟส (phase ลดจากโหลดเซฟ/New Game = ไม่วาป)

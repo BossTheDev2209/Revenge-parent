@@ -20,11 +20,22 @@ local AnimPlayer = if isStudio
 local CutscenePlayer = {}
 CutscenePlayer.running = false
 
+-- easing ต่อกล้อง: attribute Ease บน Part (ตั้งด้วย CutsceneCamTool) หรือ field ease ใน step
+-- "Cut" = ตัดภาพทันที (ไม่ tween จัดการที่ t=0) · แต่ละแบบเก็บ {style, direction}
+local EASE = {
+	In = { Enum.EasingStyle.Quad, Enum.EasingDirection.In },
+	Out = { Enum.EasingStyle.Quad, Enum.EasingDirection.Out },
+	InOut = { Enum.EasingStyle.Quad, Enum.EasingDirection.InOut },
+	Linear = { Enum.EasingStyle.Linear, Enum.EasingDirection.InOut },
+}
+
 local VALID = {
-	text = function(s) return type(s.text) == "string" end,
+	-- t = ค้าง text กี่วิ ก่อนไป step ถัดไป (ไม่ใส่ = ไม่รอ ค้างจนสั่ง text ใหม่/wait เอง)
+	text = function(s) return type(s.text) == "string" and (s.t == nil or type(s.t) == "number") end,
 	wait = function(s) return type(s.t) == "number" end,
 	camera = function(s)
 		if s.t ~= nil and type(s.t) ~= "number" then return false end
+		if s.ease ~= nil and not EASE[s.ease] and s.ease ~= "Cut" then return false end
 		if type(s.cam) == "string" then return true end
 		return type(s.pos) == "table" and #s.pos == 3 and type(s.look) == "table" and #s.look == 3
 	end,
@@ -60,6 +71,17 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	end
 	CutscenePlayer.running = true
 	Audio.lockBGM(true) -- โซนหยุดสั่งเพลงระหว่าง cutscene
+	-- หยุดนาฬิกาเกมตลอด cutscene — การันตีทุก trigger ไม่พึ่ง caller · caller เป็นคน unfreeze ตอนจบ/ต่อ transition
+	game:GetService("ReplicatedStorage").Shared.Remotes.Action:FireServer({ type = "FreezeTime", on = true })
+
+	-- ล็อกไม่ให้ player เดินระหว่าง cutscene — จำค่าเดิมไว้คืนตอนจบ
+	local char = game:GetService("Players").LocalPlayer.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local savedWalk, savedJump
+	if hum then
+		savedWalk, savedJump = hum.WalkSpeed, hum.JumpPower
+		hum.WalkSpeed, hum.JumpPower = 0, 0
+	end
 
 	local camera = workspace.CurrentCamera
 	local savedType = camera.CameraType
@@ -67,13 +89,13 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	local TweenService = game:GetService("TweenService")
 
 	-- ย้ายกล้องไป cf (+fov ถ้ามี) — t>0 = เลื่อนนุ่มๆ, ไม่รอให้จบ บทเดินต่อได้
-	local function moveCam(cf: CFrame, fov: number?, t: number?)
+	local function moveCam(cf: CFrame, fov: number?, t: number?, style: Enum.EasingStyle?, dir: Enum.EasingDirection?)
 		camera.CameraType = Enum.CameraType.Scriptable
 		local goalFov = fov or savedFov
 		if t and t > 0 then
 			TweenService:Create(
 				camera,
-				TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+				TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.InOut),
 				{ CFrame = cf, FieldOfView = goalFov }
 			):Play()
 		else
@@ -85,6 +107,8 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_Cutscene"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true -- ให้แถบหนังคลุมเต็มจอ (ไม่โดน topbar inset ดันลง)
+	gui.DisplayOrder = 10
 	local bar1 = Instance.new("Frame") -- แถบหนังบน-ล่าง
 	bar1.Size = UDim2.new(1, 0, 0.12, 0)
 	bar1.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -122,8 +146,9 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 				movedActors[step.actor] = true
 			elseif step.type == "text" then
 				label.Visible = true
-				label.Text = step.text:gsub("%[%a+%]", "") -- tag ความเร็วยังไม่ใช้ใน cutscene
-				task.wait(math.max(1.5, #step.text * 0.03))
+				label.Text = step.text:gsub("%[%a+%]", "")
+					if step.t then task.wait(step.t) end -- text step: ใส่ t = ค้างกี่วิก่อนไปต่อ (ไม่ใส่=ไม่รอ) -- tag ความเร็วยังไม่ใช้ใน cutscene
+				-- subtitle ค้างจนสั่ง text ใหม่ — ไม่กินเวลาเอง author ใส่ wait ต่อท้ายคุมเวลา
 			elseif step.type == "wait" then
 				task.wait(step.t)
 			elseif step.type == "bgm" then
@@ -136,20 +161,29 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 					local part = folder and folder:FindFirstChild(step.cam, true)
 						or workspace:FindFirstChild(step.cam, true)
 					if part and part:IsA("BasePart") then
+						-- easing/เวลา: step ทับ attribute ทับ default · "Cut"/t=0 = ตัดภาพทันที
+						local ease = step.ease or part:GetAttribute("Ease") or "InOut"
+						local t = step.t or part:GetAttribute("TweenTime") or 0
+						if ease == "Cut" then t = 0 end
+						local e = EASE[ease]
 						-- ด้าน Front ของ Part = ทิศกล้อง (LookVector) ตรงกันพอดี ไม่ต้องแปลงอะไร
-						moveCam(part.CFrame, part:GetAttribute("FOV"), step.t)
+						moveCam(part.CFrame, part:GetAttribute("FOV"), t, e and e[1], e and e[2])
 					else
 						warn("[CutscenePlayer] ไม่เจอ Part กล้อง:", step.cam)
 					end
 				else
+					local ease = step.ease or "InOut"
+					local t = if ease == "Cut" then 0 else step.t
+					local e = EASE[ease]
 					moveCam(CFrame.lookAt(
 						Vector3.new(step.pos[1], step.pos[2], step.pos[3]),
 						Vector3.new(step.look[1], step.look[2], step.look[3])
-					), nil, step.t)
+					), nil, t, e and e[1], e and e[2])
 				end
 			end
 		end
 		for actor in movedActors do AnimPlayer.stop(actor) end
+		if hum and hum.Parent then hum.WalkSpeed, hum.JumpPower = savedWalk, savedJump end
 		camera.CameraType = savedType
 		camera.FieldOfView = savedFov
 		gui:Destroy()

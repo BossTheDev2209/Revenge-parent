@@ -53,9 +53,11 @@ local NPC_DIALOGUE = {
 
 -- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด
 -- ไฟล์เก่าที่เป็น list ของ string ตรงๆ (ไม่มี key เฟส) ใช้ได้เหมือนเดิม
-function InteractBinder.pickLines(mod, state)
+-- seen = เคยคุยจบบทเต็มในเฟสนี้แล้ว → เล่นบท repeat (ถ้ามี) กันเล่นบทเดิมซ้ำ
+function InteractBinder.pickLines(mod, state, seen)
 	if type(mod) ~= "table" then return nil end
 	if type(mod[1]) == "string" then return mod end -- format เก่า
+	if seen and mod.again then return mod.again end
 	if state and state.flags and state.flags.betrayed and mod.after then return mod.after end
 	local phase = state and state.phase or 1
 	for p = phase, 1, -1 do

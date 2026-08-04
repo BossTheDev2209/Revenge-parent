@@ -151,6 +151,8 @@ local function freezeCharacter(player, on: boolean)
 	if not char then return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
+		-- MoveLocked = บอก script อื่นที่แตะ WalkSpeed (SprintHandler) ว่าอย่ายุ่งตอนล็อก
+		hum:SetAttribute("MoveLocked", on or nil)
 		hum.WalkSpeed = on and 0 or 16
 		hum.JumpPower = on and 0 or 50
 	end
@@ -463,6 +465,7 @@ function MenuUI.open(playerGui, deps)
 	local back = textButton(gui, "◀ ย้อนกลับ", UDim2.new(0, 40, 1, -80), UDim2.new(0, 200, 0, 52),
 		Color3.fromRGB(60, 60, 80))
 	back.Name = "Btn_Back"
+	back:SetAttribute("Sfx", "ui_back") -- เสียงย้อนกลับ คนละตัวกับกดเข้า (ตัวผูกกลางใน Main.client เล่นให้)
 	back.Visible = false
 
 	gui.Parent = playerGui

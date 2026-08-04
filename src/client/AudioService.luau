@@ -6,7 +6,7 @@
 --     BGM/       เพลงพื้นหลัง (ตั้ง Looped = true)   เช่น Street, Apartment, House, Menu
 --     Ambient/   เสียงบรรยากาศซ้อนเพลง (Looped)      เช่น rain, city, room_tone
 --     Voice/     blip ตอนพิมพ์บท 1 ตัวอักษร (สั้นมาก) เช่น Default, Friend1, CC1, Hater
---     SFX/       เสียงสั้นครั้งเดียว                    เช่น ui_click, upload_done, viral, footstep
+--     SFX/       เสียงสั้นครั้งเดียว                    เช่น ui_click, upload_done, viral
 --
 -- โซนเพลง: Part ชื่อ `Zone_<อะไรก็ได้>` + Attribute `Music` = ชื่อใน BGM
 --          (ใส่ `Ambient` = ชื่อใน Ambient / `Priority` = number ก็ได้ ทับซ้อนกันเอาเลขมากกว่า)
@@ -194,20 +194,7 @@ local function updateZone(root)
 	AudioService.ambient(z and z.ambient or nil)
 end
 
--- ===== เสียงเดิน =====
-local stepAccum = 0
-local function updateFootstep(root, humanoid, dt)
-	if not root or not humanoid then return end
-	if humanoid.MoveDirection.Magnitude < 0.1 or humanoid.FloorMaterial == Enum.Material.Air then
-		stepAccum = Config.Audio.footstepInterval -- หยุดแล้วก้าวถัดไปดังทันที
-		return
-	end
-	stepAccum += dt * (root.AssemblyLinearVelocity.Magnitude / 16) -- เร็วขึ้น = ถี่ขึ้น
-	if stepAccum >= Config.Audio.footstepInterval then
-		stepAccum = 0
-		AudioService.sfx("footstep", Config.Audio.footstepPitchVary)
-	end
-end
+-- เสียงเดิน: ใช้ footstep script แบบ material-based (ServerScriptService) แทน — ถอดของเดิมออกแล้ว
 
 -- เรียกครั้งเดียวจาก Main.client
 function AudioService.init(player)
@@ -220,8 +207,6 @@ function AudioService.init(player)
 	game:GetService("RunService").Heartbeat:Connect(function(dt)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		updateFootstep(root, hum, dt)
 		accum += dt
 		if accum >= Config.Audio.zoneCheckInterval then
 			accum = 0

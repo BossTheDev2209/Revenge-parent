@@ -33,6 +33,33 @@ DialogueUI.running = false
 
 local TONES = { plus = true, neutral = true, minus = true }
 
+-- ฟอนต์เดียวกับเมนู (Mali มี glyph ไทยครบ) — isStudio guard เพราะ lune ไม่มี Font
+local DIALOGUE_FONT = if isStudio then Font.fromName("Mali", Enum.FontWeight.Medium) else nil
+
+-- ===== pure =====
+
+-- ใส่ดอกจันนำหน้าประโยคแบบ Undertale — ต้นข้อความ 1 ตัว และหลังขึ้นบรรทัดใหม่ทุกครั้ง
+-- (`\n` ที่คนเขียนบทใส่เอง = ประโยคใหม่ · การตัดบรรทัดอัตโนมัติเพราะยาวเกิน ไม่นับ ไม่ได้ดอกจัน)
+function DialogueUI.bullet(text: string): string
+	if text == "" then return text end
+	return "* " .. (text:gsub("\n", "\n* "))
+end
+
+-- โฟลเดอร์รูปหน้าตัวละคร: ReplicatedStorage.Portraits/<ชื่อบท>[/<อารมณ์>]
+-- รับได้ทั้ง Decal (.Texture) · StringValue (.Value = rbxassetid://...) · ImageLabel (.Image)
+-- ไม่เจอ = คืน nil (กล่องซ่อนรูป ข้อความกินเต็ม)
+function DialogueUI.findPortrait(actor: string?, emotion: string?): string?
+	if not isStudio or not actor or actor == "" then return nil end
+	local root = game:GetService("ReplicatedStorage"):FindFirstChild("Portraits")
+	local byActor = root and root:FindFirstChild(actor)
+	if not byActor then return nil end
+	local node = (emotion and byActor:FindFirstChild(emotion)) or byActor
+	if node:IsA("Decal") and node.Texture ~= "" then return node.Texture end
+	if node:IsA("ImageLabel") and node.Image ~= "" then return node.Image end
+	if node:IsA("StringValue") and node.Value ~= "" then return node.Value end
+	return nil
+end
+
 -- "[slow]ก[fast]ข" → { {speed="slow",text="ก"}, {speed="fast",text="ข"} } — เริ่มต้น normal
 function DialogueUI.parseTags(line: string)
 	local segs = {}
@@ -122,34 +149,80 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	gui.Name = "Gui_Dialogue"
 	gui.ResetOnSpawn = false
 
+	local B = Config.Dialogue.box
+
+	-- กล่องขนาดคงที่ ยึดกลางล่างจอ (Undertale ref) — ข้อความยาวขึ้นตัดบรรทัด ไม่ยืดกล่อง ไม่ย่อฟอนต์
 	local box = Instance.new("TextButton") -- ทั้งกล่องคือปุ่ม continue
-	box.Size = UDim2.new(0.8, 0, 0.22, 0)
-	box.Position = UDim2.new(0.1, 0, 0.72, 0)
-	box.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-	box.BackgroundTransparency = 0.1
-	box.TextColor3 = Color3.new(1, 1, 1)
-	box.TextScaled = true
-	box.TextWrapped = true
-	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.Name = "Box"
+	box.AnchorPoint = Vector2.new(0.5, 1)
+	box.Position = UDim2.new(0.5, 0, 1, -B.bottomGap)
+	box.Size = UDim2.fromOffset(B.width, B.height)
+	box.BackgroundColor3 = Color3.new(0, 0, 0)
+	box.BackgroundTransparency = 0
 	box.AutoButtonColor = false
-	box.Text = ""
+	box.Text = "" -- ข้อความจริงอยู่ TextLabel ข้างใน (กล่องเป็นแค่ปุ่มกดไปต่อ)
+	box:SetAttribute("Sfx", "dialogue_advance") -- เสียงคลิกไปบรรทัดถัดไป (คนละเสียงกับปุ่ม UI ทั่วไป)
 	box.Parent = gui
+	local boxStroke = Instance.new("UIStroke") -- ขอบขาวหนาแบบ Undertale
+	boxStroke.Thickness = B.border
+	boxStroke.Color = Color3.new(1, 1, 1)
+	boxStroke.Parent = box
+
+	-- รูปหน้าตัวละครฝั่งซ้าย — ไม่มีรูปของตัวนั้น = ซ่อน ข้อความเลื่อนไปกินที่แทน
+	local portrait = Instance.new("ImageLabel")
+	portrait.Name = "Portrait"
+	portrait.BackgroundTransparency = 1
+	portrait.Size = UDim2.fromOffset(B.portrait, B.portrait)
+	portrait.Position = UDim2.fromOffset(B.padding, B.padding)
+	portrait.ScaleType = Enum.ScaleType.Fit
+	portrait.Visible = false
+	portrait.Parent = box
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Name = "Text"
+	textLabel.BackgroundTransparency = 1
+	textLabel.FontFace = DIALOGUE_FONT
+	textLabel.TextSize = B.textSize -- คงที่ ไม่ใช้ TextScaled (ไม่งั้นยาวขึ้นตัวเล็กลง)
+	textLabel.TextWrapped = true -- ยาวเกิน = ขึ้นบรรทัดใหม่
+	textLabel.TextColor3 = Color3.new(1, 1, 1)
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.TextYAlignment = Enum.TextYAlignment.Top
+	textLabel.Text = ""
+	textLabel.Parent = box
+
+	-- ข้อความกินที่ที่เหลือหลังหักรูปหน้า (ไม่มีรูป = กินเต็ม)
+	local function layoutText()
+		local left = portrait.Visible and (B.padding * 2 + B.portrait) or B.padding
+		textLabel.Position = UDim2.fromOffset(left, B.padding)
+		textLabel.Size = UDim2.fromOffset(B.width - left - B.padding, B.height - B.padding * 2)
+	end
+	layoutText()
 
 	local nameLabel = Instance.new("TextLabel") -- ชื่อคนพูด เกาะมุมซ้ายบนของกล่อง
-	nameLabel.Size = UDim2.new(0.3, 0, 0.06, 0)
-	nameLabel.Position = UDim2.new(0.1, 0, 0.66, 0)
-	nameLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-	nameLabel.BackgroundTransparency = 0.1
+	nameLabel.AnchorPoint = Vector2.new(0, 1)
+	nameLabel.Position = UDim2.new(0, 0, 0, -4)
+	nameLabel.Size = UDim2.fromOffset(240, 26)
+	nameLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+	nameLabel.BackgroundTransparency = 0
+	nameLabel.FontFace = DIALOGUE_FONT
+	nameLabel.TextSize = B.textSize - 2
 	nameLabel.TextColor3 = Color3.fromRGB(255, 215, 120)
-	nameLabel.TextScaled = true
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.Text = ""
 	nameLabel.Visible = false
-	nameLabel.Parent = gui
+	nameLabel.Parent = box
+	local namePad = Instance.new("UIPadding")
+	namePad.PaddingLeft = UDim.new(0, 8)
+	namePad.Parent = nameLabel
+	local nameStroke = Instance.new("UIStroke")
+	nameStroke.Thickness = B.border
+	nameStroke.Color = Color3.new(1, 1, 1)
+	nameStroke.Parent = nameLabel
 
 	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ลอยเหนือกล่อง
-	choiceFrame.Size = UDim2.new(0.5, 0, 0.3, 0)
-	choiceFrame.Position = UDim2.new(0.45, 0, 0.34, 0)
+	choiceFrame.AnchorPoint = Vector2.new(0.5, 1)
+	choiceFrame.Position = UDim2.new(0.5, 0, 1, -(B.bottomGap + B.height + 40))
+	choiceFrame.Size = UDim2.fromOffset(B.width * 0.6, 200)
 	choiceFrame.BackgroundTransparency = 1
 	choiceFrame.Visible = false
 	choiceFrame.Parent = gui
@@ -163,33 +236,50 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	local picks = {}
 
 	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
-	local function speak(speaker: string?, text: string)
+	-- actor/emotion = ใช้เลือกรูปหน้า (ไม่ส่ง = คนที่คุยอยู่ / รูปเริ่มต้นของตัวนั้น)
+	local function speak(speaker: string?, text: string, actor: string?, emotion: string?)
 		nameLabel.Visible = speaker ~= nil
 		nameLabel.Text = speaker or ""
+
+		local img = DialogueUI.findPortrait(actor or voiceName, emotion)
+		portrait.Image = img or ""
+		portrait.Visible = img ~= nil
+		layoutText()
+
 		local segs = DialogueUI.parseTags(text)
+		-- ดอกจันนำหน้าประโยค (Undertale) — ใส่ที่ segment แรก + หลัง \n ทุกอัน
+		for i, s in segs do
+			s.text = (s.text:gsub("\n", "\n* "))
+			if i == 1 then s.text = "* " .. s.text end
+		end
 		local full = ""
 		for _, s in segs do full ..= s.text end
+
 		local skip = false
 		local conn = box.Activated:Connect(function() skip = true end)
-		box.Text = ""
+		textLabel.Text = ""
 		for _, seg in segs do
 			local delay = Config.Dialogue.charDelay[seg.speed] or Config.Dialogue.charDelay.normal
 			-- utf8 ทีละตัวอักษร (ภาษาไทยตัวละหลาย byte)
 			for _, code in utf8.codes(seg.text) do
 				if skip then break end
-				box.Text ..= utf8.char(code)
+				textLabel.Text ..= utf8.char(code)
 				if code ~= 32 then Audio.voice(voiceName) end -- เว้นวรรคไม่ต้องมีเสียง
 				task.wait(delay)
 			end
 			if skip then break end
 		end
-		box.Text = full
+		textLabel.Text = full
+		-- กล่องขนาดคงที่ = บทยาวเกินจะโดนตัดหาย เตือนคนเขียนบทให้ซอยประโยค (อย่าย่อฟอนต์)
+		if not textLabel.TextFits then
+			warn(("[DialogueUI] บทยาวเกินกล่อง ตัดเป็นหลายบรรทัดในลิสต์: %q"):format(text:sub(1, 40)))
+		end
 		conn:Disconnect()
 		-- รอคลิกไปบรรทัดถัดไป
 		local go = false
+		-- เสียงคลิกมาจากตัวผูกกลางใน Main.client (อ่าน attribute Sfx) — ไม่เรียก Audio.sfx เองกันดัง 2 ที
 		local conn2 = box.Activated:Connect(function()
 			go = true
-			Audio.sfx("ui_click")
 		end)
 		while not go do task.wait() end
 		conn2:Disconnect()
@@ -208,11 +298,11 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			btn.TextScaled = true
 			btn.Text = c.text
 			btn.LayoutOrder = i
+			btn:SetAttribute("Sfx", "dialogue_choice") -- เสียงเลือกช้อย (ตัวผูกกลางใน Main.client เล่นให้)
 			btn.Parent = choiceFrame
 			btn.Activated:Connect(function()
 				if picked then return end
 				picked = c
-				Audio.sfx("ui_click")
 			end)
 		end
 		choiceFrame.Visible = true
@@ -243,7 +333,8 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 					end
 				end
 			elseif item.text then
-				speak(item.speaker, item.text)
+				-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
+				speak(item.speaker, item.text, item.actor or voiceName, item.face)
 			end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
 			i += 1
 		end

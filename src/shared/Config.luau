@@ -260,6 +260,17 @@ Config.EndingThresholds = {
 -- Dialogue: typewriter + กล้องตอนคุย NPC (ปรับค่าที่นี่ที่เดียว)
 Config.Dialogue = {
 	charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 }, -- วิ/ตัวอักษร (น้อย = เร็ว)
+	-- กล่องข้อความสไตล์ Undertale: **ขนาดคงที่เป็น px** ข้อความยาวขึ้น = ตัดบรรทัดใหม่
+	-- (ไม่ใช่ยืดกล่อง/ย่อฟอนต์) · ตัวอักษรขนาดเดียวตลอดเกม
+	box = {
+		width = 760,     -- กว้างกล่อง (px)
+		height = 168,    -- สูงกล่อง (px) — พอดี 3 บรรทัดที่ textSize 22
+		bottomGap = 28,  -- ห่างจากขอบล่างจอ (px)
+		textSize = 22,   -- ขนาดตัวอักษรคงที่ ไม่ย่อตามความยาว
+		padding = 16,    -- ระยะขอบในกล่อง (px)
+		portrait = 112,  -- ด้านของรูปหน้าตัวละครฝั่งซ้าย (px) — ไม่มีรูป = ซ่อน ข้อความกินเต็มกล่อง
+		border = 3,      -- ความหนาขอบขาว
+	},
 	zoomLevels = { 6, 10, 16 }, -- ระยะกล้อง ใกล้/ปกติ/ไกล (studs, น้อย = ซูมเข้า)
 	zoomDefault = 2, -- เริ่มที่ระดับไหน (index ใน zoomLevels)
 	camHeight = 1.5, -- ความสูงกล้องเหนือจุดหัว NPC
@@ -273,8 +284,7 @@ Config.Audio = {
 	zoneCheckInterval = 0.35, -- เช็คว่าอยู่โซนไหนทุกกี่วินาที
 	voiceMinGap = 0.045,      -- blip ตอนพิมพ์ห่างกันอย่างน้อยกี่วิ (กันถี่จนหูแตก)
 	voicePitchVary = 0.12,    -- สุ่ม pitch ±เท่าไหร่ ให้เสียงพูดไม่ซ้ำเป๊ะ
-	footstepInterval = 0.42,  -- ระยะห่างก้าวเดิน (ปรับตามความเร็วอัตโนมัติ)
-	footstepPitchVary = 0.08,
+	-- เสียงเดิน = footstep script แบบ material-based (ServerScriptService) ไม่ผ่าน AudioService แล้ว
 }
 
 -- Comment ต่อคลิป (PDF หน้า 8 — user lock 21 ก.ค.): slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป

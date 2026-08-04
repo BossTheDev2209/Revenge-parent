@@ -48,6 +48,9 @@ local VALID = {
 	end,
 	-- สีหน้า: name = ชื่อใน ReplicatedStorage.Faces (ค้างจนสั่งใหม่ · จบฉากคืนหน้าเดิม)
 	face = function(s) return type(s.actor) == "string" and type(s.name) == "string" end,
+	-- preload แมพไกล: target = ชื่อ Part ที่อยากให้ stream โหลด (ย้ายศูนย์ streaming ไปที่นั่นชั่วคราว)
+	-- วางก่อน cam ที่ส่องแมพนั้น ~2-3 วิ ให้แมพโหลดทัน · จบฉากคืน focus ให้ตัวละครอัตโนมัติ
+	focus = function(s) return type(s.target) == "string" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -70,16 +73,22 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		return
 	end
 	CutscenePlayer.running = true
-	Audio.lockBGM(true) -- โซนหยุดสั่งเพลงระหว่าง cutscene
+	-- cutscene = เงียบ ไม่มีเพลงโซน (ฉากคุย NPC ยังมีเพลงปกติ) — บทสั่ง { type="bgm" } เองได้ถ้าอยากมี
+	-- lockBGM กันโซนสั่งเพลงใหม่ · bgm(nil) ดับเพลงที่ค้างมาจากเมนู/โซนก่อนหน้า (lock อย่างเดียวไม่ดับของเดิม)
+	Audio.lockBGM(true)
+	Audio.bgm(nil)
 	-- หยุดนาฬิกาเกมตลอด cutscene — การันตีทุก trigger ไม่พึ่ง caller · caller เป็นคน unfreeze ตอนจบ/ต่อ transition
 	game:GetService("ReplicatedStorage").Shared.Remotes.Action:FireServer({ type = "FreezeTime", on = true })
 
 	-- ล็อกไม่ให้ player เดินระหว่าง cutscene — จำค่าเดิมไว้คืนตอนจบ
+	-- attribute MoveLocked = สัญญาณให้ script อื่นที่แตะ WalkSpeed (SprintHandler) หยุดยุ่ง
+	-- ไม่งั้นมันวน set ทับทุก 0.1 วิ แล้วเดินได้ระหว่างฉาก (docs/05 §gotchas)
 	local char = game:GetService("Players").LocalPlayer.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local savedWalk, savedJump
 	if hum then
 		savedWalk, savedJump = hum.WalkSpeed, hum.JumpPower
+		hum:SetAttribute("MoveLocked", true)
 		hum.WalkSpeed, hum.JumpPower = 0, 0
 	end
 
@@ -133,24 +142,63 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	stroke.Color = Color3.new(0, 0, 0)
 	stroke.Transparency = 0.35
 	stroke.Parent = label
+
+	-- ปุ่มข้ามฉาก มุมขวาล่าง — กดแล้วเลิกเล่น step ที่เหลือ แล้วเข้า cleanup/onDone ตามปกติ
+	local skipped = false
+	local skipBtn = Instance.new("TextButton")
+	skipBtn.Name = "SkipButton"
+	skipBtn.Size = UDim2.new(0, 120, 0, 34)
+	skipBtn.Position = UDim2.new(1, -136, 1, -48)
+	skipBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	skipBtn.BackgroundTransparency = 0.35
+	skipBtn.TextColor3 = Color3.new(1, 1, 1)
+	skipBtn.TextScaled = true
+	skipBtn.Text = "ข้าม ⏭"
+	skipBtn:SetAttribute("Sfx", "ui_back") -- ปุ่มข้าม = เสียงกลุ่มยกเลิก/ย้อน ไม่ใช่คลิกยืนยัน
+	skipBtn.Parent = gui
+	local skipCorner = Instance.new("UICorner")
+	skipCorner.CornerRadius = UDim.new(0, 6)
+	skipCorner.Parent = skipBtn
+	skipBtn.Activated:Connect(function()
+		skipped = true
+		skipBtn.Text = "กำลังข้าม..."
+		skipBtn.Active = false
+	end)
+
 	gui.Parent = playerGui
 
+	-- รอแบบขัดจังหวะได้ — กดข้ามแล้วไม่ต้องรอ wait ที่ค้างอยู่ให้ครบ · คืน true ถ้าโดนข้าม
+	local function waitOrSkip(t: number): boolean
+		local t0 = os.clock()
+		while os.clock() - t0 < t do
+			if skipped then return true end
+			task.wait(0.05)
+		end
+		return skipped
+	end
+
 	local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบฉากแล้วหยุดให้หมด
+	local actionRemote = game:GetService("ReplicatedStorage").Shared.Remotes.Action
+	-- ไม่คืน focus ตอนจบฉาก — ปล่อยให้ค้างที่เป้าจน TeleportTo (server) ย้ายตัวเข้าโซนนั้นแล้วค่อย clear
+	-- (clear ก่อน teleport = โซนที่ preload ไว้ unload ทันที แล้วต้องโหลดใหม่ตอนวาป = gameplay paused)
 	task.spawn(function()
 		for _, step in steps do
+			if skipped then break end -- กดข้าม = เลิกเล่น step ที่เหลือ ไปทำ cleanup เลย
 			if step.type == "anim" then
 				AnimPlayer.play(step.actor, step.name, step.loop)
 				movedActors[step.actor] = true
+			elseif step.type == "focus" then
+				actionRemote:FireServer({ type = "SetFocus", target = step.target }) -- preload แมพจุดนั้น
 			elseif step.type == "face" then
 				AnimPlayer.setFace(step.actor, step.name)
 				movedActors[step.actor] = true
 			elseif step.type == "text" then
+				-- subtitle ค้างจนสั่ง text ใหม่ · ใส่ t = ค้างกี่วิก่อนไปต่อ (ไม่ใส่ = ไม่รอ ใช้ wait เอง)
 				label.Visible = true
-				label.Text = step.text:gsub("%[%a+%]", "")
-					if step.t then task.wait(step.t) end -- text step: ใส่ t = ค้างกี่วิก่อนไปต่อ (ไม่ใส่=ไม่รอ) -- tag ความเร็วยังไม่ใช้ใน cutscene
-				-- subtitle ค้างจนสั่ง text ใหม่ — ไม่กินเวลาเอง author ใส่ wait ต่อท้ายคุมเวลา
+				label.Text = step.text:gsub("%[%a+%]", "") -- tag ความเร็วยังไม่ใช้ใน cutscene
+				if step.t then waitOrSkip(step.t) end
 			elseif step.type == "wait" then
-				task.wait(step.t)
+				waitOrSkip(step.t)
 			elseif step.type == "bgm" then
 				Audio.bgm(step.name)
 			elseif step.type == "sound" then
@@ -183,7 +231,10 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 			end
 		end
 		for actor in movedActors do AnimPlayer.stop(actor) end
-		if hum and hum.Parent then hum.WalkSpeed, hum.JumpPower = savedWalk, savedJump end
+		if hum and hum.Parent then
+			hum.WalkSpeed, hum.JumpPower = savedWalk, savedJump
+			hum:SetAttribute("MoveLocked", nil) -- ปลดล็อก — SprintHandler คืนความเร็วตามปุ่ม Shift เอง
+		end
 		camera.CameraType = savedType
 		camera.FieldOfView = savedFov
 		gui:Destroy()

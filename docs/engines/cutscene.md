@@ -1,6 +1,7 @@
 # Engine: Cutscene — ฉากจบ 6 แบบ (= cutscene **โหมด 1 "หนัง"**)
 
-**หน้าตา:** แถบดำบน-ล่าง + กล้องเปลี่ยนบ่อย/เลื่อนได้ + **ซับไตเติลกลางล่าง ไม่มีกรอบข้อความ** + player กดอะไรไม่ได้
+**หน้าตา:** แถบดำบน-ล่าง (คลุมเต็มจอ `IgnoreGuiInset`) + กล้องเปลี่ยนบ่อย/เลื่อนได้ + **ซับไตเติลกลางล่าง ไม่มีกรอบข้อความ** + player กดอะไรไม่ได้
+**ทุก cutscene engine หยุดให้เอง** (ไม่ต้องสั่งในบท): หยุดนาฬิกาเกม (`FreezeTime`) + ล็อกไม่ให้ player เดิน (WalkSpeed/Jump=0) + ล็อกเพลงโซน · คืนให้หมดตอนจบฉาก · ดวงอาทิตย์หยุดตามเวลา (ดู [07 §3.1.1](../07-core-systems-design.md))
 **โหมด 2 "ฉากคุย"** (กล้องนิ่ง กล่องข้อความ ช้อย) = `DialogueUI` → [dialogue.md](dialogue.md) · ตารางเทียบ 2 โหมด → [README.md](README.md)
 
 **ไฟล์โค้ด:** `StarterPlayerScripts.UI.CutscenePlayer`
@@ -40,6 +41,7 @@ return {
 | `sound` | `name` | ชื่อใน `SoundService.SFX` |
 | `anim` | `actor` + `name` | สั่งท่าตัวละคร · ใส่ `loop = true` = ท่าค้าง · ท่าอยู่ `ReplicatedStorage.Animations` (วิธีเตรียม → [dialogue.md §2.5](dialogue.md)) |
 | `face` | `actor` + `name` | เปลี่ยนสีหน้า · หน้าอยู่ `ReplicatedStorage.Faces` · จบฉากคืนหน้าเดิมอัตโนมัติ |
+| `focus` | `target` (ชื่อ Part) | **preload แมพไกล** (StreamingEnabled): ย้ายศูนย์ streaming ไป Part นั้น แมพรอบๆ จะโหลดทั้งที่ player ยังไม่ไป · วาง **ก่อน** cam ที่ส่องแมพนั้น ~2-3 วิ (ใส่ wait คั่นให้โหลดทัน) · focus ค้างจนกว่า `TeleportTo` (จบ intro) จะย้ายตัวเข้าโซนนั้นแล้ว **คืน focus ให้ตัวละครเอง** (ไม่ pause/reload) · **ใช้กับ cutscene ที่จบด้วยการวาปเข้าโซน focus เท่านั้น** |
 
 **ไม่ใส่ step `camera` เลยก็ได้** — กล้องอยู่ที่เดิมที่ player ยืน แล้วขึ้นแถบดำ+ข้อความ (ใช้ได้จริงสำหรับ ending แบบย่อ)
 

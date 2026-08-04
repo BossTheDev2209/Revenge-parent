@@ -34,15 +34,30 @@
 - [Main.client `waitStreamedAround`](../src/client/Main.client.luau): จอดำค้าง → anchor กันตกทะลุพื้น → รอ raycast เจอพื้น → fade กลับ · ใช้ทั้ง Opening + phase transition
 - server `TeleportTo` เรียก `RequestStreamingAround` (มีเฉพาะ live Roblox — pcall กันไว้)
 
-## ทำต่อพรุ่งนี้ (4 ส.ค.)
+## เสร็จเพิ่ม (4 ส.ค.)
 
-- [ ] **Preload เฟส 1 ระหว่าง Opening (cam 2 ตัวส่องเฟส 1)** — Studio version เก่าไม่มี ReplicationFocus/RequestStreamingAround, family set (Y2185) กับ Spawn_Phase1 (Y30) ห่าง ~2000 studs
-  → ทางแก้: ทำ**ห้องเริ่มเฟส 1** (ที่ cam ส่อง + spawn) เป็น **Persistent Model** (`ModelStreamingMode=Persistent`) · Boss ชี้ Model ห้องใน `Map_Phase1` ให้ set · เปิด streaming เฟส 2 ได้หลังทำ
-  → พิจารณา: อัปเดต Studio ให้ได้ API streaming ใหม่ (live Roblox มีอยู่แล้ว)
+### Preload แมพระหว่าง cutscene — step `focus` ✅
+- Studio อัปเดตล่าสุดแล้ว → `ReplicationFocus`/`RequestStreamingAround` **มีครบ** (เดิมเก่าเลยไม่มี)
+- step ใหม่ `{ type="focus", target="Spawn_Phase1" }` ใน cutscene ([CutscenePlayer](../src/client/UI/CutscenePlayer.luau)) → server `SetFocus` ย้ายศูนย์ streaming ([Main.server](../src/server/Main.server.luau)) → แมพเป้าโหลดตอน cutscene เล่น (cam ส่องเห็น)
+- **ไม่ต้องทำ Persistent room แล้ว** (วิธี focus แทน) — เปิด streaming เฟส 2 ได้
+- **fix reload/pause:** ห้าม clear focus ตอนจบฉาก · `TeleportTo` เป็นคน clear หลังย้ายตัวเข้าโซน (โซน preload ไว้ = ไม่ unload/pause) · ข้อจำกัด: focus ใช้กับ cutscene ที่จบด้วย TeleportTo เข้าโซนนั้น
+
+### นาฬิกาเดินระดับนาที + ดวงอาทิตย์ลื่น ✅
+- [HUD](../src/client/UI/HUD.luau) interpolate `gameHour` (float) ต่อเฟรมจาก server tick รายชั่วโมง → แสดง **HH:MM** + ขับ `Lighting.ClockTime` ลื่น (แทน server set รายชั่วโมงกระตุก)
+- หยุดตอน cutscene/คุย NPC ผ่าน `state.frozen` ([FreezeTime handler](../src/server/Main.server.luau))
+- server ยัง set ClockTime รายชั่วโมงให้ script ฝั่ง server (autoturnlight) · client override ทับให้ลื่น
+
+### อื่นๆ
+- merge commit เพื่อน (วรกร) `b1d4fe4` shop ย้อนระดับอุปกรณ์ — pull เข้าแล้ว ไม่ชน
+- plugin re-install หลัง Studio อัปเดต (`pwsh tools/install_plugin.ps1`)
+
+## ทำต่อ
+
 - [ ] **บั๊กแขนแกว่ง/ห้อยตอนเดิน-วิ่ง** — จากข้อมูล char ปกติหมด (R6, Motor6D ครบ, default anim ครบ, ไม่มี Tool ถือ) · ต้องดูภาพ/คลิปจริง หรือระบุพจน์ให้ชัด (ห้อยนิ่ง vs สะบัด, เกิดกับ NPC ด้วยไหม) ก่อนแก้
-- [ ] เขียน content จริงแทน placeholder: PhaseTransitions, Opening text (บางส่วนเขียนแล้ว), Endings×6, Dialogue, CanonEvents (เทส RunTests fail จนกว่าจะเขียน — 21 ตัว)
-- [ ] set Persistent ให้ family scene เฟส 0 ถ้าจำเป็น (ตอนย้าย focus)
+- [ ] จัดตำแหน่ง cam เฟส 1 ใน Opening ให้ใกล้/ในเฟส 1 (focus โหลด geometry ให้ · แต่ cam วางไกล = ภาพยังเห็นไกล)
+- [ ] เขียน content จริงแทน placeholder: PhaseTransitions, Opening text (เขียนแล้วเยอะ), Endings×6, Dialogue, CanonEvents (เทส RunTests fail จนกว่าจะเขียน — ~21 ตัว)
+- [ ] commit + push งานรอบนี้ (uncommitted: focus preload, minutes/sun, install_plugin)
 
-## เช็คก่อนเริ่มพรุ่งนี้
-- Rojo **Connect** (หลุดทุก restart Studio) · plugin ต้อง `pwsh tools/install_plugin.ps1` ถ้าแก้
+## เช็คก่อนเริ่ม session ใหม่
+- Rojo **Connect** (หลุดทุก restart Studio) · plugin ต้อง `pwsh tools/install_plugin.ps1` ถ้าแก้ + reload Studio
 - save place (.rbxl) — DayNight ปิด + attribute cams + family anchor อยู่ในนั้น

@@ -9,7 +9,7 @@ local PROMPT_TEXT = {
 	Interact_Bed = "พักผ่อน",
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",
-	Interact_NPC_Mom = "คุยกับแม่",
+	-- NPC ไม่ต้องใส่ที่นี่ — ไม่มี key = ขึ้น "คุย" อัตโนมัติ (ดู fallback ล่างไฟล์)
 	Interact_NotebookPack = "เก็บโน้ตบุ๊ค",
 	Interact_Shop = "เข้าร้านค้า",
 	Interact_Door = "เข้าไป",
@@ -30,12 +30,12 @@ end
 --   5 พิเศษ (StoryNPC) → ไฟล์บทเดิมที่มีอยู่แล้ว | 12 ประจำเฟส (WorldNPC) → ไฟล์ชื่อตัวเอง
 -- key ต้อง bracket-quote: Luau identifier รับ ASCII เท่านั้น ชื่อ Part ไทยเป็น key เปล่าไม่ได้ (คอมไพล์ไม่ผ่าน)
 local NPC_DIALOGUE = {
-	-- ===== 5 พิเศษ (เนื้อเรื่อง) =====
-	["Interact_NPC_แม่"] = "Mom",
-	["Interact_NPC_พ่อ"] = "Dad",
-	["Interact_NPC_เพื่อนร่วมทาง1"] = "Friend1", -- ทรยศ 500K
-	["Interact_NPC_เพื่อนร่วมทาง2"] = "Friend2", -- อยู่จนจบ
-	["Interact_NPC_CC"] = "CC1", -- คู่แข่ง
+	-- ===== 5 พิเศษ (เนื้อเรื่อง) — ตั้งชื่อจริง 5 ส.ค. 2569 =====
+	["Interact_NPC_แม่"] = "แม่",
+	["Interact_NPC_พ่อ"] = "พ่อ",
+	["Interact_NPC_ฟ้าใส"] = "ฟ้าใส", -- เพื่อนร่วมทางคนแรก ทรยศ 500K (เดิม Friend1)
+	["Interact_NPC_เจียเจีย"] = "เจียเจีย", -- เพื่อนร่วมทางคนสอง อยู่จนจบ (เดิม Friend2)
+	["Interact_NPC_พี่เปิ้ล"] = "พี่เปิ้ล", -- CC คู่แข่ง (เดิม CC1)
 	-- ===== 12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — ไฟล์บทอยู่ Content/Dialogue ชื่อเดียวกับ NPC =====
 	["Interact_NPC_ลุงสืบ"] = "ลุงสืบ",
 	["Interact_NPC_พี่แหนม"] = "พี่แหนม",
@@ -71,7 +71,7 @@ local function openBedMenu(playerGui, fireAction)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_BedMenu"
 	gui.ResetOnSpawn = false
-	local function btn(text, x, action)
+	local function btn(text, x, action, sfx)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0, 180, 0, 48)
 		b.Position = UDim2.new(0.5, x, 0.5, -24)
@@ -79,6 +79,7 @@ local function openBedMenu(playerGui, fireAction)
 		b.TextColor3 = Color3.new(1, 1, 1)
 		b.TextScaled = true
 		b.Text = text
+		if sfx then b:SetAttribute("Sfx", sfx) end -- เสียงเฉพาะปุ่ม (Main.client เป็นคนเล่นให้)
 		b.Parent = gui
 		b.Activated:Connect(function()
 			if action then fireAction(action) end
@@ -87,7 +88,7 @@ local function openBedMenu(playerGui, fireAction)
 	end
 	btn("😌 พักผ่อน (+ใจ)", -280, { type = "DoActivity", activity = "Bed" })
 	btn("😴 นอน (ข้ามเวลา)", -90, { type = "Sleep" })
-	btn("❌ ยกเลิก", 100, nil)
+	btn("❌ ยกเลิก", 100, nil, "ui_back")
 	gui.Parent = playerGui
 end
 

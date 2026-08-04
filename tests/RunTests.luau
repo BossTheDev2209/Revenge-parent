@@ -702,6 +702,11 @@ check("tag นำหน้า + กลางบรรทัด", #seg == 2 and s
 seg = DialogueUI.parseTags("ปกติ[slow]ช้า")
 check("เริ่ม normal แล้วเปลี่ยน", seg[1].speed == "normal" and seg[2].speed == "slow" and seg[2].text == "ช้า")
 
+-- ===== DialogueUI.bullet — ดอกจันนำหน้าประโยคแบบ Undertale =====
+check("ใส่ดอกจันต้นข้อความ", DialogueUI.bullet("สวัสดี") == "* สวัสดี")
+check("ขึ้นบรรทัดใหม่ในบท = ได้ดอกจันอีกตัว", DialogueUI.bullet("ก\nข") == "* ก\n* ข")
+check("ข้อความว่าง = ไม่ใส่ดอกจัน", DialogueUI.bullet("") == "")
+
 -- ===== DialogueUI.validate — format บรรทัด 3 แบบ (โหมด 2 "ฉากคุย") =====
 check("บทข้อความล้วน ผ่าน", DialogueUI.validate({ "ก", "ข" }) == true)
 check("บทมี speaker ผ่าน", DialogueUI.validate({ { speaker = "แม่", text = "ก" } }) == true)
@@ -741,7 +746,7 @@ check("หาท่าเฉพาะตัวก่อนท่ากลาง"
 	AnimPlayer.candidates("Friend1", "Point")[1] == "Friend1/Point"
 	and AnimPlayer.candidates("Friend1", "Point")[2] == "Point")
 check("ไม่ระบุ actor = หาแค่ท่ากลาง", #AnimPlayer.candidates(nil, "Idle") == 1)
-check("ชื่อไฟล์บท → prefix โมเดลในแมพ", AnimPlayer.modelPrefix("Friend1") == "NPC_02")
+check("ชื่อไฟล์บท → prefix โมเดลในแมพ", AnimPlayer.modelPrefix("ฟ้าใส") == "NPC_special_ฟ้าใส")
 check("ชื่อที่ไม่มีในตาราง = ใช้ชื่อนั้นตรงๆ", AnimPlayer.modelPrefix("Boss_Final") == "Boss_Final")
 check("cutscene step anim ผ่าน",
 	CutscenePlayer.validate({ { type = "anim", actor = "Friend1", name = "Point" } }) == true)
@@ -818,14 +823,14 @@ check("ไม่ seen = ได้บทเฟสเสมอ (ไม่แตะ
 
 -- content จริง: ทุก NPC ที่ผูกใน binder ต้องมีบทให้ทุกเฟสที่เจอได้
 local DialogueFolder = if isStudio then game:GetService("ReplicatedStorage").Shared.Content.Dialogue else nil
-for _, name in { "Friend1", "Friend2", "CC1", "Hater", "Landlord" } do
+for _, name in { "ฟ้าใส", "เจียเจีย", "พี่เปิ้ล" } do
 	local mod = if isStudio then require(DialogueFolder[name]) else require("../src/shared/Content/Dialogue/" .. name)
 	local got = InteractBinder.pickLines(mod, { phase = 3, flags = {} })
 	check("Dialogue." .. name .. " มีบทใช้ได้ที่เฟส 3", type(got) == "table" and type(got[1]) == "string")
 end
--- Friend1 = NPC เดียวที่ต้องมีชุด after (arc ทรยศ docs/02 §9.4) — โครงต้องอยู่แม้บทยังไม่เขียน
-local f1 = if isStudio then require(DialogueFolder.Friend1) else require("../src/shared/Content/Dialogue/Friend1")
-check("Friend1 มีครบ p1/p2/after (arc ทรยศ)", f1.p1 ~= nil and f1.p2 ~= nil and f1.after ~= nil)
+-- ฟ้าใส = NPC เดียวที่ต้องมีชุด after (arc ทรยศ docs/02 §9.4) — โครงต้องอยู่แม้บทยังไม่เขียน
+local f1 = if isStudio then require(DialogueFolder["ฟ้าใส"]) else require("../src/shared/Content/Dialogue/ฟ้าใส")
+check("ฟ้าใส มีครบ p1/p2/after (arc ทรยศ)", f1.p1 ~= nil and f1.p2 ~= nil and f1.after ~= nil)
 
 -- Canon event ทรยศต้องมีบทตรง milestone ที่ Config ชี้
 local Events = if isStudio
@@ -858,7 +863,7 @@ for key, ev in Events do
 	check(("CanonEvents.%s ไม่มี [placeholder] ค้าง"):format(key), not hasPlaceholder(ev.dialogue or {}))
 end
 
-local DialogueFiles = { "Mom", "Dad", "Landlord", "Friend1", "Friend2", "CC1", "Hater" }
+local DialogueFiles = { "แม่", "พ่อ", "ฟ้าใส", "เจียเจีย", "พี่เปิ้ล" }
 for _, name in DialogueFiles do
 	local mod = if isStudio
 		then require(game:GetService("ReplicatedStorage").Shared.Content.Dialogue[name])
@@ -993,8 +998,13 @@ check("priority เท่ากัน เอาตัวแรก", Audio.bestZo
 	{ name = "a", priority = 1 }, { name = "b", priority = 1 },
 }).name == "a")
 check("ไม่ใส่ priority = 0", Audio.bestZone({ { name = "a" }, { name = "b", priority = 1 } }).name == "b")
+-- footstep* ไม่อยู่ใน Config แล้ว — ใช้ระบบ material-based ที่ SSS.Footsteps แทน (5 ส.ค.)
 check("Config.Audio ครบ", Config.Audio.bgmFade > 0 and Config.Audio.voiceMinGap > 0
-	and Config.Audio.footstepInterval > 0 and Config.Audio.zoneCheckInterval > 0)
+	and Config.Audio.zoneCheckInterval > 0)
+-- กล่องบทสนทนาขนาดคงที่ (Undertale ref) — ค่าต้องสมเหตุผล ไม่งั้น layout พัง
+local DB = Config.Dialogue.box
+check("Config.Dialogue.box ครบ", DB.width > 0 and DB.height > 0 and DB.textSize > 0
+	and DB.padding >= 0 and DB.portrait >= 0 and DB.portrait + DB.padding * 3 < DB.width)
 -- cutscene step เสียงต้อง validate ผ่าน
 check("cutscene step bgm ผ่าน", CutscenePlayer.validate({ { type = "bgm", name = "Street" } }) == true)
 check("cutscene step bgm ไม่ใส่ชื่อ = เงียบ ผ่าน", CutscenePlayer.validate({ { type = "bgm" } }) == true)

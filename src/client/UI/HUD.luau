@@ -18,6 +18,27 @@ local UIAssets = if isStudio
 
 local HUD = {}
 
+-- นาฬิกา + ดวงอาทิตย์เดินลื่น: server tick รายชั่วโมง (timeOfDay) → client interpolate float ต่อเฟรมเอง
+-- หยุดเมื่อ state.frozen (cutscene/คุย NPC) · cap ที่ :59 จนกว่า server จะ tick ชั่วโมงถัดไป (กันวิ่งล้ำ)
+-- ClockTime (ดวงอาทิตย์) ขับฝั่ง client ให้ smooth — server ยัง set รายชั่วโมงไว้ให้ script ฝั่ง server (autoturnlight) client override ทับให้ลื่น
+local Lighting = game:GetService("Lighting")
+local SPGH = Config.Time.secondsPerGameHour
+HUD.gameHour = nil -- ชั่วโมงเกมแบบ float (ชั่วโมง+เศษนาที)
+HUD.serverHour = nil -- ชั่วโมง integer ล่าสุดจาก server
+HUD.frozen = false
+game:GetService("RunService").Heartbeat:Connect(function(dt)
+	if HUD.serverHour == nil then return end
+	if not HUD.frozen then
+		HUD.gameHour = math.min(HUD.gameHour + dt / SPGH, HUD.serverHour + 59 / 60)
+	end
+	Lighting.ClockTime = HUD.gameHour % 24 -- ดวงอาทิตย์เลื่อนต่อเฟรม (frozen = ค้าง)
+	if HUD.clockLabel then
+		local h = math.floor(HUD.gameHour) % 24
+		local m = math.floor((HUD.gameHour - math.floor(HUD.gameHour)) * 60)
+		HUD.clockLabel.Text = ("%02d:%02d"):format(h, m)
+	end
+end)
+
 -- ===== ขนาด/ตำแหน่งอ้างภาพร่าง (แก้ที่เดียว) =====
 local STAT_W, STAT_H = 210, 46 -- กล่อง follower / money
 local BAR_W, BAR_H = 470, 22 -- แถบ progress ใต้กล่อง
@@ -417,7 +438,12 @@ function HUD.update(state)
 	if HUD.progressFill then
 		HUD.progressFill.Size = UDim2.new(HUD.progressPct(state.follower), -6, 1, -6)
 	end
-	if HUD.clockLabel then HUD.clockLabel.Text = ("%02d:00"):format(state.timeOfDay) end
+	-- นาฬิกา: sync ชั่วโมงกับ server (snap เมื่อ tick ชั่วโมงใหม่) แล้วปล่อย Heartbeat เดินนาทีเอง
+	if HUD.gameHour == nil or state.timeOfDay ~= HUD.serverHour then
+		HUD.gameHour = state.timeOfDay
+	end
+	HUD.serverHour = state.timeOfDay
+	HUD.frozen = state.frozen == true
 	if HUD.dayLabel then HUD.dayLabel.Text = tostring(state.day) end
 	if HUD.phaseLabel then HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase) end
 	setStat(HUD.storageLabel, HUD.storageText(state))

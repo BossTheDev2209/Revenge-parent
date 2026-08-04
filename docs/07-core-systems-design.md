@@ -92,11 +92,19 @@ function TimeService.sleep(state, hours) ... end                -- ข้าม�
 | `onDay` | MoneyService: `day % 7 == 0` → หักรายจ่าย |
 | `onDay` | CalendarService: เช็ค block วันนี้ → trigger canon/select event |
 | `onDay` | MentalService: ลด cooldown activity / หมดอายุ modifier |
-| `onHour` | HUD (ผ่าน StateChanged): อัปเดตนาฬิกา |
+| `onHour` | HUD (ผ่าน StateChanged): อัปเดตนาฬิกา · MentalService drain · `Lighting.ClockTime` (server) |
 
 **Calendar = แค่ตารางใน state:** `state.calendar[day] = {type="Canon", id="Hater"}`
 วาง block = เขียนตาราง | ถึงวัน = TimeService ปลุก CalendarService อ่านตาราง | จบ
 Canon event lock วัน = flag `locked=true` ใน block — UI ไม่ให้ลาก
+
+### 3.1.1 นาฬิกา (นาที) + ดวงอาทิตย์ (lighting)
+
+**เวลาเดินฝั่ง server รายชั่วโมง** (`state.timeOfDay` integer) แต่ **แสดงผล/แสงลื่นฝั่ง client** — server tick 7.5 วิ/ชม. ถ้าโชว์ตรงๆ = นาฬิกากระโดด :00 ทุกชั่วโมง + ดวงอาทิตย์กระตุก
+
+- **HUD interpolate เอง** (`HUD.gameHour` float, RunService.Heartbeat): เดินนาทีระหว่าง server tick → โชว์ `HH:MM` + ขับ `Lighting.ClockTime` ต่อเฟรมให้ดวงอาทิตย์ลื่น · snap เข้าชั่วโมง server ทุก tick, cap ที่ :59 กันวิ่งล้ำ
+- **freeze:** server broadcast `state.frozen` (set ที่ action `FreezeTime`) → HUD หยุดเดินนาที/แสงตอน cutscene/คุย NPC (เวลาเกมหยุด แสงต้องหยุดด้วย)
+- **Lighting.ClockTime มาจาก `state.timeOfDay` ที่เดียว** (`syncLighting` ใน Main.server รายชั่วโมงสำหรับ script ฝั่ง server เช่นไฟถนน `autoturnlight` · client override ทับให้ลื่น) — **ห้ามมี day/night loop แยก** (Toolbox `DayNight` เดินเองไม่สน freeze → ปิดถาวร ดู [05-build-conventions](05-build-conventions.md))
 
 **ทำไมไม่ยาก:** loop เดียว 20 บรรทัด + ตารางใครฟังอะไรอยู่ใน Main อ่านออกใน 1 นาที
 

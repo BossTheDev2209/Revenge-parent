@@ -142,6 +142,7 @@ ActionRouter.register("AcceptSponsor", function(s, a)
 end)
 ActionRouter.register("FreezeTime", function(s, a)
 	TimeService.setFrozen(a.on == true)
+	s.frozen = a.on == true -- ให้ HUD หยุดนาฬิกานาทีตอน cutscene/คุย
 end)
 -- Main Menu (PDF หน้า 1): slot list ส่งกลับทาง state.slotList — ไม่เพิ่ม Remote
 ActionRouter.register("RequestSlots", function(s, a, player)
@@ -166,12 +167,27 @@ ActionRouter.register("TeleportTo", function(s, a, player)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if part and part:IsA("BasePart") and root then
 		root.CFrame = part.CFrame + Vector3.new(0, 3, 0)
-		-- สั่ง stream แมพรอบจุดปลายทางเข้ามาก่อน (client รอจอดำจนโหลดเสร็จ — waitStreamedAround)
 		if player then
+			-- ตัวละครมาถึงปลายทางแล้ว = ให้เป็นศูนย์ streaming เอง คืน focus จาก cutscene (โซนนี้ preload ไว้แล้ว = ไม่ pause)
+			pcall(function() player.ReplicationFocus = nil end)
+			-- สั่ง stream แมพรอบจุดปลายทาง (เผื่อยังไม่โหลด — client รอจอดำ waitStreamedAround)
 			pcall(function() player:RequestStreamingAround(part.Position) end)
 		end
 	elseif not part then
 		warn("[Main.server] TeleportTo: ไม่เจอ Part", tostring(a.target))
+	end
+end)
+-- ย้ายศูนย์กลาง streaming ไป Part อื่น (preload แมพจุดนั้นทั้งที่ player ยังไม่ไป) — ใช้ตอน cutscene ส่องแมพไกล
+-- target ว่าง = คืน focus ให้ตัวละคร · ReplicationFocus มีเฉพาะ Roblox ปัจจุบัน (pcall กัน Studio เก่า)
+ActionRouter.register("SetFocus", function(s, a, player)
+	if not player then return end
+	if type(a.target) == "string" then
+		local part = workspace:FindFirstChild(a.target, true)
+		if part and part:IsA("BasePart") then
+			pcall(function() player.ReplicationFocus = part end)
+		end
+	else
+		pcall(function() player.ReplicationFocus = nil end)
 	end
 end)
 ActionRouter.register("NewGame", function(s, a)

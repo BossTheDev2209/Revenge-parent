@@ -212,6 +212,7 @@ function ShopKiosk.open(playerGui, deps)
 		TextScaled = true, Text = "✕",
 	})
 	mk("UICorner", close, {})
+	close:SetAttribute("Sfx", "ui_back") -- ปิดหน้าต่าง = กลุ่มเสียงย้อน/ยกเลิก
 
 	local page = {} -- [key] = หน้าที่กำลังดูของแถวนั้น
 	local rows = {}
@@ -363,19 +364,24 @@ function ShopKiosk.open(playerGui, deps)
 					ui.emoji.TextTransparency = dim and 0.55 or 0
 					ui.img.ImageTransparency = dim and 0.55 or 0
 
+					-- เสียงเปลี่ยนตามสถานะปุ่ม (Main.client อ่าน attribute Sfx ตอนกด)
 					if t.status == "owned" then
 						-- ซื้อไว้แล้วแต่ไม่ได้ใช้ → กดย้อนกลับมาใช้ได้ (ผลลดลงจริงตามระดับ)
 						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "↩ ใช้อันนี้", COLORS.equip, true
+						ui.btn:SetAttribute("Sfx", "equip")
 					elseif t.status == "current" then
 						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "⭐ ใช้อยู่", COLORS.current, false
+						ui.btn:SetAttribute("Sfx", "none") -- ใช้อยู่แล้ว กดไม่มีผล = ไม่ต้องมีเสียง
 					elseif t.status == "next" then
 						local can = state.money >= t.price
 						ui.btn.Text = ("Buy ฿%s"):format(HUD.comma(t.price))
 						ui.btn.BackgroundColor3 = can and COLORS.buy or COLORS.broke
 						ui.btn.Active = can
+						ui.btn:SetAttribute("Sfx", can and "buy" or "denied") -- เงินไม่พอ = เสียงปฏิเสธ
 					else
 						ui.btn.Text = ("🔒 ฿%s"):format(HUD.comma(t.price))
 						ui.btn.BackgroundColor3, ui.btn.Active = COLORS.cardDim, false
+						ui.btn:SetAttribute("Sfx", "denied")
 					end
 				end
 			end

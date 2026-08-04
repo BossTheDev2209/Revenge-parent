@@ -27,12 +27,33 @@ SoundService/
 
 | ชื่อ | ดังตอน |
 |---|---|
-| `ui_click` | **ทุกการกดในเกม** (ปุ่ม UI, กล่องข้อความ, แอปในคอม) |
+| `ui_click` | ปุ่มทั่วไป (ค่าเริ่มต้นของทุกปุ่มที่ไม่ได้ตั้งเสียงเฉพาะ) |
+| `ui_back` | ปุ่มย้อนกลับ / ปิดหน้าต่าง / ยกเลิก / ข้าม cutscene |
+| `dialogue_advance` | คลิกกล่องข้อความไปบรรทัดถัดไป |
+| `dialogue_choice` | เลือกช้อยในบทสนทนา |
+| `buy` | ซื้อของในร้านสำเร็จ |
+| `equip` | ย้อนกลับไปใช้อุปกรณ์ระดับเก่า |
+| `denied` | กดของที่ยังซื้อไม่ได้ / เงินไม่พอ |
+| `save` | ปุ่มเซฟ |
 | `upload_done` | อัปคลิปสำเร็จ |
 | `viral` | คลิปนั้นไวรัล |
-| `footstep` | เดิน (ถี่ตามความเร็วอัตโนมัติ + สุ่ม pitch ±8%) |
 
-**อยากให้ดังตอนอื่นด้วย** (เช่น ซื้อของ / QTE โดน-พลาด / จ้างพนักงาน) → บอก agent ว่าอยากได้ตอนไหน แล้ววาง Sound ชื่อที่ตกลงกัน
+**ไม่มีไฟล์ชื่อไหน = เงียบเฉพาะอันนั้น** + warn ครั้งเดียวใน Output (ไม่พัง วางเพิ่มทีหลังได้)
+เสียงเดินไม่อยู่ตารางนี้แล้ว — ใช้ระบบ material-based ที่ `ServerScriptService.Footsteps` แทน ([src/studio-only](../../src/studio-only/README.md))
+
+### เสียงกดปุ่มทำงานยังไง (ไม่ต้องแตะโค้ดถ้าแค่จะเพิ่มเสียง)
+
+**ผูกที่เดียวใน `Main.client`** — ทุก `GuiButton` ใต้ PlayerGui ได้เสียงคลิกอัตโนมัติ **1 คลิกจริง = 1 เสียง**
+
+อยากให้ปุ่มไหนเสียงต่างจาก `ui_click` → ตั้ง attribute **`Sfx`** บนปุ่มนั้น:
+
+```lua
+btn:SetAttribute("Sfx", "buy")    -- ใช้เสียงชื่อ buy ใน SoundService.SFX
+btn:SetAttribute("Sfx", "none")   -- ปุ่มนี้ไม่ต้องมีเสียง
+```
+
+⚠️ **ห้ามเรียก `Audio.sfx("ui_click")` เองในปุ่ม** — ตัวผูกกลางเล่นให้แล้ว เรียกเองจะดัง 2 ที
+(เดิมเล่นเสียงใน `fireAction` = ดังต่อ *action ที่ยิง server* ปุ่มเดียวยิง 2 action ก็ดัง 2 ที — แก้แล้ว 5 ส.ค.)
 
 ---
 
@@ -50,16 +71,17 @@ SoundService/
 ## 4. เพลงตามโซน
 
 **สร้าง Part ครอบพื้นที่:**
+
 - ชื่อขึ้นต้น **`Zone_`** เช่น `Zone_Street`, `Zone_Apartment`, `Zone_House`
 - Transparency 1 · CanCollide ✗ · Anchored ✓ · ครอบพื้นที่ที่อยากให้เพลงนี้ดัง
 
 **ใส่ Attribute** (คลิก Part → Properties → Attributes → +):
 
-| Attribute | ชนิด | ความหมาย |
-|---|---|---|
-| `Music` | string | ชื่อ Sound ใน `BGM` (ไม่ใส่ = เงียบในโซนนี้) |
-| `Ambient` | string | ชื่อ Sound ใน `Ambient` (ไม่บังคับ — ซ้อนบนเพลง) |
-| `Priority` | number | โซนซ้อนกัน **เลขมากกว่าชนะ** (ไม่ใส่ = 0) |
+| Attribute  | ชนิด   | ความหมาย                                         |
+| ---------- | ------ | ------------------------------------------------ |
+| `Music`    | string | ชื่อ Sound ใน `BGM` (ไม่ใส่ = เงียบในโซนนี้)     |
+| `Ambient`  | string | ชื่อ Sound ใน `Ambient` (ไม่บังคับ — ซ้อนบนเพลง) |
+| `Priority` | number | โซนซ้อนกัน **เลขมากกว่าชนะ** (ไม่ใส่ = 0)        |
 
 **ระบบทำให้เอง:** เช็คทุก 0.35 วิ · crossfade 1.2 วิ · เดินออกทุกโซน = กลับเป็น `Config.Audio.defaultBGM`
 
@@ -70,10 +92,12 @@ SoundService/
 ## 5. เสียงใน Cutscene
 
 cutscene สั่งเสียงได้ 2 step (ดู [cutscene.md](cutscene.md)):
+
 ```lua
 { type = "bgm",   name = "Ending_Sad" },  -- ไม่ใส่ name = เงียบสนิท (ทรงพลังตอน Bad End)
 { type = "sound", name = "door_slam" },
 ```
+
 ระหว่าง cutscene **โซนถูกล็อก ไม่แย่งเพลง** จบแล้วคืนสิทธิ์อัตโนมัติ
 
 ---
@@ -84,15 +108,15 @@ cutscene สั่งเสียงได้ 2 step (ดู [cutscene.md](cutsc
 
 **จังหวะ** — `ReplicatedStorage.Shared.Config` → `Config.Audio`:
 
-| ค่า | ตอนนี้ | คุมอะไร |
-|---|---|---|
-| `bgmFade` | 1.2 | วินาที crossfade เปลี่ยนเพลง |
-| `defaultBGM` | `""` | เพลงตอนไม่อยู่โซนไหน (ว่าง = เงียบ) |
-| `zoneCheckInterval` | 0.35 | เช็คโซนถี่แค่ไหน |
-| `voiceMinGap` | 0.045 | blip ห่างกันอย่างน้อยกี่วิ |
-| `voicePitchVary` | 0.12 | สุ่ม pitch เสียงพูด ±เท่าไหร่ |
-| `footstepInterval` | 0.42 | ระยะห่างก้าวเดิน |
-| `footstepPitchVary` | 0.08 | สุ่ม pitch ก้าวเดิน |
+| ค่า                 | ตอนนี้ | คุมอะไร                             |
+| ------------------- | ------ | ----------------------------------- |
+| `bgmFade`           | 1.2    | วินาที crossfade เปลี่ยนเพลง        |
+| `defaultBGM`        | `""`   | เพลงตอนไม่อยู่โซนไหน (ว่าง = เงียบ) |
+| `zoneCheckInterval` | 0.35   | เช็คโซนถี่แค่ไหน                    |
+| `voiceMinGap`       | 0.045  | blip ห่างกันอย่างน้อยกี่วิ          |
+| `voicePitchVary`    | 0.12   | สุ่ม pitch เสียงพูด ±เท่าไหร่       |
+| `footstepInterval`  | 0.42   | ระยะห่างก้าวเดิน                    |
+| `footstepPitchVary` | 0.08   | สุ่ม pitch ก้าวเดิน                 |
 
 ---
 

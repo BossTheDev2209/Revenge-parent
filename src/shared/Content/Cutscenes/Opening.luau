@@ -18,15 +18,14 @@ return {
 	{type = "camera", cam = "Opening_02" },--show player sleepin
 	{type = "wait", t = 3 },
 	{type = "camera", cam = "Opening_03"},--mum open door
-	{type = "wait", t = 1},
 	{type = "camera", cam = "Opening_04"},--mum say smth
 	{type = "text", text = "ตื่นได้แล้วลูก! บ่ายโมงกว่าแล้วเนี่ย พ่อเขามีเรื่องจะคุยด้วย"},
-	{type = "wait", t = 4},
+	{type = "wait", t = 5},
 	{type = "camera", cam = "Opening_05"}, --dad furiously waiting
 	{type = "wait" , t = 4},
 	{type = "camera", cam = "Opening_06"}, --we speak to dad
 	{type = "text", text = "โทษทีพ่อเมื่อคืนสตรีมดึกไปหน่อย ว่าแต่พ่อมีเรื่องอะไรจะคุยหรอ?"},
-	{type = "wait", t = 4},
+	{type = "wait", t = 5},
 	{type = "camera", cam = "Opening_07"},
 	{type = "text", text = "ออกไปจากบ้านของฉันสะ แล้วไม่ต้องเสนอหน้ากลับมาอีก"},--dad kick us out of the home
 	{type = "wait", t = 3},
@@ -55,6 +54,7 @@ return {
 	{type = "camera", cam = "Opening_16"},
 	{type = "text", text = "นั่นแหละ! มึงไปทำงานที่มึงชอบให้หนำใจเลย-"},
 	{type = "wait", t = 3},
+	{type = "focus", target = "Spawn_Phase1" },
 	{type = "camera", cam = "Opening_17"},
 	{type = "text", text = "-แล้วไม่ต้องมาเกาะพวกกูแดกอีก.. หึ"},
 	{type = "wait", t = 3},
@@ -66,7 +66,9 @@ return {
 	{type = "wait", t = 5},
 	{type = "camera", cam = "Opening_20"},
 	{type = "text", text = "แล้วทีนี้ฉันจะเอายังไงต่อดีละเนี่ย..."},
-	{type = "wait", t = 3},
+	{type = "wait", t = 2},
+	{type = "camera", cam = "Opening_22"},
+	{type = "wait", t = 2},
 	{type = "camera", cam = "Opening_21"},
 	{type = "text", text = "-ฉันกลายเป็นคนไร้บ้านไปสะแล้ว ;-;"},
 	{type = "wait", t = 5},

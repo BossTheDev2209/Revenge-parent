@@ -27,7 +27,6 @@ local Content = RS.Shared.Content
 local latestState = nil
 
 local function fireAction(action)
-	Audio.sfx("ui_click") -- ทุกการกดในเกมมีเสียงเดียวกัน (ไม่มีไฟล์ = เงียบ)
 	actionRemote:FireServer(action)
 end
 
@@ -94,6 +93,22 @@ local function playOpening()
 	end)
 end
 
+-- เสียงกดปุ่ม: ผูกที่เดียวให้ทุกปุ่มใน PlayerGui — **1 คลิกจริง = 1 เสียง**
+-- (เดิมเล่นใน fireAction = ต่อ action ที่ยิง server ปุ่มเดียวยิง 2 action ก็ดัง 2 ที)
+-- ปุ่มไหนอยากได้เสียงอื่น ตั้ง attribute `Sfx` = ชื่อใน SoundService.SFX · `Sfx = "none"` = เงียบ
+-- ไม่มีไฟล์เสียงชื่อนั้น = เงียบ + warn ครั้งเดียว (ไม่พัง)
+local soundBound = setmetatable({}, { __mode = "k" }) -- weak: ปุ่มโดนลบแล้วปล่อยหลุดเอง
+local function bindClickSound(inst)
+	if soundBound[inst] or not inst:IsA("GuiButton") then return end
+	soundBound[inst] = true
+	inst.Activated:Connect(function()
+		local key = inst:GetAttribute("Sfx") or "ui_click"
+		if key ~= "none" then Audio.sfx(key) end
+	end)
+end
+for _, d in playerGui:GetDescendants() do bindClickSound(d) end
+playerGui.DescendantAdded:Connect(bindClickSound)
+
 HUD.init(playerGui)
 
 -- ซ่อน backpack/hotbar เวลามีหน้าต่างเต็มจอบัง (cutscene/บทคุย/เมนู/คอม/ร้าน/ตัดคลิป/เตียง)
@@ -130,6 +145,7 @@ saveBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
 saveBtn.TextColor3 = Color3.new(1, 1, 1)
 saveBtn.TextScaled = true
 saveBtn.Text = "💾 เซฟ"
+saveBtn:SetAttribute("Sfx", "save")
 saveBtn.Parent = saveGui
 saveGui.Parent = playerGui
 saveBtn.Activated:Connect(function()

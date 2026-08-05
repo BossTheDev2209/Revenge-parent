@@ -63,6 +63,9 @@ function RecordTool.init(player, fireAction, getState)
 		if not tool:IsA("Tool") or bound[tool] then return end
 		local src = tool:GetAttribute("ToolSource")
 		if not src then return end
+		-- Tool กล้องระดับรถเข็นมี CameraCart คุมเอง (ยืน = เสกรถ / นั่ง = อัด)
+		-- ผูกที่นี่ด้วยจะยิง RecordFootage ซ้อนตอนกดเรียกรถ
+		if src == Config.CameraCartToolSource then return end
 		bound[tool] = true
 		tool.Activated:Connect(function()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")

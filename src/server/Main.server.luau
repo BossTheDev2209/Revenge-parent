@@ -17,6 +17,7 @@ local StaffService = require(SSS.Services.StaffService)
 local RecordService = require(SSS.Services.RecordService)
 local ToolService = require(SSS.Services.ToolService)
 local Config = require(RS.Shared.Config)
+local Formulas = require(RS.Shared.Formulas)
 
 local state = GameState.newGame()
 
@@ -115,6 +116,12 @@ ActionRouter.register("BuyUpgrade", function(s, a)
 	MoneyService.buyUpgrade(s, a.item)
 end)
 -- ย้อนไปใช้อุปกรณ์ระดับเก่าที่ซื้อไว้แล้ว (ผลลดลงจริง) — ToolService.sync หลัง route จะสลับ Tool ให้เอง
+-- Tool Camera_6 = รีโมทเรียกรถเข็นกล้อง — เสกใหม่ทุกครั้งที่กด (ลบคันเก่าก่อน)
+-- ต้องถึงระดับ CameraCartLevel จริงถึงเรียกได้ — server ตัดสิน ไม่เชื่อ client
+ActionRouter.register("SummonCart", function(s, a, player)
+	if Formulas.activeLevel(s, "camera") < Config.CameraCartLevel then return end
+	ToolService.summonCart(player)
+end)
 ActionRouter.register("EquipLevel", function(s, a)
 	MoneyService.equipLevel(s, a.item, a.level)
 end)

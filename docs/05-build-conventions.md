@@ -145,7 +145,7 @@ CutsceneCams (Folder ใน Workspace) → <Scene>/<Scene>_<เลข>  มุ�
 FilmSpot_<ชื่อจุด>                                        จุดกดถ่ายคลิป (ระบบ Record — docs/09 §4)
 Spawn_Phase<N>                                            จุดที่ player โผล่เมื่อเข้าเฟสนั้น (intro ใช้ Spawn_Phase1)
 Interact_Shop                                             ร้านขายอุปกรณ์ในแมพ (docs/09 §10)
-ReplicatedStorage.ToolModels → Camera_1..6 / Selfie / Notebook / NotebookPlaced   โมเดล Tool (§3.6)
+ReplicatedStorage.ToolModels → Camera_1..6 / Selfie / Notebook / NotebookPlaced / CameraCart   โมเดล Tool (§3.6)
 Zone_<ชื่อ>                                               โซนเพลง (Attribute Music/Ambient/Priority)
 Buy_<ชื่อ> + Item_<ชื่อ>                                   ปุ่ม tycoon + ของที่โผล่ (§3.5)
 ```
@@ -167,6 +167,13 @@ Buy_<ชื่อ> + Item_<ชื่อ>                                   ป�
 
 > **อุปกรณ์ถ่ายมีสายเดียว** (lock 27 ก.ค.) — ไม่มี Tool มือถือ/ไม้เซลฟี่แยก. มือถือ = กล้องระดับ 1, ไม้เซลฟี่จะเอาไปเป็นหน้าตาของระดับไหนก็ได้ตามใจคนปั้นโมเดล
 | `NotebookPlaced` | โน้ตบุ๊คกางบนพื้น (Model) | ตอนกดวาง |
+| `CameraCart` | **รถเข็นกล้อง IMAX (Model ไม่ใช่ Tool)** | ถือ `Camera_6` แล้วกดตอนยืน = เสกออกมา (docs/02 §9.5) |
+
+**กติกาเฉพาะ `CameraCart`** (user lock 5 ส.ค.) — เป็น **Model** ไม่ใช่ Tool อยู่ใน ToolModels เหมือน `NotebookPlaced`:
+- `PrimaryPart` ต้องเป็น **`Seat`** ชื่อ `CartSeat` และเป็นชิ้น**เดียว**ที่ `Anchored = true`
+- ชิ้นอื่นทั้งหมด `Anchored = false` + `WeldConstraint` ติดกับ `CartSeat` — ชิ้นไหนไม่ weld = หล่นทิ้งกลางแมพตอนเสก
+- ห้ามใส่ script ในโมเดล (`CameraCart.luau` ฝั่ง client ขยับ Seat ด้วย CFrame ให้เอง)
+- ระบบลบคันเก่าก่อนเสกใหม่เสมอ → ห้ามมี `CameraCart` วางค้างใน Workspace
 
 **กติกาโมเดล:**
 - ทุกอันเป็น `Tool` ที่มี Part ชื่อ **`Handle`** (ตัวที่มือจับ) ส่วนที่เหลือ weld ติดเข้ากับ Handle

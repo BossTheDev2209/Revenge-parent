@@ -188,10 +188,14 @@ Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192,
 -- ทีมปั้นโมเดลเพิ่มเมื่อไหร่ ขยับเลขนี้ตาม
 Config.CameraModelCount = 6
 
--- ★ ระดับ 6 = ไม่มี Tool ถือ เปลี่ยนเป็น "รถเข็นกล้อง IMAX" นั่งขับได้แทน (user lock 3 ส.ค.)
---   docs/02 §9.5 เดิมเขียนว่า 6 ระดับ = 6 Tool → อัปตามแล้ว
+-- ★ ระดับ 6 = Tool "Camera_6" ทำหน้าที่ **รีโมทเรียกรถเข็นกล้อง IMAX** (แก้ดีไซน์ 5 ส.ค.)
+--   กล้องอยู่กับ player ตลอด ไม่ได้เอา Tool ออก · กดตอนยืน = เสกรถออกมาใหม่ทุกครั้ง
+--   (ดีไซน์เดิม 3 ส.ค. คือเอา Tool ออกแล้วมีรถอยู่ในแมพ — user เปลี่ยนใจ)
 --   ตัวคูณ GB/คลิก ยังใช้ footagePerClickGB[6] = 32 เหมือนเดิม ไม่แตะ balance
 Config.CameraCartLevel = 6
+Config.CameraCartToolSource = "Camera_6" -- ToolSource ของ Tool ที่เรียกรถ (RecordTool ข้ามตัวนี้ CameraCart คุมเอง)
+Config.CameraCartTemplate = "CameraCart" -- ชื่อ Model ต้นฉบับใน ReplicatedStorage.ToolModels
+Config.CameraCartSpawnStuds = 12 -- เสกห่างหน้าตัวผู้เล่นกี่ studs (กันโผล่ทับตัว)
 
 -- ⚠️ ต้องตรงกับ SPRINT_SPEED ใน StarterCharacterScripts.SprintHandler (สำเนา src/studio-only/)
 --    สคริปต์นั้น Rojo ไม่ sync เลย require ข้ามมาไม่ได้ — แก้ที่นั่นต้องแก้ตรงนี้ด้วย

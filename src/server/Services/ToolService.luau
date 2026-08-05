@@ -20,12 +20,9 @@ function ToolService.desiredTools(state)
 	-- ระดับกล้องมี 15 แต่โมเดลใน ToolModels มีถึง Camera_6 — เกินนั้นใช้โมเดลตัวท้ายสุด
 	-- (ไม่ clamp = หาโมเดลไม่เจอ = มือเปล่า อัดคลิปไม่ได้ทั้งเกม)
 	local modelLv = math.min(lv, Config.CameraModelCount)
-	-- ★ ระดับ CameraCartLevel ขึ้นไป = ขับรถเข็นกล้องแทน ไม่มี Tool ถือในมือ (user lock 3 ส.ค.)
-	--   อัดคลิปตอนนั่งบนรถ (CameraCart.luau) — ตัวคูณ GB/คลิก ยังใช้ค่าเดิมของระดับนั้น
-	local out = {}
-	if lv < Config.CameraCartLevel then
-		table.insert(out, "Camera_" .. modelLv)
-	end
+	-- ทุกระดับมี Tool กล้องถือในมือเสมอ — ระดับ CameraCartLevel ขึ้นไป Tool ตัวนั้น
+	-- ทำหน้าที่ "รีโมทเรียกรถ" เพิ่มด้วย (CameraCart.luau) ไม่ได้เอา Tool ออก
+	local out = { "Camera_" .. modelLv }
 	-- โน้ตบุ๊คมีเฉพาะเฟส 1 และเฉพาะตอนยังไม่ได้วางลงพื้น
 	if state.phase == 1 and not state.notebookPlaced then
 		table.insert(out, "Notebook")
@@ -51,8 +48,12 @@ function ToolService.sync(player, state)
 		warn("[ToolService] ไม่มี ReplicatedStorage.ToolModels — ไม่มี Tool ให้ถือ")
 		return
 	end
-	local want = {}
-	for _, n in ToolService.desiredTools(state) do want[n] = true end
+	local want = {}   -- ของที่ยัง "ขาด" — โดนลบทีละตัวตอน scan เจอ
+	local desired = {} -- ของที่ "ควรมี" — ห้ามแตะ ใช้ตัดสินหลัง scan
+	for _, n in ToolService.desiredTools(state) do
+		want[n] = true
+		desired[n] = true
+	end
 
 	local function scan(container)
 		if not container then return end
@@ -69,6 +70,13 @@ function ToolService.sync(player, state)
 	end
 	scan(player:FindFirstChild("Backpack"))
 	scan(player.Character)
+
+	-- ย้อนกลับไป equip กล้องระดับต่ำกว่ารถเข็น = รถที่เสกค้างไว้ต้องหายด้วย
+	-- ไม่งั้น downgrade ไม่เสียอะไรเลย ยังขับคันเก่าต่อได้ (ขัด "ผลลดลงจริง" docs/02 §9.5)
+	if not desired[Config.CameraCartToolSource] then
+		local old = workspace:FindFirstChild(Config.CameraCartTemplate)
+		if old then old:Destroy() end
+	end
 
 	for name in want do
 		local tpl = templates:FindFirstChild(name)
@@ -106,6 +114,32 @@ function ToolService.pickupNotebook(state): boolean
 	if not state.notebookPlaced then return false end
 	state.notebookPlaced = false
 	return true
+end
+
+-- เสกรถเข็นกล้องออกมาหน้าผู้เล่น (Tool Camera_6 กดเรียก) — ของเก่าถูกลบก่อนเสมอ
+-- ทำที่ server: Seat ต้องเป็นของจริงฝั่ง server ไม่งั้นนั่งไม่ติด
+-- คืน Model ที่เสก หรือ nil ถ้าทำไม่ได้ (ไม่มี template / ไม่มีตัวละคร)
+function ToolService.summonCart(player)
+	local templates = game:GetService("ReplicatedStorage"):FindFirstChild("ToolModels")
+	local tpl = templates and templates:FindFirstChild(Config.CameraCartTemplate)
+	if not tpl then
+		warn("[ToolService] ไม่มีโมเดล ToolModels." .. Config.CameraCartTemplate)
+		return nil
+	end
+	local char = player and player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return nil end
+
+	-- เสกใหม่ทุกครั้ง = ลบคันเก่าก่อน (ไม่งั้นรถกองเต็มแมพ)
+	local old = workspace:FindFirstChild(Config.CameraCartTemplate)
+	if old then old:Destroy() end
+
+	local m = tpl:Clone()
+	-- วางหน้าตัวผู้เล่น หันหน้าทางเดียวกับผู้เล่น (ขึ้นแล้วขับต่อได้เลยไม่ต้องหมุน)
+	local drop = root.CFrame * CFrame.new(0, 0, -Config.CameraCartSpawnStuds)
+	m:PivotTo(CFrame.lookAt(drop.Position, drop.Position + root.CFrame.LookVector))
+	m.Parent = workspace
+	return m
 end
 
 return ToolService

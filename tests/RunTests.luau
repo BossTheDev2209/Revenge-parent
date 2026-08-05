@@ -378,8 +378,8 @@ ts.notebookPlaced = false
 ts.phase = 2
 check("เฟส 2 ไม่มีโน้ตบุ๊ค (ห้องมีคอมจริงแล้ว)", toolSet(ts).Notebook == nil)
 ts.upgrades.camera = 99
--- แก้ 3 ส.ค.: ระดับ CameraCartLevel ขึ้นไป = ขับรถเข็นแทน ไม่มี Tool กล้องในมือแล้ว
-check("ระดับกล้องเกินตาราง = ไม่มี Tool กล้อง (ใช้รถเข็นแทน)", toolSet(ts).Camera_6 == nil)
+-- แก้ 5 ส.ค.: ทุกระดับมี Tool กล้องเสมอ — ระดับ 6 Tool ทำหน้าที่รีโมทเรียกรถเพิ่ม
+check("ระดับกล้องเกินตาราง = clamp ที่โมเดลตัวท้ายสุด", toolSet(ts).Camera_6 == true)
 ts.upgrades.camera = Config.CameraCartLevel - 1
 check("ระดับก่อนถึงรถ ยังได้ Tool ตามระดับปกติ",
 	toolSet(ts)["Camera_" .. (Config.CameraCartLevel - 1)] == true)
@@ -1226,16 +1226,30 @@ check("ซื้อถึง 8 แต่ย้อนไปใช้ 2 = ขั�
 MoneyService.equipLevel(cartS, "camera", Config.CameraCartLevel)
 check("ย้อนกลับมาระดับรถ = ขับได้อีก", CameraCart.canDrive(cartS) == true)
 
--- ระดับรถขึ้นไป = ไม่มี Tool กล้องในมือ (แต่โน้ตบุ๊คเฟส 1 ยังต้องมี)
-local noTool = GameState.newGame()
-noTool.upgrades.camera = Config.CameraCartLevel
-local tools = ToolService.desiredTools(noTool)
-local hasCam = false
-for _, n in tools do if n:match("^Camera_") then hasCam = true end end
-check("ระดับรถ = ไม่แจก Tool กล้อง", hasCam == false)
-noTool.upgrades.camera = Config.CameraCartLevel - 1
-local tools2 = ToolService.desiredTools(noTool)
-check("ระดับก่อนหน้ายังแจก Tool กล้องปกติ", tools2[1] == "Camera_" .. (Config.CameraCartLevel - 1))
+-- ระดับรถ = ยังมี Tool กล้อง (Tool ตัวนั้นคือรีโมทเรียกรถ) — user lock 5 ส.ค.
+local cartTool = GameState.newGame()
+cartTool.upgrades.camera = Config.CameraCartLevel
+check("ระดับรถ = ยังแจก Tool กล้อง (ใช้เป็นรีโมท)",
+	ToolService.desiredTools(cartTool)[1] == Config.CameraCartToolSource)
+check("ToolSource ของรีโมทตรงกับโมเดลระดับสูงสุดที่มีจริง",
+	Config.CameraCartToolSource == "Camera_" .. Config.CameraModelCount)
+cartTool.upgrades.camera = Config.CameraCartLevel - 1
+check("ระดับก่อนหน้ายังแจก Tool กล้องปกติ",
+	ToolService.desiredTools(cartTool)[1] == "Camera_" .. (Config.CameraCartLevel - 1))
+
+-- ย้อนกลับไป equip กล้องต่ำกว่าระดับรถ = ไม่ควรมีรีโมทอยู่ในมือ
+-- (sync ใช้เงื่อนไขเดียวกันนี้ตัดสินว่าจะลบรถที่เสกค้างในแมพทิ้งไหม)
+local cartDown = GameState.newGame()
+cartDown.upgrades.camera = Config.CameraCartLevel + 2
+MoneyService.equipLevel(cartDown, "camera", Config.CameraCartLevel - 1)
+local downSet = {}
+for _, n in ToolService.desiredTools(cartDown) do downSet[n] = true end
+check("ซื้อเกินระดับรถ แต่ย้อนไปใช้ต่ำกว่า = ไม่มีรีโมทเรียกรถ",
+	downSet[Config.CameraCartToolSource] ~= true)
+MoneyService.equipLevel(cartDown, "camera", Config.CameraCartLevel)
+local upSet = {}
+for _, n in ToolService.desiredTools(cartDown) do upSet[n] = true end
+check("equip กลับมาระดับรถ = รีโมทกลับมา", upSet[Config.CameraCartToolSource] == true)
 
 -- สูตรขับ: เดินหน้า/ถอย/เลี้ยว
 local mv, tn = CameraCart.step(1, 0, 1)
@@ -1358,13 +1372,8 @@ end)) == nil)
 -- โมเดล Tool มีถึง Camera_6 — clamp ยังต้องทำงานสำหรับระดับที่ยังถือ Tool อยู่
 local hi = GameState.newGame()
 hi.upgrades.camera = 12
--- เช็คเฉพาะ Tool กล้อง — เฟส 1 ยังมีโน้ตบุ๊คอยู่ด้วย ลิสต์เลยไม่ว่าง
-check("ระดับ 12 = ขับรถเข็น ไม่มี Tool กล้อง", (function()
-	for _, n in ToolService.desiredTools(hi) do
-		if n:match("^Camera_") then return false end
-	end
-	return true
-end)())
+check("ระดับ 12 = ใช้โมเดลตัวท้ายสุด (clamp ไม่หลุดตาราง)",
+	ToolService.desiredTools(hi)[1] == "Camera_" .. Config.CameraModelCount)
 local midLv = GameState.newGame()
 midLv.upgrades.camera = math.min(Config.CameraModelCount, Config.CameraCartLevel - 1)
 check("ระดับสูงสุดที่ยังถือ Tool = ใช้โมเดลที่มีจริง ไม่หลุดตาราง",

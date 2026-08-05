@@ -270,8 +270,9 @@ local function makeCanvas(target, camCF, playerGui, name, marginScale)
 end
 
 -- ===== ปุ่มกระดาษโน้ต (พอร์ตจาก Figma component MenuButton — ธีมสมุดเล่าเรื่อง) =====
--- ฟอนต์ Mali (ลายมือไทย) อยู่ในทะเบียน Roblox แล้ว ไม่ต้องอัป · variant Hover = พื้นแดงอ่อน
-local MENU_FONT = Font.fromName("Mali", Enum.FontWeight.SemiBold)
+-- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่พังจริง ("Temp read failed" ซ้ำทุก session ไม่ใช่ cache กระตุก)
+-- เปลี่ยนเป็น Enum.Font (ของ client จริง) — variant Hover = พื้นแดงอ่อน
+local MENU_FONT = Font.fromEnum(Enum.Font.GothamMedium)
 local INK = Color3.fromRGB(51, 41, 33)
 local CREAM = Color3.fromRGB(250, 245, 230)
 local CREAM_HOVER = Color3.fromRGB(247, 229, 217)

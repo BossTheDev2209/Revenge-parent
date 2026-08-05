@@ -109,17 +109,23 @@ function AnimPlayer.findFaceTexture(actor: string?, faceName: string): string?
 end
 
 -- หาตัวละครในแมพ: "player" = ตัวผู้เล่น | ชื่ออื่น = โมเดลที่ชื่อขึ้นต้นด้วย prefix
+-- ค้นเฉพาะใน Workspace.NPC (StoryNPC/WorldNPC ตัวจริงที่เล่นเกม) — **ห้ามค้นทั้ง workspace**
+-- เพราะฉาก cutscene มีโมเดลชื่อซ้ำ (ท่าโพสสำหรับฉาก เช่น Map_Phase0.npc) ถ้าค้นกว้างไปสุ่มไปเจอตัวโพสแทนตัวจริง
 function AnimPlayer.findRig(actor: string?): Model?
 	if not actor or actor == "" then return nil end
 	if actor == "player" then
 		return game:GetService("Players").LocalPlayer.Character
 	end
 	local prefix = AnimPlayer.modelPrefix(actor)
-	local exact = workspace:FindFirstChild(prefix, true)
+	local root = workspace:FindFirstChild("NPC")
+	if not root then return nil end
+	local exact = root:FindFirstChild(prefix, true)
 	if exact and exact:IsA("Model") and exact:FindFirstChildOfClass("Humanoid") then return exact end
-	for _, m in workspace:GetChildren() do
-		if m:IsA("Model") and m.Name:sub(1, #prefix) == prefix and m:FindFirstChildOfClass("Humanoid") then
-			return m
+	for _, folder in root:GetChildren() do
+		for _, m in folder:GetChildren() do
+			if m:IsA("Model") and m.Name:sub(1, #prefix) == prefix and m:FindFirstChildOfClass("Humanoid") then
+				return m
+			end
 		end
 	end
 	return nil

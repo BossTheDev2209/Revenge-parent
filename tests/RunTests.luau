@@ -1009,6 +1009,8 @@ check("Config.Audio ครบ", Config.Audio.bgmFade > 0 and Config.Audio.voiceM
 local DB = Config.Dialogue.box
 check("Config.Dialogue.box ครบ", DB.width > 0 and DB.height > 0 and DB.textSize > 0
 	and DB.padding >= 0 and DB.portrait >= 0 and DB.portrait + DB.padding * 3 < DB.width)
+check("Config.Dialogue.box มีสีครบ (bg/text)",
+	typeof(DB.bgColor) == "Color3" and typeof(DB.textColor) == "Color3")
 -- cutscene step เสียงต้อง validate ผ่าน
 check("cutscene step bgm ผ่าน", CutscenePlayer.validate({ { type = "bgm", name = "Street" } }) == true)
 check("cutscene step bgm ไม่ใส่ชื่อ = เงียบ ผ่าน", CutscenePlayer.validate({ { type = "bgm" } }) == true)

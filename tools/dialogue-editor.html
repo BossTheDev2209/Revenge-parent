@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Dialogue Block Editor</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Tahoma", sans-serif; background:#1b1c22; color:#eee; margin:0; padding:0; }
+  header { position:sticky; top:0; z-index:10; background:#111218; padding:10px 16px; border-bottom:2px solid #333; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; margin-right:12px; }
+  header input[type=text] { background:#2a2c36; border:1px solid #444; color:#eee; padding:6px 8px; border-radius:4px; }
+  button { cursor:pointer; border:none; border-radius:5px; padding:6px 12px; font-size:13px; background:#3a3d4d; color:#eee; }
+  button:hover { background:#4a4d60; }
+  button.primary { background:#2f6fed; }
+  button.primary:hover { background:#4685ff; }
+  button.danger { background:#7a2d2d; }
+  button.danger:hover { background:#9c3a3a; }
+  button.tiny { padding:3px 7px; font-size:12px; }
+  main { display:flex; gap:0; }
+  #tabs { display:flex; gap:4px; padding:10px 16px 0; }
+  .tab { padding:8px 16px; border-radius:6px 6px 0 0; background:#26272f; cursor:pointer; font-size:13px; user-select:none; }
+  .tab.active { background:#2a2c36; font-weight:bold; border-bottom:2px solid #2f6fed; }
+  .tab .count { opacity:.5; margin-left:4px; }
+  #workspace { padding:16px; max-width:900px; margin:0 auto; }
+  .phase-hint { font-size:12px; opacity:.6; margin-bottom:12px; }
+  .block { background:#22242e; border-left:4px solid #444; border-radius:6px; margin-bottom:10px; padding:10px 12px; }
+  .block.line { border-left-color:#3a6fd8; }
+  .block.choice { border-left-color:#d89b3a; }
+  .block-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .block-type { font-size:11px; text-transform:uppercase; opacity:.6; letter-spacing:.5px; }
+  .block-actions { display:flex; gap:4px; }
+  .row { display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .row label { font-size:11px; opacity:.7; display:block; margin-bottom:2px; }
+  .field { flex:1; min-width:120px; }
+  input[type=text], textarea, select {
+    width:100%; background:#181920; border:1px solid #3a3c48; color:#eee; padding:6px 8px; border-radius:4px; font-size:13px;
+    font-family: inherit;
+  }
+  textarea { resize:vertical; min-height:44px; font-family: "Consolas", monospace; }
+  .tagbar { display:flex; gap:4px; margin-top:4px; }
+  .tagbar button { background:#2a2c36; font-size:11px; padding:2px 8px; }
+  details { margin-top:6px; }
+  summary { cursor:pointer; font-size:12px; opacity:.7; }
+  .pose-fields { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .pose-fields .field { min-width:100px; }
+  .choice-opt { background:#1c1e26; border:1px solid #3a3c48; border-radius:5px; padding:8px; margin-bottom:8px; }
+  .choice-opt-head { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+  .tone-plus { color:#7bd88f; } .tone-neutral { color:#d8c97b; } .tone-minus { color:#d87b7b; }
+  .reply-list { margin-left:14px; padding-left:10px; border-left:2px dashed #3a3c48; margin-top:6px; }
+  .reply-list .block { background:#1a1c24; }
+  .addbar { display:flex; gap:8px; margin-top:14px; }
+  .empty-hint { opacity:.4; font-size:12px; padding:20px; text-align:center; border:1px dashed #3a3c48; border-radius:6px; }
+  #exportPane { position:fixed; inset:0; background:#000000cc; display:none; align-items:center; justify-content:center; z-index:50; }
+  #exportPane.show { display:flex; }
+  #exportBox { background:#1b1c22; border:1px solid #444; border-radius:8px; padding:16px; width:min(720px,90vw); max-height:85vh; display:flex; flex-direction:column; gap:10px; }
+  #exportBox h2 { margin:0; font-size:15px; }
+  #exportBox textarea { flex:1; min-height:380px; font-family:"Consolas",monospace; font-size:12px; white-space:pre; }
+  #exportBox .btns { display:flex; gap:8px; justify-content:flex-end; }
+  .warn { color:#e6a23c; font-size:12px; }
+  footer { text-align:center; padding:30px; opacity:.35; font-size:11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧩 Dialogue Block Editor</h1>
+  <label style="font-size:12px;opacity:.7">ชื่อไฟล์ (ชื่อบท):</label>
+  <input type="text" id="npcName" placeholder="เช่น แม่, ลุงสืบ" value="NewNPC">
+  <button id="btnNew">ไฟล์ใหม่</button>
+  <button id="btnSaveProject">บันทึกโปรเจกต์ (.json)</button>
+  <button id="btnLoadProject">เปิดโปรเจกต์ (.json)</button>
+  <input type="file" id="fileInput" accept=".json" style="display:none">
+  <button class="primary" id="btnExport">แปลงเป็น Luau ▶</button>
+  <span id="autosaveNote" style="font-size:11px;opacity:.4;margin-left:auto">บันทึกอัตโนมัติในเบราว์เซอร์นี้</span>
+</header>
+
+<div id="tabs"></div>
+<main>
+  <div id="workspace"></div>
+</main>
+
+<footer>
+  dialogue-editor.html — เครื่องมือช่วยเขียนบท ไม่ต้องพิมพ์ Luau เอง · ทำงาน 100% ในเบราว์เซอร์ ไม่ส่งข้อมูลไปไหน<br>
+  ตรงกับ docs/engines/dialogue.md — ครบ p1/p2/p3/after/again, choices+tone+reply, anim/pose/face/actor, tag [slow]/[fast]/[normal]
+</footer>
+
+<div id="exportPane">
+  <div id="exportBox">
+    <h2>Luau ที่แปลงแล้ว — copy ไปวางเป็นไฟล์ <code id="exportFilename">.luau</code> ใน <code>src/shared/Content/Dialogue/</code></h2>
+    <div id="exportWarnings"></div>
+    <textarea id="exportOut" readonly></textarea>
+    <div class="btns">
+      <button id="btnCopyExport" class="primary">คัดลอก</button>
+      <button id="btnDownloadExport">ดาวน์โหลด .luau</button>
+      <button id="btnCloseExport">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== data model =====================
+// scene = { phases: { p1:[block], p2:[], p3:[], after:[], again:[] } }
+// block (line)   = { kind:'line', speaker, text, anim, pose, face, actor }
+// block (choice) = { kind:'choice', options:[ { text, tone, reply:[block,...] } ] }
+
+const PHASES = [
+  { key: 'p1', label: 'p1 — เฟส 1', hint: 'บทตอนเฟส 1 (Homeless)' },
+  { key: 'p2', label: 'p2 — เฟส 2', hint: 'บทตอนเฟส 2 (ห้องเช่า)' },
+  { key: 'p3', label: 'p3 — เฟส 3', hint: 'บทตอนเฟส 3 (บ้าน) — ไม่มี p3 = ระบบถอยไปใช้ p2 อัตโนมัติ' },
+  { key: 'after', label: 'after — หลังทรยศ', hint: 'บทหลังเพื่อนทรยศ (follower ≥ 500K) — เฉพาะ NPC ที่เกี่ยวข้อง เช่น แม่/ฟ้าใส' },
+  { key: 'again', label: 'again — คุยซ้ำ', hint: 'บทตอนคุยซ้ำในเฟสเดิม (คุยจบบทเต็มแล้วรอบนึง) — ไม่เขียน = คุยซ้ำเล่นบทเต็มเหมือนเดิม · ไม่ควรใส่ choices' },
+];
+
+let scene = emptyScene();
+let activePhase = 'p1';
+
+function emptyScene() {
+  const phases = {};
+  for (const p of PHASES) phases[p.key] = [];
+  return { phases };
+}
+function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'' }; }
+function newChoiceOption() { return { text:'', tone:'neutral', reply: [] }; }
+function newChoice() { return { kind:'choice', options: [ newChoiceOption() ] }; }
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// ===================== autosave =====================
+const LS_KEY = 'dialogue-editor:autosave:v1';
+function autosave() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ npcName: npcNameInput.value, scene })); } catch(e){}
+}
+function loadAutosave() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.scene) { scene = data.scene; npcNameInput.value = data.npcName || 'NewNPC'; return true; }
+  } catch(e){}
+  return false;
+}
+
+// ===================== render =====================
+const tabsEl = document.getElementById('tabs');
+const wsEl = document.getElementById('workspace');
+const npcNameInput = document.getElementById('npcName');
+
+function render() {
+  renderTabs();
+  renderWorkspace();
+  autosave();
+}
+
+function renderTabs() {
+  tabsEl.innerHTML = '';
+  for (const p of PHASES) {
+    const div = document.createElement('div');
+    div.className = 'tab' + (p.key === activePhase ? ' active' : '');
+    const n = scene.phases[p.key].length;
+    div.innerHTML = `${p.label} <span class="count">${n}</span>`;
+    div.onclick = () => { activePhase = p.key; render(); };
+    tabsEl.appendChild(div);
+  }
+}
+
+function renderWorkspace() {
+  wsEl.innerHTML = '';
+  const phaseInfo = PHASES.find(p => p.key === activePhase);
+  const hint = document.createElement('div');
+  hint.className = 'phase-hint';
+  hint.textContent = phaseInfo.hint;
+  wsEl.appendChild(hint);
+
+  const list = scene.phases[activePhase];
+  if (list.length === 0) {
+    const e = document.createElement('div');
+    e.className = 'empty-hint';
+    e.textContent = 'ยังไม่มีบรรทัด — กด "เพิ่มบทพูด" หรือ "เพิ่มช้อย" ด้านล่าง';
+    wsEl.appendChild(e);
+  }
+  list.forEach((block, i) => {
+    wsEl.appendChild(renderBlock(block, list, i, 0));
+  });
+
+  const addbar = document.createElement('div');
+  addbar.className = 'addbar';
+  addbar.appendChild(makeBtn('+ เพิ่มบทพูด', () => { list.push(newLine()); render(); }));
+  addbar.appendChild(makeBtn('+ เพิ่มช้อย (choices)', () => { list.push(newChoice()); render(); }));
+  wsEl.appendChild(addbar);
+}
+
+function makeBtn(text, onclick, cls) {
+  const b = document.createElement('button');
+  b.textContent = text;
+  if (cls) b.className = cls;
+  b.onclick = onclick;
+  return b;
+}
+
+// depth = 0 top-level, >0 = inside a reply list (reply only supports 'line' blocks in this editor)
+function renderBlock(block, list, index, depth) {
+  const el = document.createElement('div');
+  el.className = 'block ' + block.kind;
+
+  const head = document.createElement('div');
+  head.className = 'block-head';
+  const typeLabel = document.createElement('span');
+  typeLabel.className = 'block-type';
+  typeLabel.textContent = block.kind === 'line' ? `บรรทัด #${index+1}` : `ช้อย #${index+1}`;
+  head.appendChild(typeLabel);
+
+  const actions = document.createElement('div');
+  actions.className = 'block-actions';
+  actions.appendChild(makeBtn('↑', () => { if (index>0){ [list[index-1],list[index]]=[list[index],list[index-1]]; render(); } }, 'tiny'));
+  actions.appendChild(makeBtn('↓', () => { if (index<list.length-1){ [list[index+1],list[index]]=[list[index],list[index+1]]; render(); } }, 'tiny'));
+  actions.appendChild(makeBtn('ลบ', () => { list.splice(index,1); render(); }, 'tiny danger'));
+  head.appendChild(actions);
+  el.appendChild(head);
+
+  if (block.kind === 'line') {
+    el.appendChild(renderLineFields(block));
+  } else {
+    el.appendChild(renderChoiceFields(block, depth));
+  }
+  return el;
+}
+
+function insertAtCursor(textarea, tag) {
+  const start = textarea.selectionStart, end = textarea.selectionEnd;
+  const val = textarea.value;
+  textarea.value = val.slice(0,start) + tag + val.slice(end);
+  textarea.dispatchEvent(new Event('input'));
+  textarea.focus();
+  textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+}
+
+function renderLineFields(block) {
+  const wrap = document.createElement('div');
+
+  const row1 = document.createElement('div');
+  row1.className = 'row';
+  const speakerField = document.createElement('div');
+  speakerField.className = 'field';
+  speakerField.style.maxWidth = '220px';
+  speakerField.innerHTML = '<label>ผู้พูด (speaker) — เว้นว่าง = ไม่มีชื่อขึ้น</label>';
+  const speakerInput = document.createElement('input');
+  speakerInput.type = 'text';
+  speakerInput.value = block.speaker;
+  speakerInput.placeholder = 'เช่น แม่';
+  speakerInput.oninput = () => { block.speaker = speakerInput.value; autosave(); };
+  speakerField.appendChild(speakerInput);
+  row1.appendChild(speakerField);
+  wrap.appendChild(row1);
+
+  const textField = document.createElement('div');
+  textField.innerHTML = '<label>ข้อความ</label>';
+  const textArea = document.createElement('textarea');
+  textArea.value = block.text;
+  textArea.placeholder = 'พิมพ์ข้อความ... ใส่ [slow]/[fast]/[normal] คุมความเร็วกลางประโยคได้';
+  textArea.oninput = () => { block.text = textArea.value; autosave(); };
+  textField.appendChild(textArea);
+  const tagbar = document.createElement('div');
+  tagbar.className = 'tagbar';
+  for (const t of ['[slow]','[fast]','[normal]']) {
+    tagbar.appendChild(makeBtn(t, () => insertAtCursor(textArea, t)));
+  }
+  textField.appendChild(tagbar);
+  wrap.appendChild(textField);
+
+  const details = document.createElement('details');
+  const hasExtra = block.anim || block.pose || block.face || block.actor;
+  details.open = !!hasExtra;
+  const summary = document.createElement('summary');
+  summary.textContent = 'ท่าทาง / สีหน้า / actor (ไม่บังคับ)';
+  details.appendChild(summary);
+  const pf = document.createElement('div');
+  pf.className = 'pose-fields';
+  pf.appendChild(miniField('anim (เล่นครั้งเดียว)', block, 'anim', 'เช่น HeadScratch'));
+  pf.appendChild(miniField('pose (ค้าง loop)', block, 'pose', 'เช่น Sit'));
+  pf.appendChild(miniField('face (สีหน้า)', block, 'face', 'เช่น Happy'));
+  pf.appendChild(miniField('actor (ให้ตัวอื่นขยับแทน)', block, 'actor', 'เช่น Dad / player'));
+  details.appendChild(pf);
+  wrap.appendChild(details);
+
+  return wrap;
+}
+
+function miniField(label, obj, key, placeholder) {
+  const f = document.createElement('div');
+  f.className = 'field';
+  f.innerHTML = `<label>${label}</label>`;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = obj[key] || '';
+  input.placeholder = placeholder || '';
+  input.oninput = () => { obj[key] = input.value; autosave(); };
+  f.appendChild(input);
+  return f;
+}
+
+function renderChoiceFields(block, depth) {
+  const wrap = document.createElement('div');
+  const note = document.createElement('div');
+  note.className = 'warn';
+  note.textContent = 'ทุกช้อยบรรจบกลับบทเดิม (ไม่ branching) — tone แค่ป้ายกำกับ ไม่มีผลต่อ mental จริง';
+  wrap.appendChild(note);
+
+  block.options.forEach((opt, oi) => {
+    const optEl = document.createElement('div');
+    optEl.className = 'choice-opt';
+
+    const oHead = document.createElement('div');
+    oHead.className = 'choice-opt-head';
+    const oLabel = document.createElement('span');
+    oLabel.style.fontSize = '12px';
+    oLabel.style.opacity = '.7';
+    oLabel.textContent = `ช้อยที่ ${oi+1}`;
+    oHead.appendChild(oLabel);
+
+    const toneSel = document.createElement('select');
+    toneSel.style.width = 'auto';
+    for (const t of ['plus','neutral','minus']) {
+      const o = document.createElement('option');
+      o.value = t;
+      o.textContent = t === 'plus' ? '⊕ plus' : t === 'minus' ? '⊖ minus' : '◎ neutral';
+      if (opt.tone === t) o.selected = true;
+      toneSel.appendChild(o);
+    }
+    toneSel.onchange = () => { opt.tone = toneSel.value; autosave(); };
+    oHead.appendChild(toneSel);
+
+    oHead.appendChild(makeBtn('↑', () => { if (oi>0){ [block.options[oi-1],block.options[oi]]=[block.options[oi],block.options[oi-1]]; render(); } }, 'tiny'));
+    oHead.appendChild(makeBtn('↓', () => { if (oi<block.options.length-1){ [block.options[oi+1],block.options[oi]]=[block.options[oi],block.options[oi+1]]; render(); } }, 'tiny'));
+    oHead.appendChild(makeBtn('ลบช้อยนี้', () => {
+      if (block.options.length <= 1) { alert('ต้องมีอย่างน้อย 1 ช้อย'); return; }
+      block.options.splice(oi,1); render();
+    }, 'tiny danger'));
+    optEl.appendChild(oHead);
+
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.value = opt.text;
+    textInput.placeholder = 'ข้อความบนปุ่มช้อย';
+    textInput.oninput = () => { opt.text = textInput.value; autosave(); };
+    optEl.appendChild(textInput);
+
+    const replyLabel = document.createElement('div');
+    replyLabel.style.fontSize = '11px';
+    replyLabel.style.opacity = '.6';
+    replyLabel.style.marginTop = '8px';
+    replyLabel.textContent = 'บทตอบกลับหลังเลือก (reply) — ไม่ใส่ = ไปต่อทันที';
+    optEl.appendChild(replyLabel);
+
+    const replyList = document.createElement('div');
+    replyList.className = 'reply-list';
+    opt.reply.forEach((rblock, ri) => {
+      replyList.appendChild(renderBlock(rblock, opt.reply, ri, depth+1));
+    });
+    optEl.appendChild(replyList);
+
+    const replyAdd = document.createElement('div');
+    replyAdd.className = 'addbar';
+    replyAdd.appendChild(makeBtn('+ เพิ่มบทตอบกลับ', () => { opt.reply.push(newLine()); render(); }, 'tiny'));
+    optEl.appendChild(replyAdd);
+
+    wrap.appendChild(optEl);
+  });
+
+  wrap.appendChild(makeBtn('+ เพิ่มช้อยย่อย', () => { block.options.push(newChoiceOption()); render(); }, 'tiny'));
+  return wrap;
+}
+
+// ===================== luau codegen =====================
+function luauEscape(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n');
+}
+
+function isPlainTextLine(b) {
+  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor;
+}
+
+function genLine(b, indent) {
+  const pad = '\t'.repeat(indent);
+  if (isPlainTextLine(b)) {
+    return `${pad}"${luauEscape(b.text)}",`;
+  }
+  const parts = [];
+  if (b.speaker) parts.push(`speaker = "${luauEscape(b.speaker)}"`);
+  parts.push(`text = "${luauEscape(b.text)}"`);
+  if (b.anim) parts.push(`anim = "${luauEscape(b.anim)}"`);
+  if (b.pose) parts.push(`pose = "${luauEscape(b.pose)}"`);
+  if (b.face) parts.push(`face = "${luauEscape(b.face)}"`);
+  if (b.actor) parts.push(`actor = "${luauEscape(b.actor)}"`);
+  return `${pad}{ ${parts.join(', ')} },`;
+}
+
+function genChoice(b, indent) {
+  const pad = '\t'.repeat(indent);
+  const pad2 = '\t'.repeat(indent+1);
+  const pad3 = '\t'.repeat(indent+2);
+  let out = `${pad}{\n${pad2}choices = {\n`;
+  for (const opt of b.options) {
+    out += `${pad3}{ text = "${luauEscape(opt.text)}", tone = "${opt.tone}"`;
+    if (opt.reply && opt.reply.length > 0) {
+      out += `,\n${pad3}\treply = {\n`;
+      for (const r of opt.reply) {
+        out += genBlock(r, indent+4) + '\n';
+      }
+      out += `${pad3}\t} },\n`;
+    } else {
+      out += ` },\n`;
+    }
+  }
+  out += `${pad2}},\n${pad}},`;
+  return out;
+}
+
+function genBlock(b, indent) {
+  return b.kind === 'line' ? genLine(b, indent) : genChoice(b, indent);
+}
+
+function collectWarnings() {
+  const warns = [];
+  for (const p of PHASES) {
+    const list = scene.phases[p.key];
+    if (p.key === 'again') {
+      const hasChoice = list.some(b => b.kind === 'choice');
+      if (hasChoice) warns.push(`"again" มี choices อยู่ — ปกติไม่แนะนำ (บทคุยซ้ำควรสั้น ไม่มีช้อย)`);
+    }
+    list.forEach((b, i) => {
+      if (b.kind === 'line' && !b.text) warns.push(`${p.key} บรรทัด #${i+1}: ไม่มีข้อความ`);
+      if (b.kind === 'choice') {
+        b.options.forEach((o, oi) => { if (!o.text) warns.push(`${p.key} ช้อย #${i+1}.${oi+1}: ไม่มีข้อความปุ่ม`); });
+      }
+    });
+  }
+  const anyLine = PHASES.some(p => scene.phases[p.key].length > 0);
+  if (!anyLine) warns.push('ยังไม่มีบทเลยสักเฟส');
+  return warns;
+}
+
+function generateLuau() {
+  const name = (npcNameInput.value || 'NewNPC').trim();
+  let out = `-- ${name} — สร้างจาก tools/dialogue-editor.html (ดู docs/engines/dialogue.md)\n`;
+  out += `return {\n`;
+  for (const p of PHASES) {
+    const list = scene.phases[p.key];
+    if (list.length === 0) continue;
+    out += `\t${p.key} = {\n`;
+    for (const b of list) out += genBlock(b, 2) + '\n';
+    out += `\t},\n\n`;
+  }
+  out = out.replace(/\n\n$/, '\n');
+  out += `}\n`;
+  return out;
+}
+
+// ===================== export modal =====================
+const exportPane = document.getElementById('exportPane');
+const exportOut = document.getElementById('exportOut');
+const exportWarnings = document.getElementById('exportWarnings');
+const exportFilename = document.getElementById('exportFilename');
+
+document.getElementById('btnExport').onclick = () => {
+  const warns = collectWarnings();
+  exportWarnings.innerHTML = warns.length
+    ? '⚠️ ' + warns.map(w => `<div class="warn">${w}</div>`).join('')
+    : '';
+  exportOut.value = generateLuau();
+  exportFilename.textContent = (npcNameInput.value || 'NewNPC').trim() + '.luau';
+  exportPane.classList.add('show');
+};
+document.getElementById('btnCloseExport').onclick = () => exportPane.classList.remove('show');
+document.getElementById('btnCopyExport').onclick = async () => {
+  await navigator.clipboard.writeText(exportOut.value);
+  const btn = document.getElementById('btnCopyExport');
+  const old = btn.textContent; btn.textContent = 'คัดลอกแล้ว ✓';
+  setTimeout(() => btn.textContent = old, 1200);
+};
+document.getElementById('btnDownloadExport').onclick = () => {
+  const name = (npcNameInput.value || 'NewNPC').trim();
+  const blob = new Blob([exportOut.value], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.luau';
+  a.click();
+};
+
+// ===================== project save/load =====================
+document.getElementById('btnSaveProject').onclick = () => {
+  const data = { npcName: npcNameInput.value, scene };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (npcNameInput.value || 'dialogue') + '.dialogue.json';
+  a.click();
+};
+document.getElementById('btnLoadProject').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.scene) throw new Error('ไฟล์ไม่ใช่โปรเจกต์ dialogue');
+      scene = data.scene;
+      npcNameInput.value = data.npcName || 'NewNPC';
+      activePhase = 'p1';
+      render();
+    } catch (err) {
+      alert('เปิดไฟล์ไม่ได้: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+document.getElementById('btnNew').onclick = () => {
+  if (!confirm('เริ่มไฟล์ใหม่? งานปัจจุบันที่ยังไม่ได้บันทึกโปรเจกต์จะหาย (autosave ในเบราว์เซอร์นี้ยังอยู่)')) return;
+  scene = emptyScene();
+  npcNameInput.value = 'NewNPC';
+  activePhase = 'p1';
+  render();
+};
+npcNameInput.oninput = autosave;
+
+// ===================== boot =====================
+loadAutosave();
+render();
+</script>
+</body>
+</html>

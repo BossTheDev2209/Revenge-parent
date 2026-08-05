@@ -27,14 +27,19 @@ local Audio = if isStudio
 local AnimPlayer = if isStudio
 	then require(script.Parent.Parent.AnimPlayer)
 	else require("../AnimPlayer")
+local ModelViewport = if isStudio
+	then require(script.Parent.Parent.ModelViewport)
+	else nil
 
 local DialogueUI = {}
 DialogueUI.running = false
 
 local TONES = { plus = true, neutral = true, minus = true }
 
--- ฟอนต์เดียวกับเมนู (Mali มี glyph ไทยครบ) — isStudio guard เพราะ lune ไม่มี Font
-local DIALOGUE_FONT = if isStudio then Font.fromName("Mali", Enum.FontWeight.Medium) else nil
+-- ฟอนต์เดียวกับเมนู — isStudio guard เพราะ lune ไม่มี Font
+-- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่ "Temp read failed" ทุก session (เช็คแล้ว ไม่ใช่ cache กระตุกครั้งเดียว
+-- พังจริงในเครื่องนี้) → เปลี่ยนมาใช้ Enum.Font (ของ client จริง ไม่ต้องโหลดแยก) Roblox fallback glyph ไทยเองอยู่แล้ว
+local DIALOGUE_FONT = if isStudio then Font.fromEnum(Enum.Font.Gotham) else nil
 
 -- ===== pure =====
 
@@ -45,20 +50,6 @@ function DialogueUI.bullet(text: string): string
 	return "* " .. (text:gsub("\n", "\n* "))
 end
 
--- โฟลเดอร์รูปหน้าตัวละคร: ReplicatedStorage.Portraits/<ชื่อบท>[/<อารมณ์>]
--- รับได้ทั้ง Decal (.Texture) · StringValue (.Value = rbxassetid://...) · ImageLabel (.Image)
--- ไม่เจอ = คืน nil (กล่องซ่อนรูป ข้อความกินเต็ม)
-function DialogueUI.findPortrait(actor: string?, emotion: string?): string?
-	if not isStudio or not actor or actor == "" then return nil end
-	local root = game:GetService("ReplicatedStorage"):FindFirstChild("Portraits")
-	local byActor = root and root:FindFirstChild(actor)
-	if not byActor then return nil end
-	local node = (emotion and byActor:FindFirstChild(emotion)) or byActor
-	if node:IsA("Decal") and node.Texture ~= "" then return node.Texture end
-	if node:IsA("ImageLabel") and node.Image ~= "" then return node.Image end
-	if node:IsA("StringValue") and node.Value ~= "" then return node.Value end
-	return nil
-end
 
 -- "[slow]ก[fast]ข" → { {speed="slow",text="ก"}, {speed="fast",text="ข"} } — เริ่มต้น normal
 function DialogueUI.parseTags(line: string)
@@ -151,32 +142,38 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 
 	local B = Config.Dialogue.box
 
+	-- ขอบขาวแบบ Undertale — Frame สีขาวทึบหนึ่งชั้น "หลัง" กล่อง ใหญ่กว่ากล่องรอบด้านละ border px
+	-- (ไม่ใช้ UIStroke เพราะ UIStroke คร่อมกึ่งกลางขอบ ครึ่งในครึ่งนอก — ต้องการขอบที่อยู่ "นอก" กล่องล้วนๆ)
+	local boxBorder = Instance.new("Frame")
+	boxBorder.Name = "BoxBorder"
+	boxBorder.AnchorPoint = Vector2.new(0.5, 1)
+	boxBorder.Position = UDim2.new(0.5, 0, 1, -B.bottomGap + B.border)
+	boxBorder.Size = UDim2.fromOffset(B.width + B.border * 2, B.height + B.border * 2)
+	boxBorder.BackgroundColor3 = Color3.new(1, 1, 1) -- ขาวโพลน
+	boxBorder.BorderSizePixel = 0
+	boxBorder.Parent = gui
+
 	-- กล่องขนาดคงที่ ยึดกลางล่างจอ (Undertale ref) — ข้อความยาวขึ้นตัดบรรทัด ไม่ยืดกล่อง ไม่ย่อฟอนต์
 	local box = Instance.new("TextButton") -- ทั้งกล่องคือปุ่ม continue
 	box.Name = "Box"
 	box.AnchorPoint = Vector2.new(0.5, 1)
 	box.Position = UDim2.new(0.5, 0, 1, -B.bottomGap)
 	box.Size = UDim2.fromOffset(B.width, B.height)
-	box.BackgroundColor3 = Color3.new(0, 0, 0)
+	box.BackgroundColor3 = B.bgColor
 	box.BackgroundTransparency = 0
+	box.BorderSizePixel = 0
 	box.AutoButtonColor = false
 	box.Text = "" -- ข้อความจริงอยู่ TextLabel ข้างใน (กล่องเป็นแค่ปุ่มกดไปต่อ)
 	box:SetAttribute("Sfx", "dialogue_advance") -- เสียงคลิกไปบรรทัดถัดไป (คนละเสียงกับปุ่ม UI ทั่วไป)
 	box.Parent = gui
-	local boxStroke = Instance.new("UIStroke") -- ขอบขาวหนาแบบ Undertale
-	boxStroke.Thickness = B.border
-	boxStroke.Color = Color3.new(1, 1, 1)
-	boxStroke.Parent = box
 
-	-- รูปหน้าตัวละครฝั่งซ้าย — ไม่มีรูปของตัวนั้น = ซ่อน ข้อความเลื่อนไปกินที่แทน
-	local portrait = Instance.new("ImageLabel")
-	portrait.Name = "Portrait"
-	portrait.BackgroundTransparency = 1
-	portrait.Size = UDim2.fromOffset(B.portrait, B.portrait)
-	portrait.Position = UDim2.fromOffset(B.padding, B.padding)
-	portrait.ScaleType = Enum.ScaleType.Fit
-	portrait.Visible = false
-	portrait.Parent = box
+	-- หน้าตัวละครฝั่งซ้าย = เรนเดอร์โมเดล 3 มิติจริงของ NPC ที่คุยด้วย (ไม่ใช่รูปภาพ) — ดู ModelViewport.luau
+	-- ไม่เจอ rig ของตัวนั้นในแมพตอนนี้ (เช่น actor พิมพ์ผิด) = ซ่อนช่อง ข้อความเลื่อนไปกินที่แทน ไม่พัง
+	local portraitVP = ModelViewport and ModelViewport.new(box)
+	if portraitVP then
+		portraitVP.instance.Size = UDim2.fromOffset(B.portrait, B.portrait)
+		portraitVP.instance.Position = UDim2.fromOffset(B.padding, B.padding)
+	end
 
 	local textLabel = Instance.new("TextLabel")
 	textLabel.Name = "Text"
@@ -184,29 +181,31 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	textLabel.FontFace = DIALOGUE_FONT
 	textLabel.TextSize = B.textSize -- คงที่ ไม่ใช้ TextScaled (ไม่งั้นยาวขึ้นตัวเล็กลง)
 	textLabel.TextWrapped = true -- ยาวเกิน = ขึ้นบรรทัดใหม่
-	textLabel.TextColor3 = Color3.new(1, 1, 1)
+	textLabel.TextColor3 = B.textColor
 	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.TextYAlignment = Enum.TextYAlignment.Top
 	textLabel.Text = ""
 	textLabel.Parent = box
 
-	-- ข้อความกินที่ที่เหลือหลังหักรูปหน้า (ไม่มีรูป = กินเต็ม)
+	-- ข้อความกินที่ที่เหลือหลังหักช่อง portrait (ไม่โชว์ = กินเต็ม)
 	local function layoutText()
-		local left = portrait.Visible and (B.padding * 2 + B.portrait) or B.padding
+		local showingPortrait = portraitVP ~= nil and portraitVP.instance.Visible
+		local left = showingPortrait and (B.padding * 2 + B.portrait) or B.padding
 		textLabel.Position = UDim2.fromOffset(left, B.padding)
 		textLabel.Size = UDim2.fromOffset(B.width - left - B.padding, B.height - B.padding * 2)
 	end
 	layoutText()
 
-	local nameLabel = Instance.new("TextLabel") -- ชื่อคนพูด เกาะมุมซ้ายบนของกล่อง
+	local nameLabel = Instance.new("TextLabel") -- ชื่อคนพูด เกาะมุมซ้ายบนของกล่อง — พื้นขาวโพลน ไม่มีขอบ
 	nameLabel.AnchorPoint = Vector2.new(0, 1)
 	nameLabel.Position = UDim2.new(0, 0, 0, -4)
-	nameLabel.Size = UDim2.fromOffset(240, 26)
-	nameLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+	nameLabel.Size = UDim2.fromOffset(240, 30)
+	nameLabel.BackgroundColor3 = Color3.new(1, 1, 1)
 	nameLabel.BackgroundTransparency = 0
+	nameLabel.BorderSizePixel = 0
 	nameLabel.FontFace = DIALOGUE_FONT
-	nameLabel.TextSize = B.textSize - 2
-	nameLabel.TextColor3 = Color3.fromRGB(255, 215, 120)
+	nameLabel.TextSize = B.textSize - 4
+	nameLabel.TextColor3 = Color3.fromRGB(20, 20, 24) -- เข้มเกือบดำ อ่านออกบนพื้นขาว
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.Text = ""
 	nameLabel.Visible = false
@@ -214,10 +213,6 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	local namePad = Instance.new("UIPadding")
 	namePad.PaddingLeft = UDim.new(0, 8)
 	namePad.Parent = nameLabel
-	local nameStroke = Instance.new("UIStroke")
-	nameStroke.Thickness = B.border
-	nameStroke.Color = Color3.new(1, 1, 1)
-	nameStroke.Parent = nameLabel
 
 	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ลอยเหนือกล่อง
 	choiceFrame.AnchorPoint = Vector2.new(0.5, 1)
@@ -236,14 +231,15 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	local picks = {}
 
 	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
-	-- actor/emotion = ใช้เลือกรูปหน้า (ไม่ส่ง = คนที่คุยอยู่ / รูปเริ่มต้นของตัวนั้น)
-	local function speak(speaker: string?, text: string, actor: string?, emotion: string?)
+	-- actor = ใช้หา rig สำหรับ portrait viewport (ไม่ส่ง = คนที่คุยอยู่)
+	local function speak(speaker: string?, text: string, actor: string?)
 		nameLabel.Visible = speaker ~= nil
 		nameLabel.Text = speaker or ""
 
-		local img = DialogueUI.findPortrait(actor or voiceName, emotion)
-		portrait.Image = img or ""
-		portrait.Visible = img ~= nil
+		-- rig สดจากแมพ ณ ตอนนี้ — ได้ท่า/สีหน้าล่าสุดที่ step anim/face ก่อนหน้าตั้งไว้ (AnimPlayer แก้ของจริงในแมพ)
+		if portraitVP then
+			portraitVP.showBust(AnimPlayer.findRig(actor or voiceName))
+		end
 		layoutText()
 
 		local segs = DialogueUI.parseTags(text)
@@ -334,7 +330,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 				end
 			elseif item.text then
 				-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
-				speak(item.speaker, item.text, item.actor or voiceName, item.face)
+				speak(item.speaker, item.text, item.actor or voiceName)
 			end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
 			i += 1
 		end

@@ -204,10 +204,18 @@ function InteractBinder.init(deps)
 	local player = game:GetService("Players").LocalPlayer
 	game:GetService("RunService").Heartbeat:Connect(function()
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local st = deps.getState and deps.getState()
 		for bb, part in labels do
 			if not bb.Parent or not part.Parent then
 				labels[bb] = nil
 			else
+				-- ป้ายหัว NPC โผล่เฉพาะหลัง "คุยจบ" ตัวนั้นแล้ว (seenDialogue มี key = เคยคุยจบในเฟสไหนก็ได้)
+				-- ป้าย interact อื่น (เตียง/คอม/ร้าน) ไม่อยู่ใน NPC_DIALOGUE = โชว์ปกติเสมอ
+				local npcName = NPC_DIALOGUE[part.Name]
+				if npcName and not (st and st.seenDialogue and st.seenDialogue[npcName] ~= nil) then
+					bb.Enabled = false
+					continue
+				end
 				local a = root and InteractBinder.labelAlpha((root.Position - part.Position).Magnitude) or 1
 				bb.Enabled = a < 1 -- ไกลสุด = ปิดไปเลย ไม่ต้องวาด
 				for _, g in bb:GetDescendants() do

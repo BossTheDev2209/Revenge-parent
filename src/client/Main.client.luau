@@ -182,7 +182,33 @@ local PC_APPS = {
 	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
 }
 
--- คุย NPC: freeze เวลา → กล้องโฟกัส NPC → typewriter → unfreeze + คืนกล้อง
+-- fade ตัวผู้เล่นจาง↔ทึบ (LocalTransparencyModifier — ไม่แตะค่า Transparency จริงของ rig)
+-- ใช้ตอนเข้า/ออกบทคุย NPC: ตัวผู้เล่นบังหน้า NPC (หันหลังให้กล้อง) → จางออกตอนคุย กลับมาตอนจบ
+local RunService = game:GetService("RunService")
+local function fadePlayer(toTransparent: boolean, dur: number)
+	local char = Players.LocalPlayer.Character
+	if not char then return end
+	local parts = {}
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture") then
+			table.insert(parts, d)
+		end
+	end
+	local from = toTransparent and 0 or 1
+	local to = toTransparent and 1 or 0
+	task.spawn(function()
+		local t0 = os.clock()
+		while true do
+			local a = math.clamp((os.clock() - t0) / dur, 0, 1)
+			local v = from + (to - from) * a
+			for _, d in parts do d.LocalTransparencyModifier = v end
+			if a >= 1 then break end
+			RunService.RenderStepped:Wait()
+		end
+	end)
+end
+
+-- คุย NPC: freeze เวลา → กล้องโฟกัส NPC + ตัวผู้เล่นจางหาย → typewriter → กลับมา + คืนกล้อง
 -- interactPart = Part Interact_NPC ในโมเดล NPC (ใช้หา Head ให้กล้องเล็ง) — ไม่ส่งมา = ไม่ขยับกล้อง
 local function startDialogue(dialogueName, interactPart)
 	local mod = Content.Dialogue:FindFirstChild(dialogueName)
@@ -202,13 +228,17 @@ local function startDialogue(dialogueName, interactPart)
 	local npc = interactPart and interactPart:FindFirstAncestorWhichIsA("Model")
 	local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
 	fireAction({ type = "FreezeTime", on = true })
+	-- กล้องโฟกัส NPC (tween ลื่นเอง) + ตัวผู้เล่นจางหายพร้อมกัน → เริ่มบท
 	if head then CameraFocus.focus(head) end
+	fadePlayer(true, 0.3)
 	-- เสียงพิมพ์ใช้ SoundService.Voice.<ชื่อบท> (เช่น Voice.Friend1) — ไม่มี = Voice.Default
-	DialogueUI.show(playerGui, lines, function()
+	DialogueUI.show(playerGui, lines, function(_, quit)
+		-- จบ/เลิกคุย: ตัวผู้เล่นกลับมาทึบ + คืนกล้อง + unfreeze (ทุกกรณี)
+		fadePlayer(false, 0.3)
 		if head then CameraFocus.release() end
 		fireAction({ type = "FreezeTime", on = false })
-		-- คุยจบบทเต็มครั้งแรกของเฟสนี้ → จำไว้ (คุยซ้ำจะได้บท repeat) · seen แล้วไม่ต้องยิงซ้ำ
-		if not seen then fireAction({ type = "DialogueSeen", name = dialogueName }) end
+		-- กดเลิกคุย (quit) = ไม่นับว่าคุยจบ · คุยจบเต็มครั้งแรกของเฟสนี้ → จำไว้ (คุยซ้ำได้บท repeat)
+		if not quit and not seen then fireAction({ type = "DialogueSeen", name = dialogueName }) end
 	end, dialogueName)
 end
 

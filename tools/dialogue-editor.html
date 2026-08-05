@@ -120,7 +120,7 @@ function emptyScene() {
   for (const p of PHASES) phases[p.key] = [];
   return { phases };
 }
-function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'' }; }
+function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'', bold:false, indent:0 }; }
 function newChoiceOption() { return { text:'', tone:'neutral', reply: [] }; }
 function newChoice() { return { kind:'choice', options: [ newChoiceOption() ] }; }
 function uid() { return Math.random().toString(36).slice(2,9); }
@@ -267,6 +267,30 @@ function renderLineFields(block) {
   textField.appendChild(tagbar);
   wrap.appendChild(textField);
 
+  // จัดรูปแบบข้อความ: ตัวหนา / ย่อหน้า (ตรงกับ DialogueUI line option bold/indent)
+  const fmt = document.createElement('div');
+  fmt.className = 'pose-fields';
+  const boldWrap = document.createElement('label');
+  boldWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
+  const boldCb = document.createElement('input');
+  boldCb.type = 'checkbox';
+  boldCb.checked = !!block.bold;
+  boldCb.onchange = () => { block.bold = boldCb.checked; autosave(); };
+  boldWrap.appendChild(boldCb);
+  boldWrap.appendChild(document.createTextNode('ตัวหนา (bold)'));
+  fmt.appendChild(boldWrap);
+  const indField = document.createElement('div');
+  indField.className = 'field';
+  indField.innerHTML = '<label>ย่อหน้า (indent)</label>';
+  const indInput = document.createElement('input');
+  indInput.type = 'number';
+  indInput.min = '0';
+  indInput.value = block.indent || 0;
+  indInput.oninput = () => { block.indent = Math.max(0, parseInt(indInput.value) || 0); autosave(); };
+  indField.appendChild(indInput);
+  fmt.appendChild(indField);
+  wrap.appendChild(fmt);
+
   const details = document.createElement('details');
   const hasExtra = block.anim || block.pose || block.face || block.actor;
   details.open = !!hasExtra;
@@ -379,7 +403,8 @@ function luauEscape(s) {
 }
 
 function isPlainTextLine(b) {
-  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor;
+  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor
+    && !b.bold && !(b.indent > 0);
 }
 
 function genLine(b, indent) {
@@ -394,6 +419,8 @@ function genLine(b, indent) {
   if (b.pose) parts.push(`pose = "${luauEscape(b.pose)}"`);
   if (b.face) parts.push(`face = "${luauEscape(b.face)}"`);
   if (b.actor) parts.push(`actor = "${luauEscape(b.actor)}"`);
+  if (b.bold) parts.push(`bold = true`);
+  if (b.indent > 0) parts.push(`indent = ${b.indent}`);
   return `${pad}{ ${parts.join(', ')} },`;
 }
 

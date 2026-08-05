@@ -30,6 +30,9 @@ local AnimPlayer = if isStudio
 local ModelViewport = if isStudio
 	then require(script.Parent.Parent.ModelViewport)
 	else nil
+local InteractLock = if isStudio
+	then require(script.Parent.Parent.InteractLock)
+	else nil
 
 local DialogueUI = {}
 DialogueUI.running = false
@@ -40,6 +43,8 @@ local TONES = { plus = true, neutral = true, minus = true }
 -- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่ "Temp read failed" ทุก session (เช็คแล้ว ไม่ใช่ cache กระตุกครั้งเดียว
 -- พังจริงในเครื่องนี้) → เปลี่ยนมาใช้ Enum.Font (ของ client จริง ไม่ต้องโหลดแยก) Roblox fallback glyph ไทยเองอยู่แล้ว
 local DIALOGUE_FONT = if isStudio then Font.fromEnum(Enum.Font.Gotham) else nil
+local DIALOGUE_FONT_BOLD = if isStudio then Font.fromEnum(Enum.Font.GothamBold) else nil
+local INDENT_STEP = 28 -- px ต่อระดับ indent (บรรทัดที่ตั้ง indent=n เลื่อนขวา n*INDENT_STEP)
 
 -- ===== pure =====
 
@@ -135,12 +140,26 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		return
 	end
 	DialogueUI.running = true
+	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดินตลอดบท
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_Dialogue"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true -- แถบหนังคลุมเต็มจอ (เหมือน CutscenePlayer)
 
 	local B = Config.Dialogue.box
+
+	-- แถบหนังบน-ล่าง (ขนาด/สีเดียวกับ cutscene mode 1) — คุยกับ NPC = โหมดหนังเหมือนกัน
+	local barTop = Instance.new("Frame")
+	barTop.Name = "BarTop"
+	barTop.Size = UDim2.new(1, 0, 0.12, 0)
+	barTop.BackgroundColor3 = Color3.new(0, 0, 0)
+	barTop.BorderSizePixel = 0
+	barTop.Parent = gui
+	local barBottom = barTop:Clone()
+	barBottom.Name = "BarBottom"
+	barBottom.Position = UDim2.new(0, 0, 0.88, 0)
+	barBottom.Parent = gui
 
 	-- ขอบขาวแบบ Undertale — Frame สีขาวทึบหนึ่งชั้น "หลัง" กล่อง ใหญ่กว่ากล่องรอบด้านละ border px
 	-- (ไม่ใช้ UIStroke เพราะ UIStroke คร่อมกึ่งกลางขอบ ครึ่งในครึ่งนอก — ต้องการขอบที่อยู่ "นอก" กล่องล้วนๆ)
@@ -187,10 +206,11 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	textLabel.Text = ""
 	textLabel.Parent = box
 
-	-- ข้อความกินที่ที่เหลือหลังหักช่อง portrait (ไม่โชว์ = กินเต็ม)
-	local function layoutText()
+	-- ข้อความกินที่ที่เหลือหลังหักช่อง portrait (ไม่โชว์ = กินเต็ม) · indent = เลื่อนขวาเพิ่มทีละระดับ
+	local function layoutText(indent: number?)
 		local showingPortrait = portraitVP ~= nil and portraitVP.instance.Visible
-		local left = showingPortrait and (B.padding * 2 + B.portrait) or B.padding
+		local left = (showingPortrait and (B.padding * 2 + B.portrait) or B.padding)
+			+ (indent or 0) * INDENT_STEP
 		textLabel.Position = UDim2.fromOffset(left, B.padding)
 		textLabel.Size = UDim2.fromOffset(B.width - left - B.padding, B.height - B.padding * 2)
 	end
@@ -214,17 +234,46 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	namePad.PaddingLeft = UDim.new(0, 8)
 	namePad.Parent = nameLabel
 
-	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ลอยเหนือกล่อง
-	choiceFrame.AnchorPoint = Vector2.new(0.5, 1)
-	choiceFrame.Position = UDim2.new(0.5, 0, 1, -(B.bottomGap + B.height + 40))
-	choiceFrame.Size = UDim2.fromOffset(B.width * 0.6, 200)
+	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ยึดขวากลางจอ (Genshin ref)
+	choiceFrame.AnchorPoint = Vector2.new(1, 0.5)
+	choiceFrame.Position = UDim2.new(1, -60, 0.45, 0)
+	choiceFrame.Size = UDim2.fromOffset(360, 300)
 	choiceFrame.BackgroundTransparency = 1
 	choiceFrame.Visible = false
 	choiceFrame.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 6)
-	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = choiceFrame
+
+	-- ปุ่มเลิกคุย มุมซ้ายบนใต้แถบหนัง — กดแล้วออกจากบทเลย **ไม่นับว่าคุยจบ** (ไม่ยิง DialogueSeen)
+	local quit = false
+	local quitBtn = Instance.new("TextButton")
+	quitBtn.Name = "QuitButton"
+	quitBtn.AnchorPoint = Vector2.new(0, 0)
+	quitBtn.Position = UDim2.new(0, 24, 0.12, 10)
+	quitBtn.Size = UDim2.fromOffset(120, 38)
+	quitBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	quitBtn.BackgroundTransparency = 0.35
+	quitBtn.TextColor3 = Color3.new(1, 1, 1)
+	quitBtn.TextScaled = true
+	quitBtn.Text = "← เลิกคุย"
+	quitBtn:SetAttribute("Sfx", "ui_back")
+	quitBtn.Parent = gui
+	local quitCorner = Instance.new("UICorner")
+	quitCorner.CornerRadius = UDim.new(0, 6)
+	quitCorner.Parent = quitBtn
+	quitBtn.Activated:Connect(function() quit = true end)
+
+	-- ซ่อน GUI อื่นที่เปิดอยู่ระหว่างคุย (HUD/ปุ่มเซฟ/Tool ฯลฯ บังการมองเห็น) — จำไว้คืนตอนจบ
+	local hiddenGuis = {}
+	for _, g in playerGui:GetChildren() do
+		if g:IsA("ScreenGui") and g.Enabled then
+			g.Enabled = false
+			table.insert(hiddenGuis, g)
+		end
+	end
 
 	gui.Parent = playerGui
 
@@ -232,15 +281,22 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 
 	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
 	-- actor = ใช้หา rig สำหรับ portrait viewport (ไม่ส่ง = คนที่คุยอยู่)
-	local function speak(speaker: string?, text: string, actor: string?)
+	-- item.bold = ตัวหนาทั้งบรรทัด · item.indent = ระดับย่อหน้า (เลื่อนขวา)
+	local function speak(item, actor: string?)
+		local speaker, text = item.speaker, item.text
 		nameLabel.Visible = speaker ~= nil
 		nameLabel.Text = speaker or ""
+		textLabel.FontFace = (item.bold and DIALOGUE_FONT_BOLD) or DIALOGUE_FONT
 
-		-- rig สดจากแมพ ณ ตอนนี้ — ได้ท่า/สีหน้าล่าสุดที่ step anim/face ก่อนหน้าตั้งไว้ (AnimPlayer แก้ของจริงในแมพ)
+		-- ไม่มีชื่อคนพูด = ไม่โชว์หน้าตัวละคร (bullet เฉยๆ) · มีชื่อ = เรนเดอร์ rig สดจากแมพ ณ ตอนนี้
 		if portraitVP then
-			portraitVP.showBust(AnimPlayer.findRig(actor or voiceName))
+			if speaker then
+				portraitVP.showBust(AnimPlayer.findRig(actor or voiceName))
+			else
+				portraitVP.clear()
+			end
 		end
-		layoutText()
+		layoutText(item.indent)
 
 		local segs = DialogueUI.parseTags(text)
 		-- ดอกจันนำหน้าประโยค (Undertale) — ใส่ที่ segment แรก + หลัง \n ทุกอัน
@@ -258,12 +314,12 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			local delay = Config.Dialogue.charDelay[seg.speed] or Config.Dialogue.charDelay.normal
 			-- utf8 ทีละตัวอักษร (ภาษาไทยตัวละหลาย byte)
 			for _, code in utf8.codes(seg.text) do
-				if skip then break end
+				if skip or quit then break end
 				textLabel.Text ..= utf8.char(code)
 				if code ~= 32 then Audio.voice(voiceName) end -- เว้นวรรคไม่ต้องมีเสียง
 				task.wait(delay)
 			end
-			if skip then break end
+			if skip or quit then break end
 		end
 		textLabel.Text = full
 		-- กล่องขนาดคงที่ = บทยาวเกินจะโดนตัดหาย เตือนคนเขียนบทให้ซอยประโยค (อย่าย่อฟอนต์)
@@ -271,13 +327,13 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			warn(("[DialogueUI] บทยาวเกินกล่อง ตัดเป็นหลายบรรทัดในลิสต์: %q"):format(text:sub(1, 40)))
 		end
 		conn:Disconnect()
-		-- รอคลิกไปบรรทัดถัดไป
+		-- รอคลิกไปบรรทัดถัดไป (หรือกดเลิกคุย)
 		local go = false
 		-- เสียงคลิกมาจากตัวผูกกลางใน Main.client (อ่าน attribute Sfx) — ไม่เรียก Audio.sfx เองกันดัง 2 ที
 		local conn2 = box.Activated:Connect(function()
 			go = true
 		end)
-		while not go do task.wait() end
+		while not go and not quit do task.wait() end
 		conn2:Disconnect()
 	end
 
@@ -302,42 +358,48 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			end)
 		end
 		choiceFrame.Visible = true
-		while not picked do task.wait() end
+		while not picked and not quit do task.wait() end
 		choiceFrame.Visible = false
 		for _, b in choiceFrame:GetChildren() do
 			if b:IsA("TextButton") then b:Destroy() end
 		end
-		return picked
+		return picked -- nil = กดเลิกคุยระหว่างเลือก
 	end
 
 	task.spawn(function()
 		local queue = table.clone(lines)
 		local i = 1
 		local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบบทแล้วหยุดให้หมด กันค้างท่าเดิม
-		while i <= #queue do
+		while i <= #queue and not quit do
 			local item = DialogueUI.lineOf(queue[i])
 			-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
 			local moved = AnimPlayer.applyLine(item, voiceName)
 			if moved then movedActors[moved] = true end
 			if item.choices then
 				local c = ask(item.choices)
-				table.insert(picks, c.tone or "neutral")
-				-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
-				if c.reply then
-					for k = #c.reply, 1, -1 do
-						table.insert(queue, i + 1, c.reply[k])
+				if c then -- nil = กดเลิกคุยระหว่างเลือก (quit)
+					table.insert(picks, c.tone or "neutral")
+					-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
+					if c.reply then
+						for k = #c.reply, 1, -1 do
+							table.insert(queue, i + 1, c.reply[k])
+						end
 					end
 				end
 			elseif item.text then
 				-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
-				speak(item.speaker, item.text, item.actor or voiceName)
+				speak(item, item.actor or voiceName)
 			end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
 			i += 1
 		end
 		for actor in movedActors do AnimPlayer.stop(actor) end
 		gui:Destroy()
+		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
 		DialogueUI.running = false
-		if onDone then onDone(picks) end
+		if InteractLock then InteractLock.unlock() end
+		-- onDone(picks, quit) เรียกเสมอ — caller ต้องคืนกล้อง/unfreeze ทุกกรณี
+		-- quit=true (กดเลิกคุย) = ไม่นับว่าคุยจบ · caller เช็ค quit เองว่าจะยิง DialogueSeen ไหม
+		if onDone then onDone(picks, quit) end
 	end)
 end
 

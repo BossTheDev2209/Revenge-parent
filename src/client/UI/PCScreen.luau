@@ -9,6 +9,7 @@ local isStudio = script ~= nil
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else require("../../shared/UIAssets")
+local InteractLock = if isStudio then require(script.Parent.Parent.InteractLock) else nil
 
 local PCScreen = {}
 PCScreen.running = false
@@ -45,6 +46,7 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		return
 	end
 	PCScreen.running = true
+	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดิน (กด E/WASD ในแอปไม่โดน prompt/ไม่เดิน)
 	deps.fireAction({ type = "FreezeTime", on = true })
 
 	local savedCam = zoomToScreen(screenPart)
@@ -228,6 +230,7 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		surface:Destroy()
 		overlay:Destroy()
 		PCScreen.running = false
+		if InteractLock then InteractLock.unlock() end
 	end
 	exit.Activated:Connect(closeScreen)
 	backup.Activated:Connect(closeScreen)

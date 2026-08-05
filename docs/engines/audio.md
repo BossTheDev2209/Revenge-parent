@@ -87,6 +87,11 @@ btn:SetAttribute("Sfx", "none")   -- ปุ่มนี้ไม่ต้อง�
 
 > **ตัวอย่างใช้ Priority:** `Zone_Apartment` (Priority 0) ครอบทั้งตึก, `Zone_MyRoom` (Priority 5) ครอบเฉพาะห้องเรา → เข้าห้องได้เพลงห้อง ออกมาได้เพลงตึก
 
+**เพลงเมนูหลัก (เปลี่ยนตามความคืบหน้า — Undertale ref):** วาง Sound ชื่อ **`Menu`** ใน `SoundService.BGM` (Looped) เป็นค่าเริ่มต้น · อยากให้เพลงเมนูเปลี่ยนตามเฟสของเซฟล่าสุด → วางเพิ่ม **`Menu2` / `Menu3`** (เฟสไหนไม่มี track เฉพาะ = ตกมาใช้ `Menu`)
+`MenuUI` `lockBGM(true)` + `bgm("Menu<เฟส>")` ตอนเปิดเมนู กันโซนในแมพแย่งสั่งเพลง (ตัวละคร spawn ในแมพจริง) · กดเข้าเกม (`launch`) `bgm(nil)` ดับ + continue `lockBGM(false)` คืนสิทธิ์โซน · new game ให้ cutscene จัดการ · **ยังไม่วาง Sound = เมนูเงียบ (ไม่ leak เพลง gameplay)**
+
+**รายละเอียดห้องเมนูเปลี่ยนตามเฟส:** ตั้ง attribute **`ShowPhase = n`** (number) บน instance ไหนก็ได้ใน `Workspace.MenuScreen` → โผล่เฉพาะเมื่อเซฟล่าสุดถึงเฟส `n` ขึ้นไป (ยังไม่ถึง = ซ่อนด้วย `LocalTransparencyModifier`/`Light.Enabled` ไม่แตะค่าจริง) เช่นถ้วยรางวัลโผล่ตอนเฟส 3, โปสเตอร์เปลี่ยนตอนเฟส 2
+
 ---
 
 ## 5. เสียงใน Cutscene

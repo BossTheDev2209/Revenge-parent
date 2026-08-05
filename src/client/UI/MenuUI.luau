@@ -340,10 +340,47 @@ local function textButton(parent, text, pos, size, _color, rot)
 	return b
 end
 
+-- เพลงเมนูตามความคืบหน้า (Undertale ref): มี Sound "Menu<เฟส>" = ใช้ตัวนั้น · ไม่มี = "Menu" ธรรมดา
+-- ทีมวาง Menu / Menu2 / Menu3 ใน SoundService.BGM ได้ตามใจ (เฟสไหนไม่มี track เฉพาะ = ตกมาใช้ Menu)
+local function resolveMenuBGM(phase: number): string
+	local folder = game:GetService("SoundService"):FindFirstChild("BGM")
+	local named = "Menu" .. tostring(phase)
+	if folder and folder:FindFirstChild(named) then return named end
+	return "Menu"
+end
+
+-- รายละเอียดในห้องเมนูเปลี่ยนตามความคืบหน้า (Undertale ref): instance ที่ตั้ง attribute `ShowPhase = n`
+-- จะโผล่เฉพาะเมื่อเซฟล่าสุดถึงเฟส n ขึ้นไป · ยังไม่ถึง = ซ่อน (LocalTransparencyModifier ไม่แตะค่าจริง)
+-- เมนูเปิดครั้งเดียวต่อ session ตามเฟสของเซฟ → ซ่อนอย่างเดียวพอ ไม่ต้อง restore
+-- ponytail: ซ่อนทางเดียว (ไม่ toggle กลับ) — ถ้าอนาคตมี return-to-menu แล้วเฟสเปลี่ยน ค่อยเพิ่ม snapshot/restore
+local function hideTree(inst: Instance)
+	local function h(o)
+		if o:IsA("BasePart") or o:IsA("Decal") or o:IsA("Texture") then
+			o.LocalTransparencyModifier = 1
+		elseif o:IsA("Light") then
+			o.Enabled = false
+		end
+	end
+	h(inst)
+	for _, d in inst:GetDescendants() do h(d) end
+end
+local function applyMenuVariant(root: Instance?, phase: number)
+	if not root then return end
+	for _, inst in root:GetDescendants() do
+		local sp = inst:GetAttribute("ShowPhase")
+		if typeof(sp) == "number" and phase < sp then hideTree(inst) end
+	end
+end
+
 -- deps = { fireAction = fn } — เปิดค้างจนกดเริ่มเล่น (เวลาถูก freeze ไว้)
 function MenuUI.open(playerGui, deps)
 	deps.fireAction({ type = "FreezeTime", on = true })
 	deps.fireAction({ type = "RequestSlots" })
+
+	-- เพลงเมนูเฉพาะ — lock กันโซนในแมพแย่งสั่งเพลงระหว่างอยู่เมนู (ตัวละคร spawn ในแมพจริง โซนจะเล่นทับ)
+	-- ทีมวาง Sound ชื่อ "Menu" ใน SoundService.BGM (ไม่มี = เงียบ + warn ครั้งเดียว ไม่พัง) · launch() ดับตอนเข้าเกม
+	Audio.lockBGM(true)
+	Audio.bgm("Menu")
 
 	local player = Players.LocalPlayer
 	local camera = workspace.CurrentCamera
@@ -615,6 +652,7 @@ function MenuUI.open(playerGui, deps)
 
 		task.delay(CAM_TIME, function()
 			if action then deps.fireAction(action) end
+			Audio.bgm(nil) -- ดับเพลงเมนูตอนเข้าเกม (new game: cutscene lock/dab เอง · continue: unlock ล่าง)
 			if pcPart then -- จอสว่างเองด้วย ไม่ใช่แค่แผ่นขาวทับจอผู้เล่น
 				local mat, col = pcPart.Material, pcPart.Color
 				pcPart.Material = Enum.Material.Neon
@@ -651,6 +689,7 @@ function MenuUI.open(playerGui, deps)
 						end
 					end
 					deps.fireAction({ type = "FreezeTime", on = false })
+					Audio.lockBGM(false) -- เล่นต่อ (ไม่มี cutscene): คืนสิทธิ์ให้โซนในแมพคุมเพลง gameplay
 				end
 				MenuUI.running = false
 				MenuUI.updateSlots = nil
@@ -699,6 +738,10 @@ function MenuUI.open(playerGui, deps)
 		local slots = state.slotList
 		if not slots then return end
 		latest = MenuUI.latestSlot(slots)
+		-- ความคืบหน้า = เฟสของเซฟล่าสุด (ไม่มีเซฟ = เฟส 1) → เพลงเมนู + รายละเอียดห้องเปลี่ยนตาม
+		local menuPhase = (latest and slots[latest] and slots[latest].phase) or 1
+		applyMenuVariant(root, menuPhase)
+		Audio.bgm(resolveMenuBGM(menuPhase))
 		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		for i = 1, 4 do
 			local b = slotBtns[i]

@@ -40,6 +40,14 @@ function CameraCart.step(throttle: number, steer: number, dt: number): (number, 
 	return move, turn
 end
 
+-- ★ offset ที่จะเอาไปคูณกับ CFrame ปัจจุบัน — คำนวณแกนไว้ในนี้ให้เทสจับได้
+--   Roblox: "หน้า" ของ part = แกน **−Z** (ตรงกับ LookVector) ไม่ใช่ +X
+--   เคยพลาดใช้ CFrame.new(move,0,0) = +X → กด W แล้วรถเดินไปทางขวาแทนเดินหน้า (3 ส.ค.)
+function CameraCart.stepOffset(throttle: number, steer: number, dt: number): CFrame
+	local move, turn = CameraCart.step(throttle, steer, dt)
+	return CFrame.Angles(0, turn, 0) * CFrame.new(0, 0, -move)
+end
+
 -- ===== Roblox glue =====
 
 -- deps = { fireAction, getState }
@@ -88,8 +96,7 @@ function CameraCart.init(player, fireAction, getState)
 		if UIS:IsKeyDown(Enum.KeyCode.A) then steer -= 1 end
 		if throttle == 0 and steer == 0 then return end
 
-		local move, turn = CameraCart.step(throttle, steer, dt)
-		seatedRoot.CFrame = seatedRoot.CFrame * CFrame.Angles(0, turn, 0) * CFrame.new(move, 0, 0)
+		seatedRoot.CFrame = seatedRoot.CFrame * CameraCart.stepOffset(throttle, steer, dt)
 	end)
 
 	-- อัดคลิปตอนนั่ง: คลิกซ้าย (ไม่มี Tool ให้ Activated แล้ว ระดับ 6 ถือมือเปล่า)

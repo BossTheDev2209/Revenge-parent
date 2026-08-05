@@ -1246,6 +1246,27 @@ local _, turnFwd = CameraCart.step(1, 1, 1)
 local _, turnBack = CameraCart.step(-1, 1, 1)
 check("เลี้ยวตอนเดินหน้ากับถอยหลัง หมุนกลับทางกัน", turnFwd ~= 0 and turnBack ~= 0 and (turnFwd * turnBack) < 0)
 check("input เกินช่วงถูก clamp", CameraCart.step(99, 0, 1) == Config.CameraCartSpeed)
+-- ความเร็วรถผูกกับความเร็ววิ่งของ player (user lock 3 ส.ค.: เร็วกว่าวิ่ง 1.5 เท่า)
+check("รถเร็วกว่าวิ่ง 1.5 เท่าพอดี",
+	math.abs(Config.CameraCartSpeed - Config.PlayerSprintSpeed * 1.5) < 1e-6)
+check("รถเร็วกว่าวิ่งจริง (ไม่งั้นขับแล้วช้ากว่าเดินเท้า)",
+	Config.CameraCartSpeed > Config.PlayerSprintSpeed)
+
+-- ★ แกนเคลื่อนที่ — บั๊ก 3 ส.ค.: ใช้ +X (ด้านขวา) แทน −Z (ด้านหน้า) กด W แล้วรถเดินข้าง
+-- Roblox: หน้าของ part = −Z ตรงกับ LookVector · เทสนี้จับ regression แกนสลับโดยตรง
+local fwd = CameraCart.stepOffset(1, 0, 1).Position
+check("เดินหน้า = ไปทาง −Z ไม่ใช่ +X", fwd.Z < 0 and math.abs(fwd.X) < 1e-6 and math.abs(fwd.Y) < 1e-6)
+check("ระยะเดินหน้าเท่า CameraCartSpeed", math.abs(math.abs(fwd.Z) - Config.CameraCartSpeed) < 1e-6)
+local back = CameraCart.stepOffset(-1, 0, 1).Position
+check("ถอยหลัง = ไปทาง +Z (ตรงข้ามเดินหน้า)", back.Z > 0 and math.abs(back.X) < 1e-6)
+check("จอดอยู่ไม่ขยับ", CameraCart.stepOffset(0, 1, 1).Position.Magnitude < 1e-6)
+-- เลี้ยวขวา (D) = หมุนรอบแกน Y ทางลบ
+local right = CameraCart.stepOffset(1, 1, 1)
+local _, ry = right:ToEulerAnglesYXZ()
+check("กด D = เลี้ยวขวา (หมุน Y ทางลบ)", ry < 0)
+local left = CameraCart.stepOffset(1, -1, 1)
+local _, ly = left:ToEulerAnglesYXZ()
+check("กด A = เลี้ยวซ้าย (หมุน Y ทางบวก)", ly > 0)
 
 -- ===== layout ตามภาพร่าง PDF หน้า 9: แถวละ 4 การ์ด + ลูกศรเลื่อน =====
 check("แถวละ 4 การ์ด ตาม PDF", ShopKiosk.CARDS_PER_ROW == 4)

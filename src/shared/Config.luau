@@ -192,8 +192,14 @@ Config.CameraModelCount = 6
 --   docs/02 §9.5 เดิมเขียนว่า 6 ระดับ = 6 Tool → อัปตามแล้ว
 --   ตัวคูณ GB/คลิก ยังใช้ footagePerClickGB[6] = 32 เหมือนเดิม ไม่แตะ balance
 Config.CameraCartLevel = 6
-Config.CameraCartSpeed = 18    -- studs/วินาที (agent เลือก — เดินเร็วกว่าคนนิดเดียว dolly ไม่ต้องเร็ว)
-Config.CameraCartTurnRate = 1.6 -- เรเดียน/วินาที ตอนเคลื่อนที่
+
+-- ⚠️ ต้องตรงกับ SPRINT_SPEED ใน StarterCharacterScripts.SprintHandler (สำเนา src/studio-only/)
+--    สคริปต์นั้น Rojo ไม่ sync เลย require ข้ามมาไม่ได้ — แก้ที่นั่นต้องแก้ตรงนี้ด้วย
+Config.PlayerSprintSpeed = 50 -- เดินปกติ 16 · กด Shift วิ่ง 50
+-- รถเร็วกว่าวิ่ง 1.5 เท่า (user lock 3 ส.ค.) — คุ้มค่าที่ไม่มี Tool ถือแล้ว
+Config.CameraCartSpeed = Config.PlayerSprintSpeed * 1.5 -- = 75 studs/วินาที
+-- user ปรับเองแล้วบอกว่าโอเค 3 ส.ค. (เดิม 1.6 วงเลี้ยวกว้างไป 47 studs)
+Config.CameraCartTurnRate = 3 -- เรเดียน/วินาที ตอนเคลื่อนที่ (รัศมีวงเลี้ยว ≈ speed/turnRate = 25 studs)
 
 -- ร้านค้าในแมพ (Part `Interact_Shop`) — คนละตัวกับแอป Shop บนจอคอม (PDF หน้า 9)
 -- names[N] = ของที่ได้เมื่ออยู่ระดับ N แล้วกดซื้อ (→ ระดับ N+1) · ชิ้นสุดท้าย = ระดับ 15

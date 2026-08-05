@@ -20,7 +20,12 @@ function ToolService.desiredTools(state)
 	-- ระดับกล้องมี 15 แต่โมเดลใน ToolModels มีถึง Camera_6 — เกินนั้นใช้โมเดลตัวท้ายสุด
 	-- (ไม่ clamp = หาโมเดลไม่เจอ = มือเปล่า อัดคลิปไม่ได้ทั้งเกม)
 	local modelLv = math.min(lv, Config.CameraModelCount)
-	local out = { "Camera_" .. modelLv }
+	-- ★ ระดับ CameraCartLevel ขึ้นไป = ขับรถเข็นกล้องแทน ไม่มี Tool ถือในมือ (user lock 3 ส.ค.)
+	--   อัดคลิปตอนนั่งบนรถ (CameraCart.luau) — ตัวคูณ GB/คลิก ยังใช้ค่าเดิมของระดับนั้น
+	local out = {}
+	if lv < Config.CameraCartLevel then
+		table.insert(out, "Camera_" .. modelLv)
+	end
 	-- โน้ตบุ๊คมีเฉพาะเฟส 1 และเฉพาะตอนยังไม่ได้วางลงพื้น
 	if state.phase == 1 and not state.notebookPlaced then
 		table.insert(out, "Notebook")

@@ -378,7 +378,11 @@ ts.notebookPlaced = false
 ts.phase = 2
 check("เฟส 2 ไม่มีโน้ตบุ๊ค (ห้องมีคอมจริงแล้ว)", toolSet(ts).Notebook == nil)
 ts.upgrades.camera = 99
-check("ระดับกล้องเกินตาราง = clamp ที่ 6", toolSet(ts).Camera_6 == true)
+-- แก้ 3 ส.ค.: ระดับ CameraCartLevel ขึ้นไป = ขับรถเข็นแทน ไม่มี Tool กล้องในมือแล้ว
+check("ระดับกล้องเกินตาราง = ไม่มี Tool กล้อง (ใช้รถเข็นแทน)", toolSet(ts).Camera_6 == nil)
+ts.upgrades.camera = Config.CameraCartLevel - 1
+check("ระดับก่อนถึงรถ ยังได้ Tool ตามระดับปกติ",
+	toolSet(ts)["Camera_" .. (Config.CameraCartLevel - 1)] == true)
 check("ชื่อบน hotbar โชว์ resolution ไม่ใช่ key", ToolService.displayName("Camera_3") == "กล้อง (1080p)")
 check("ชื่อ Notebook เป็นไทย", ToolService.displayName("Notebook") == "โน้ตบุ๊ค")
 
@@ -1202,6 +1206,47 @@ for lv = 1, 15 do
 	check(("ระดับ %d: เต็มถังใน 128-256 คลิก"):format(lv), clicks == 128 or clicks == 256)
 end
 
+-- ===== รถเข็นกล้อง IMAX = อุปกรณ์ระดับ 6 (user lock 3 ส.ค.) =====
+local CameraCart = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.CameraCart)
+	else require("../src/client/CameraCart")
+
+local cartS = GameState.newGame()
+check("ระดับ 1 ขับรถไม่ได้", CameraCart.canDrive(cartS) == false)
+cartS.upgrades.camera = Config.CameraCartLevel - 1
+check("ระดับก่อนหน้า 1 ขั้น ยังขับไม่ได้", CameraCart.canDrive(cartS) == false)
+cartS.upgrades.camera = Config.CameraCartLevel
+check("ถึงระดับรถแล้วขับได้", CameraCart.canDrive(cartS) == true)
+check("state ว่างไม่ crash", CameraCart.canDrive(nil) == false)
+
+-- ย้อนกลับไปใช้กล้องระดับต่ำ = ขับรถไม่ได้ (ผลต้องตามตัวที่ถือจริง)
+cartS.upgrades.camera = 8
+MoneyService.equipLevel(cartS, "camera", 2)
+check("ซื้อถึง 8 แต่ย้อนไปใช้ 2 = ขับไม่ได้", CameraCart.canDrive(cartS) == false)
+MoneyService.equipLevel(cartS, "camera", Config.CameraCartLevel)
+check("ย้อนกลับมาระดับรถ = ขับได้อีก", CameraCart.canDrive(cartS) == true)
+
+-- ระดับรถขึ้นไป = ไม่มี Tool กล้องในมือ (แต่โน้ตบุ๊คเฟส 1 ยังต้องมี)
+local noTool = GameState.newGame()
+noTool.upgrades.camera = Config.CameraCartLevel
+local tools = ToolService.desiredTools(noTool)
+local hasCam = false
+for _, n in tools do if n:match("^Camera_") then hasCam = true end end
+check("ระดับรถ = ไม่แจก Tool กล้อง", hasCam == false)
+noTool.upgrades.camera = Config.CameraCartLevel - 1
+local tools2 = ToolService.desiredTools(noTool)
+check("ระดับก่อนหน้ายังแจก Tool กล้องปกติ", tools2[1] == "Camera_" .. (Config.CameraCartLevel - 1))
+
+-- สูตรขับ: เดินหน้า/ถอย/เลี้ยว
+local mv, tn = CameraCart.step(1, 0, 1)
+check("คันเร่งเต็ม 1 วิ = เดินหน้าเท่า CameraCartSpeed", mv == Config.CameraCartSpeed and tn == 0)
+check("ถอยหลัง = ระยะติดลบ", (CameraCart.step(-1, 0, 1)) == -Config.CameraCartSpeed)
+check("จอดอยู่เลี้ยวไม่ได้ (เหมือนรถจริง)", select(2, CameraCart.step(0, 1, 1)) == 0)
+local _, turnFwd = CameraCart.step(1, 1, 1)
+local _, turnBack = CameraCart.step(-1, 1, 1)
+check("เลี้ยวตอนเดินหน้ากับถอยหลัง หมุนกลับทางกัน", turnFwd ~= 0 and turnBack ~= 0 and (turnFwd * turnBack) < 0)
+check("input เกินช่วงถูก clamp", CameraCart.step(99, 0, 1) == Config.CameraCartSpeed)
+
 -- ===== layout ตามภาพร่าง PDF หน้า 9: แถวละ 4 การ์ด + ลูกศรเลื่อน =====
 check("แถวละ 4 การ์ด ตาม PDF", ShopKiosk.CARDS_PER_ROW == 4)
 check("15 ระดับ = 4 หน้า (4/4/4/3)", ShopKiosk.pageCount(15, 4) == 4)
@@ -1289,11 +1334,20 @@ check("tiersFor แนบ field image", select(2, pcall(function()
 	return ShopKiosk.tiersFor(camEntry, GameState.newGame())[1].image
 end)) == nil)
 
--- โมเดล Tool มีถึง Camera_6 — ระดับ 7-15 ต้องไม่ทำให้ผู้เล่นมือเปล่า
+-- โมเดล Tool มีถึง Camera_6 — clamp ยังต้องทำงานสำหรับระดับที่ยังถือ Tool อยู่
 local hi = GameState.newGame()
 hi.upgrades.camera = 12
-check("กล้องระดับ 12 ยังมี Tool ในมือ (ใช้โมเดลตัวท้ายสุด)",
-	ToolService.desiredTools(hi)[1] == "Camera_" .. Config.CameraModelCount)
+-- เช็คเฉพาะ Tool กล้อง — เฟส 1 ยังมีโน้ตบุ๊คอยู่ด้วย ลิสต์เลยไม่ว่าง
+check("ระดับ 12 = ขับรถเข็น ไม่มี Tool กล้อง", (function()
+	for _, n in ToolService.desiredTools(hi) do
+		if n:match("^Camera_") then return false end
+	end
+	return true
+end)())
+local midLv = GameState.newGame()
+midLv.upgrades.camera = math.min(Config.CameraModelCount, Config.CameraCartLevel - 1)
+check("ระดับสูงสุดที่ยังถือ Tool = ใช้โมเดลที่มีจริง ไม่หลุดตาราง",
+	ToolService.desiredTools(midLv)[1] == "Camera_" .. midLv.upgrades.camera)
 
 -- ซื้อผ่าน action เดิม (BuyUpgrade → MoneyService) ต้องขยับระดับ pc จริง
 local pcBuy = GameState.newGame()

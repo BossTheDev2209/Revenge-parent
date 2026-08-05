@@ -17,6 +17,7 @@ local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
+local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
 
@@ -32,6 +33,8 @@ end
 
 Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเดิน
 RecordTool.init(Players.LocalPlayer, fireAction, function() return latestState end) -- Tool อัดคลิป + วงโซน
+-- ระดับ 6: ไม่มี Tool ถือ — ขับรถเข็นกล้องแทน + คลิกอัดตอนนั่ง (Config.CameraCartLevel)
+CameraCart.init(Players.LocalPlayer, fireAction, function() return latestState end)
 
 -- รอให้แมพรอบจุดวาปใหม่ stream โหลดเข้า client ก่อน (StreamingEnabled ทำให้แมพไกลยังไม่โหลดตอนวาปถึง)
 -- ใช้ตอนจอดำระหว่าง transition · anchor ตัวกันตกทะลุพื้นระหว่างรอ · มีพื้นข้างล่าง = โหลดแล้ว · timeout กันค้าง

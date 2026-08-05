@@ -188,6 +188,13 @@ Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192,
 -- ทีมปั้นโมเดลเพิ่มเมื่อไหร่ ขยับเลขนี้ตาม
 Config.CameraModelCount = 6
 
+-- ★ ระดับ 6 = ไม่มี Tool ถือ เปลี่ยนเป็น "รถเข็นกล้อง IMAX" นั่งขับได้แทน (user lock 3 ส.ค.)
+--   docs/02 §9.5 เดิมเขียนว่า 6 ระดับ = 6 Tool → อัปตามแล้ว
+--   ตัวคูณ GB/คลิก ยังใช้ footagePerClickGB[6] = 32 เหมือนเดิม ไม่แตะ balance
+Config.CameraCartLevel = 6
+Config.CameraCartSpeed = 18    -- studs/วินาที (agent เลือก — เดินเร็วกว่าคนนิดเดียว dolly ไม่ต้องเร็ว)
+Config.CameraCartTurnRate = 1.6 -- เรเดียน/วินาที ตอนเคลื่อนที่
+
 -- ร้านค้าในแมพ (Part `Interact_Shop`) — คนละตัวกับแอป Shop บนจอคอม (PDF หน้า 9)
 -- names[N] = ของที่ได้เมื่ออยู่ระดับ N แล้วกดซื้อ (→ ระดับ N+1) · ชิ้นสุดท้าย = ระดับ 15
 -- ห้ามใส่ราคา/สเปคซ้ำที่นี่ — ราคามาจาก UpgradeCosts, สเปคคำนวณจาก ladder (ShopKiosk.specFor)

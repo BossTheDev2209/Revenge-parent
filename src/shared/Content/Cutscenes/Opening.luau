@@ -13,6 +13,7 @@
 -- easing/เวลา มาจาก attribute Ease/TweenTime บน Part (ตั้งด้วย CutsceneCamTool) — ไม่ต้องใส่ t เอง
 -- ใส่ t=/ease= ในสเต็ปได้ถ้าอยาก override
 return {
+	{type = "focus", target = "Spawn_Phase1" },
 	{type = "camera", cam = "Opening_01" },
 	{type = "wait", t = 4 },
 	{type = "camera", cam = "Opening_02" },--show player sleepin
@@ -54,7 +55,6 @@ return {
 	{type = "camera", cam = "Opening_16"},
 	{type = "text", text = "นั่นแหละ! มึงไปทำงานที่มึงชอบให้หนำใจเลย-"},
 	{type = "wait", t = 3},
-	{type = "focus", target = "Spawn_Phase1" },
 	{type = "camera", cam = "Opening_17"},
 	{type = "text", text = "-แล้วไม่ต้องมาเกาะพวกกูแดกอีก.. หึ"},
 	{type = "wait", t = 3},

@@ -166,6 +166,10 @@ check("follower 0", s.follower == 0)
 check("choices ว่าง", s.choices.pos == 0 and s.choices.neu == 0 and s.choices.neg == 0)
 check("upgrades เริ่ม level 1", s.upgrades.camera == 1 and s.upgrades.storage == 1)
 check("slot default 1", s.slot == 1)
+-- started=false ตอนบูต → autosave/BindToClose ไม่เขียน placeholder ทับเซฟจริงระหว่างอยู่เมนู (6 ส.ค.)
+check("started=false ตอนเริ่ม (ยังไม่ commit เข้าเกม)", s.started == false)
+check("mergeDefaults เติม started ให้เซฟเก่าที่ไม่มี field นี้",
+	GameState.mergeDefaults({ money = 1 }, GameState.newGame()).started == false)
 check("ตาราง clips/calendar/flags ว่าง", #s.clips == 0 and next(s.calendar) == nil and next(s.flags) == nil)
 
 -- ===== GameState.mergeDefaults (save เก่า + key ใหม่ = ไม่พัง) =====

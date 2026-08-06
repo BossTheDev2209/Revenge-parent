@@ -708,11 +708,27 @@ function MenuUI.open(playerGui, deps)
 
 	-- ===== ปุ่มหน้า home =====
 	local latest = nil
+	local slotsReady = false   -- true เมื่อ slotList รอบแรกมาถึง (updateSlots ทำงาน)
+	local pendingContinue = false -- กด "เล่นต่อ" ตอน slot ยังไม่โหลด → ค้างไว้ตัดสินหลังโหลด
 	local continueBtn = textButton(homePanel, "เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
 		nil, -1.4)
 	continueBtn.Name = "Btn_Continue"
-	continueBtn.Activated:Connect(function()
+	-- มีเซฟ = โหลดช่องล่าสุด · ไม่มีเซฟจริง = เริ่มใหม่ช่อง 1
+	local function doContinue()
 		launch(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
+	end
+	continueBtn.Activated:Connect(function()
+		if MenuUI.busy or pendingContinue then return end
+		if slotsReady then
+			doContinue()
+		else
+			-- ★ slotList ยังไม่มา: latest=nil แปลว่า "ยังไม่รู้" ไม่ใช่ "ไม่มีเซฟ"
+			--   เดา NewGame ตรงนี้ = ทับ auto-save ช่อง 1 ทิ้ง (เจอจริง 5 ส.ค. หน้าต่าง ~1.5 วิ)
+			--   → ค้างเจตนาไว้ รอ updateSlots มาถึงแล้วตัดสินจากข้อมูลจริง
+			pendingContinue = true
+			continueBtn.Text = "กำลังโหลด…"
+			deps.fireAction({ type = "RequestSlots" }) -- เผื่อ request แรกหาย
+		end
 	end)
 	local function navBtn(label, y, target, rot)
 		local b = textButton(homePanel, label, UDim2.new(0, 40, 0, y), UDim2.new(0, 340, 0, 62), nil, rot)
@@ -806,6 +822,8 @@ function MenuUI.open(playerGui, deps)
 		local b = slotBtns[i]
 		if b then
 			b.Activated:Connect(function()
+				-- slot ยังไม่โหลด = ยังไม่รู้ว่าช่องนี้มีเซฟไหม อย่าเดา NewGame ทับ (ปกติโหลดเสร็จก่อนกางสมุดอยู่แล้ว)
+				if not slotsReady then return end
 				if not b:GetAttribute("HasSave") then
 					launch({ type = "NewGame", slot = i })
 					return
@@ -840,6 +858,12 @@ function MenuUI.open(playerGui, deps)
 			end
 			if delBtns[i] then delBtns[i].Visible = slots[i] ~= nil end
 		end
+		-- ข้อมูลจริงมาถึงแล้ว → ปุ่มตัดสินใจได้ · ถ้าผู้เล่นกด "เล่นต่อ" ค้างไว้ตอนยังโหลด ทำต่อตอนนี้
+		slotsReady = true
+		if pendingContinue then
+			pendingContinue = false
+			doContinue()
+		end
 	end
 end
 
@@ -863,6 +887,7 @@ function MenuUI.openFallback(playerGui, deps)
 	gui.Parent = playerGui
 
 	local btns, latest = {}, nil
+	local slotsReady, pendingContinue = false, false
 	local function startGame(action)
 		local isNewGame = action ~= nil and action.type == "NewGame"
 		if action then deps.fireAction(action) end
@@ -873,15 +898,26 @@ function MenuUI.openFallback(playerGui, deps)
 		gui:Destroy()
 		if isNewGame and deps.onNewGame then deps.onNewGame() end
 	end
+	local function doContinue()
+		startGame(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
+	end
 	local continueBtn = textButton(bg, "เล่นต่อ", UDim2.new(0.5, -160, 0, 130), UDim2.new(0, 320, 0, 48),
 		Color3.fromRGB(45, 95, 175))
 	continueBtn.Activated:Connect(function()
-		startGame(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
+		if slotsReady then
+			doContinue()
+		elseif not pendingContinue then
+			-- slotList ยังไม่มา — อย่าเดา NewGame ทับเซฟ (เหมือน path เมนูหลัก) รอข้อมูลก่อน
+			pendingContinue = true
+			continueBtn.Text = "กำลังโหลด…"
+			deps.fireAction({ type = "RequestSlots" })
+		end
 	end)
 	for i = 1, 4 do
 		local b = textButton(bg, MenuUI.slotLine(i, nil), UDim2.new(0.5, -160, 0, 130 + i * 56),
 			UDim2.new(0, 320, 0, 48))
 		b.Activated:Connect(function()
+			if not slotsReady then return end -- ยังไม่รู้ว่าช่องนี้มีเซฟไหม อย่าเดา
 			startGame(b:GetAttribute("HasSave") and { type = "LoadSlot", slot = i } or { type = "NewGame", slot = i })
 		end)
 		btns[i] = b
@@ -904,6 +940,11 @@ function MenuUI.openFallback(playerGui, deps)
 		for i = 1, 4 do
 			btns[i].Text = MenuUI.slotLine(i, slots[i])
 			btns[i]:SetAttribute("HasSave", slots[i] ~= nil)
+		end
+		slotsReady = true
+		if pendingContinue then
+			pendingContinue = false
+			doContinue()
 		end
 	end
 end

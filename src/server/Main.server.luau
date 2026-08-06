@@ -165,6 +165,7 @@ ActionRouter.register("LoadSlot", function(s, a, player)
 	local loaded = GameState.loadSlot(player.UserId, tonumber(a.slot) or 1, a.which)
 	if loaded then
 		GameState.replaceWith(s, loaded)
+		s.started = true -- commit เข้าเกมแล้ว → autosave ทำงานได้
 		-- โหลดเซฟ = ให้ client วาปไปสปอว์นของเฟสนั้นตรงๆ ไม่เล่น cutscene ข้ามเฟส (bug: เข้าใหม่ขึ้น cutscene/baseplate)
 		s.spawnTarget = "Spawn_Phase" .. s.phase
 	end
@@ -219,6 +220,7 @@ end)
 ActionRouter.register("NewGame", function(s, a)
 	local fresh = GameState.newGame()
 	fresh.slot = tonumber(a.slot) or 1
+	fresh.started = true -- commit เข้าเกมใหม่แล้ว → autosave ทำงานได้ (เขียนทับช่องนี้ตามเจตนาผู้เล่น)
 	GameState.replaceWith(s, fresh)
 	-- freeze เวลาที่ server ทันที (กัน lighting เพี้ยน/ข้ามวันตอนเล่น intro) — client unfreeze หลัง intro จบ
 	TimeService.setFrozen(true)
@@ -276,7 +278,8 @@ task.spawn(function()
 	while true do
 		task.wait(60)
 		local player = Players:GetPlayers()[1]
-		if player and GameState.isDirty() then
+		-- state.started = ผู้เล่น commit เข้าเกมแล้ว · ยังอยู่หน้าเมนู = ห้ามเซฟ placeholder ทับเซฟจริง
+		if player and state.started and GameState.isDirty() then
 			GameState.saveSlot(player.UserId, state, true) -- autosave = auto-snapshot (ทับตัวเดียว ไม่รก history)
 		end
 	end
@@ -334,5 +337,6 @@ end)
 
 game:BindToClose(function()
 	local player = Players:GetPlayers()[1]
-	if player then GameState.saveSlot(player.UserId, state, true) end -- ปิดเกม = auto-snapshot
+	-- ปิดเกมตอนยังอยู่เมนู (ยังไม่ commit) = ไม่เซฟ ไม่งั้น placeholder ทับเซฟจริงช่อง 1
+	if player and state.started then GameState.saveSlot(player.UserId, state, true) end -- ปิดเกม = auto-snapshot
 end)

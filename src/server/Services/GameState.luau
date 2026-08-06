@@ -51,6 +51,10 @@ function GameState.newGame()
 		slot = 1,
 		savedAt = 0,
 		settings = { volume = 1 }, -- ค่า preference (เซฟไปกับเกม) — ตอนนี้มีแค่ระดับเสียงรวม
+		-- ★ ผู้เล่น commit เข้าเกมแล้วหรือยัง (กด New Game / Continue) — false ระหว่างอยู่หน้าเมนู
+		--   autosave/BindToClose เซฟเฉพาะเมื่อ started=true · กัน placeholder state (follower 0 slot 1)
+		--   ทับเซฟจริงช่อง 1 ระหว่างผู้เล่นยังนั่งดูเมนู >60 วิ (เจอจริง 6 ส.ค.)
+		started = false,
 	}
 end
 
@@ -201,8 +205,20 @@ end
 -- summary = ข้อมูล snapshot ล่าสุด (แถวย่อ) + count + entries (รายการ snapshot ให้กางเลือก restore)
 function GameState.listSlots(userId: number)
 	local out = {}
+	-- อ่าน 4 ช่องพร้อมกัน (GetAsync แต่ละตัว yield รอ network — spawn ให้ยิงซ้อนกัน)
+	-- เดิมไล่ทีละช่อง = 4 round-trip ต่อกัน (~1.5 วิ) หน้าต่างที่ผู้เล่นเผลอกด "เล่นต่อ" ก่อนโหลดเสร็จ
+	-- แล้วกลายเป็น NewGame ทับเซฟ · ยิงพร้อมกันเหลือ ~1 round-trip ลดหน้าต่างนั้นลง (readFile ห่อ pcall แล้ว)
+	local files, pending = {}, MAX_SLOTS
 	for slot = 1, MAX_SLOTS do
-		local file = readFile(userId, slot)
+		task.spawn(function()
+			files[slot] = readFile(userId, slot)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and os.clock() - t0 < 10 do task.wait() end -- ช่องไหน GetAsync ค้าง = ข้ามไป ไม่ค้างทั้งเมนู
+	for slot = 1, MAX_SLOTS do
+		local file = files[slot]
 		if file then
 			local entries = {}
 			if file.auto then table.insert(entries, entryMeta(file.auto, "auto")) end

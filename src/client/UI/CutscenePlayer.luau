@@ -182,8 +182,17 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	-- ไม่คืน focus ตอนจบฉาก — ปล่อยให้ค้างที่เป้าจน TeleportTo (server) ย้ายตัวเข้าโซนนั้นแล้วค่อย clear
 	-- (clear ก่อน teleport = โซนที่ preload ไว้ unload ทันที แล้วต้องโหลดใหม่ตอนวาป = gameplay paused)
 	task.spawn(function()
-		for _, step in steps do
-			if skipped then break end -- กดข้าม = เลิกเล่น step ที่เหลือ ไปทำ cleanup เลย
+		for idx, step in steps do
+			if skipped then
+				-- กดข้าม: ยิง focus/preload ที่ยังไม่ถึงให้หมดก่อนออก ไม่งั้นแมพปลายทางไม่เริ่ม stream
+				-- (caller เล่น waitStreamedAround ใต้จอดำต่อ = รอโหลดเสร็จก่อน fade กลับ)
+				for j = idx, #steps do
+					if steps[j].type == "focus" then
+						actionRemote:FireServer({ type = "SetFocus", target = steps[j].target })
+					end
+				end
+				break
+			end
 			if step.type == "anim" then
 				AnimPlayer.play(step.actor, step.name, step.loop)
 				movedActors[step.actor] = true

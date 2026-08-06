@@ -53,12 +53,17 @@ local function checkEnding(s)
 	end
 end
 
--- ===== โซนถ่าย: หา FilmSpot_* ในแมพ แล้วสุ่มย้ายทุก 120 วิ (docs/02 §9.5) =====
-local function filmSpots()
+-- ===== โซนถ่าย: หา FilmSpot_* เฉพาะเฟสปัจจุบัน แล้วสุ่มย้ายทุก 120 วิ (docs/02 §9.5) =====
+-- แยกรายเฟส: spot อยู่ใต้ Workspace.FilmSpots.phase<N> — player ย้อนเฟสไม่ได้ จุดถ่ายเฟสก่อนใช้ไม่ได้
+local function filmSpots(phase: number)
 	local names = {}
-	for _, d in workspace:GetDescendants() do
-		if d:IsA("BasePart") and d.Name:sub(1, 9) == "FilmSpot_" then
-			table.insert(names, d.Name)
+	local root = workspace:FindFirstChild("FilmSpots")
+	local folder = root and root:FindFirstChild("phase" .. tostring(phase))
+	if folder then
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") and d.Name:sub(1, 9) == "FilmSpot_" then
+				table.insert(names, d.Name)
+			end
 		end
 	end
 	return names
@@ -156,16 +161,30 @@ ActionRouter.register("RequestSlots", function(s, a, player)
 	s.slotList = GameState.listSlots(player.UserId)
 end)
 ActionRouter.register("LoadSlot", function(s, a, player)
-	local loaded = GameState.loadSlot(player.UserId, tonumber(a.slot) or 1)
-	if loaded then GameState.replaceWith(s, loaded) end
+	-- a.which = "auto" | เลข index snapshot | ไม่ส่ง (= ล่าสุดในช่อง)
+	local loaded = GameState.loadSlot(player.UserId, tonumber(a.slot) or 1, a.which)
+	if loaded then
+		GameState.replaceWith(s, loaded)
+		-- โหลดเซฟ = ให้ client วาปไปสปอว์นของเฟสนั้นตรงๆ ไม่เล่น cutscene ข้ามเฟส (bug: เข้าใหม่ขึ้น cutscene/baseplate)
+		s.spawnTarget = "Spawn_Phase" .. s.phase
+	end
+end)
+-- client วาปตาม spawnTarget แล้ว → เคลียร์ (ไม่งั้น push ถัดไปวาปซ้ำ · ไม่อยู่ใน newGame defaults = ไม่ค้างในเซฟ)
+ActionRouter.register("ConsumeSpawn", function(s)
+	s.spawnTarget = nil
 end)
 ActionRouter.register("SaveSlot", function(s, a, player)
 	s.slot = tonumber(a.slot) or s.slot
-	GameState.saveSlot(player.UserId, s)
+	GameState.saveSlot(player.UserId, s, false) -- manual = push เข้า snapshot history
+	s.slotList = GameState.listSlots(player.UserId) -- refresh รายการ snapshot ให้ SavePanel/เมนู
 end)
 ActionRouter.register("DeleteSlot", function(s, a, player)
 	GameState.deleteSlot(player.UserId, tonumber(a.slot) or 0)
 	s.slotList = GameState.listSlots(player.UserId) -- refresh สมุดหน้าเมนู
+end)
+ActionRouter.register("DeleteSnapshot", function(s, a, player)
+	GameState.deleteSnapshot(player.UserId, tonumber(a.slot) or 0, a.which)
+	s.slotList = GameState.listSlots(player.UserId)
 end)
 -- วาป player ไป Part ตามชื่อ — ทำที่ server เพราะ StreamingEnabled อาจ stream part ออกจาก client
 ActionRouter.register("TeleportTo", function(s, a, player)
@@ -205,6 +224,13 @@ ActionRouter.register("NewGame", function(s, a)
 	TimeService.setFrozen(true)
 end)
 -- คุย NPC จบบทเต็ม → จำเฟสไว้ (คุยซ้ำเฟสเดิมเล่นบท repeat) persist ในเซฟ
+-- preference (เซฟไปกับเกม) — client เปลี่ยนค่าแล้วส่งมาเก็บ → persist ในเซฟ · โหลดคืนได้ (docs settings)
+ActionRouter.register("SetSetting", function(s, a)
+	s.settings = s.settings or {}
+	if a.key == "volume" then
+		s.settings.volume = math.clamp(tonumber(a.value) or 1, 0, 1)
+	end
+end)
 ActionRouter.register("DialogueSeen", function(s, a)
 	if type(a.name) == "string" then
 		s.seenDialogue[a.name] = s.phase
@@ -251,7 +277,7 @@ task.spawn(function()
 		task.wait(60)
 		local player = Players:GetPlayers()[1]
 		if player and GameState.isDirty() then
-			GameState.saveSlot(player.UserId, state)
+			GameState.saveSlot(player.UserId, state, true) -- autosave = auto-snapshot (ทับตัวเดียว ไม่รก history)
 		end
 	end
 end)
@@ -299,7 +325,7 @@ syncLighting(state) -- ตั้งฟ้าให้ตรงเวลาเร
 -- โซนถ่ายย้ายจุดเอง (กัน AFK จุดเดิม) — เช็คทุก 2 วิ ย้ายจริงเมื่อครบ 120 วิ
 task.spawn(function()
 	while true do
-		if RecordService.tickZone(state, os.clock(), filmSpots(), math.random) then
+		if RecordService.tickZone(state, os.clock(), filmSpots(state.phase), math.random) then
 			GameState.push(state)
 		end
 		task.wait(2)
@@ -308,5 +334,5 @@ end)
 
 game:BindToClose(function()
 	local player = Players:GetPlayers()[1]
-	if player then GameState.saveSlot(player.UserId, state) end
+	if player then GameState.saveSlot(player.UserId, state, true) end -- ปิดเกม = auto-snapshot
 end)

@@ -14,12 +14,14 @@ local Manage = require(script.Parent.UI.Apps.Manage)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
+local SavePanel = require(script.Parent.UI.SavePanel)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
 local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
+local Notify = require(script.Parent.Notify)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -120,6 +122,7 @@ local StarterGui = game:GetService("StarterGui")
 local MODAL_GUIS = {
 	Gui_Cutscene = true, Gui_Dialogue = true, Gui_MainMenu = true,
 	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PCExit = true,
+	Gui_SavePanel = true,
 }
 local function refreshBackpack()
 	local anyOpen = false
@@ -152,9 +155,7 @@ saveBtn:SetAttribute("Sfx", "save")
 saveBtn.Parent = saveGui
 saveGui.Parent = playerGui
 saveBtn.Activated:Connect(function()
-	fireAction({ type = "SaveSlot" })
-	saveBtn.Text = "✅ เซฟแล้ว"
-	task.delay(1.5, function() saveBtn.Text = "💾 เซฟ" end)
+	SavePanel.open(playerGui, { fireAction = fireAction, getState = function() return latestState end })
 end)
 
 local pcDeps = {
@@ -208,6 +209,37 @@ local function fadePlayer(toTransparent: boolean, dur: number)
 	end)
 end
 
+-- กรองบรรทัดตามเงื่อนไข: ifSeen="X" (โชว์ถ้าเคยคุยจบ NPC X) · ifNotSeen="X" (โชว์ถ้ายังไม่เคย)
+-- ใช้ทำบทที่เปลี่ยนตาม "เคยคุยกับใครมาก่อน" ข้ามตัวละคร — กรอง reply ในช้อยด้วย
+local function filterConds(lines, seenTbl)
+	local out = {}
+	for _, item in lines do
+		if type(item) ~= "table" then
+			table.insert(out, item)
+		else
+			local ok = true
+			if item.ifSeen and not (seenTbl and seenTbl[item.ifSeen]) then ok = false end
+			if item.ifNotSeen and seenTbl and seenTbl[item.ifNotSeen] then ok = false end
+			if ok then
+				if item.choices then
+					local it = table.clone(item)
+					local chs = {}
+					for _, c in item.choices do
+						local c2 = table.clone(c)
+						if c.reply then c2.reply = filterConds(c.reply, seenTbl) end
+						table.insert(chs, c2)
+					end
+					it.choices = chs
+					table.insert(out, it)
+				else
+					table.insert(out, item)
+				end
+			end
+		end
+	end
+	return out
+end
+
 -- คุย NPC: freeze เวลา → กล้องโฟกัส NPC + ตัวผู้เล่นจางหาย → typewriter → กลับมา + คืนกล้อง
 -- interactPart = Part Interact_NPC ในโมเดล NPC (ใช้หา Head ให้กล้องเล็ง) — ไม่ส่งมา = ไม่ขยับกล้อง
 local function startDialogue(dialogueName, interactPart)
@@ -225,6 +257,7 @@ local function startDialogue(dialogueName, interactPart)
 		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
 		return
 	end
+	lines = filterConds(lines, latestState and latestState.seenDialogue) -- ตัดบรรทัด ifSeen/ifNotSeen ที่ไม่เข้าเงื่อนไข
 	local npc = interactPart and interactPart:FindFirstAncestorWhichIsA("Model")
 	local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
 	fireAction({ type = "FreezeTime", on = true })
@@ -245,10 +278,30 @@ end
 -- state มาใหม่ทุกครั้ง: HUD + PC + menu + canon event + ending
 local endingPlayed = false
 local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
+local prevStaffClips, prevFollower, prevMoney = 0, 0, 0 -- toast ทีมลงคลิป / DM ปลดล็อก (เทียบ delta)
+local appliedVolume = nil -- ระดับเสียงล่าสุดที่ apply จาก settings (กัน apply ทับตอน user ปรับ)
 local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
 	HUD.update(state)
+
+	-- ใช้ค่า preference จากเซฟ (เช่นระดับเสียง) — apply เมื่อค่าเปลี่ยน (โหลดเซฟ) ไม่ทับตอน user ปรับเอง
+	if state.settings and state.settings.volume and state.settings.volume ~= appliedVolume then
+		appliedVolume = state.settings.volume
+		Audio.setVolume(appliedVolume)
+	end
+
+	-- โหลดเซฟ: วาปไปสปอว์นของเฟสนั้นตรงๆ + prime prevPhase กันเล่น cutscene ข้ามเฟส (bug #4/#7)
+	-- ทำก่อน phase logic ข้างล่าง (state เดียวกันถือทั้ง phase ใหม่ + spawnTarget → ไม่มี race)
+	if state.spawnTarget then
+		local target = state.spawnTarget
+		prevPhase, phasePrimed = state.phase, true
+		fireAction({ type = "ConsumeSpawn" })
+		task.spawn(function()
+			fireAction({ type = "TeleportTo", target = target })
+			waitStreamedAround(6)
+		end)
+	end
 
 	-- เสียงเหตุการณ์: อัปคลิปสำเร็จ / ไวรัล (ดูจาก state ที่เปลี่ยน ไม่ต้องมี remote เพิ่ม)
 	local uploaded = 0
@@ -262,6 +315,25 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		end
 		Audio.sfx(last and last.viral and "viral" or "upload_done")
 	end
+
+	-- ทีม/เพื่อนร่วมทาง auto ลงคลิป (produceDaily รายวัน) → follower/เงินขึ้นเอง → toast แจ้ง ไม่งั้นงงว่ามาจากไหน
+	local staffCount = #state.staffClips
+	if primed and staffCount > prevStaffClips then
+		local fDelta = state.follower - prevFollower
+		if fDelta > 0 then Notify.gain(fDelta, math.max(0, state.money - prevMoney)) end
+	end
+	-- DM ปลดล็อกตามยอด follower (ตั้ง unlockFollower ในก้อน DM) → toast ครั้งเดียวตอนข้ามยอด
+	if primed then
+		for _, dm in require(Content.DMs) do
+			local uf = dm.unlockFollower
+			if uf and prevFollower < uf and state.follower >= uf then
+				local preview = dm.lines and dm.lines[1]
+					or (dm.exchanges and dm.exchanges[1] and dm.exchanges[1].npc)
+				Notify.dm(dm.from, preview)
+			end
+		end
+	end
+	prevStaffClips, prevFollower, prevMoney = staffCount, state.follower, state.money
 	prevClips, primed = uploaded, true
 	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end
 	if ShopKiosk.running and ShopKiosk.refresh then ShopKiosk.refresh(state) end -- ซื้อแล้วราคา/ระดับอัปทันที
@@ -291,6 +363,9 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		and #state.pendingEvents == 0
 		and not DialogueUI.running and not CutscenePlayer.running and not ScreenTransition.running then
 		prevPhase = state.phase
+		-- ปิด GUI โมดัลที่เปิดค้าง (คอม/ร้าน) ก่อนข้ามเฟส ไม่งั้นค้างบนจอหลังวาป (bug: ปลดล็อกตอนใช้คอม)
+		if PCScreen.running and PCScreen.forceClose then PCScreen.forceClose() end
+		if ShopKiosk.running and ShopKiosk.close then ShopKiosk.close() end
 		local PhaseText = require(Content.Cutscenes.PhaseTransitions)
 		local target = "Spawn_Phase" .. state.phase
 		fireAction({ type = "FreezeTime", on = true })

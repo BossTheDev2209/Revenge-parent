@@ -603,6 +603,7 @@ function MenuUI.open(playerGui, deps)
 			local b = textButton(setGui, text, UDim2.new(x, 0, 0.29, 0), UDim2.new(0.4, 0, 0.11, 0))
 			b.Activated:Connect(function()
 				Audio.setVolume(Audio.getVolume() + dir * 0.1)
+				deps.fireAction({ type = "SetSetting", key = "volume", value = Audio.getVolume() }) -- เก็บลงเซฟ
 				volLabel.Text = ("🔊 เสียง %d%%"):format(math.floor(Audio.getVolume() * 100 + 0.5))
 			end)
 		end
@@ -722,12 +723,99 @@ function MenuUI.open(playerGui, deps)
 	navBtn("ตั้งค่า", 358, "setting", -0.7)
 	navBtn("เครดิต", 432, "credit", 1.3)
 
+	-- ช่องมีหลาย snapshot → กางให้เลือกจุดเซฟที่จะ restore (auto + manual ล่าสุด→เก่า)
+	local currentSlots = nil
+	local function snapEntryText(e)
+		local tag = e.which == "auto" and "🔄 อัตโนมัติ" or ("💾 บันทึก #" .. tostring(e.which))
+		return ("%s — วันที่ %s · %s follower · เฟส %s"):format(tag, tostring(e.day), tostring(e.follower), tostring(e.phase))
+	end
+	local function openSnapshotPicker(slot, entries)
+		local g = Instance.new("ScreenGui")
+		g.Name = "Gui_SnapPicker"
+		g.ResetOnSpawn = false
+		g.DisplayOrder = 30
+		local dim = Instance.new("TextButton")
+		dim.Size = UDim2.fromScale(1, 1)
+		dim.BackgroundColor3 = Color3.new(0, 0, 0)
+		dim.BackgroundTransparency = 0.45
+		dim.Text = ""
+		dim:SetAttribute("Sfx", "none")
+		dim.Parent = g
+		local panel = Instance.new("Frame")
+		panel.AnchorPoint = Vector2.new(0.5, 0.5)
+		panel.Position = UDim2.fromScale(0.5, 0.5)
+		panel.Size = UDim2.fromOffset(580, 62 + #entries * 66)
+		panel.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+		panel.BorderSizePixel = 0
+		panel.Parent = g
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0, 12)
+		pc.Parent = panel
+		local title = Instance.new("TextLabel")
+		title.Position = UDim2.fromOffset(24, 14)
+		title.Size = UDim2.fromOffset(532, 30)
+		title.BackgroundTransparency = 1
+		title.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+		title.TextSize = 20
+		title.TextColor3 = Color3.fromRGB(240, 240, 245)
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Text = ("เลือกจุดเซฟ — ช่อง %d"):format(slot)
+		title.Parent = panel
+		for idx, e in entries do
+			local y = 50 + (idx - 1) * 66
+			local row = Instance.new("TextButton")
+			row.Size = UDim2.fromOffset(472, 56)
+			row.Position = UDim2.fromOffset(24, y)
+			row.BackgroundColor3 = Color3.fromRGB(46, 46, 58)
+			row.TextColor3 = Color3.new(1, 1, 1)
+			row.FontFace = Font.fromEnum(Enum.Font.Gotham)
+			row.TextSize = 16
+			row.TextXAlignment = Enum.TextXAlignment.Left
+			row.Text = "  " .. snapEntryText(e)
+			row:SetAttribute("Sfx", "ui_click")
+			row.Parent = panel
+			local rc = Instance.new("UICorner")
+			rc.CornerRadius = UDim.new(0, 8)
+			rc.Parent = row
+			row.Activated:Connect(function()
+				g:Destroy()
+				launch({ type = "LoadSlot", slot = slot, which = e.which })
+			end)
+			local del = Instance.new("TextButton")
+			del.Size = UDim2.fromOffset(56, 56)
+			del.Position = UDim2.fromOffset(500, y)
+			del.BackgroundColor3 = Color3.fromRGB(150, 60, 60)
+			del.TextColor3 = Color3.new(1, 1, 1)
+			del.TextScaled = true
+			del.Text = "✕"
+			del:SetAttribute("Sfx", "ui_back")
+			del.Parent = panel
+			local dc = Instance.new("UICorner")
+			dc.CornerRadius = UDim.new(0, 8)
+			dc.Parent = del
+			del.Activated:Connect(function()
+				deps.fireAction({ type = "DeleteSnapshot", slot = slot, which = e.which })
+				g:Destroy() -- ปิด · updateSlots รีเฟรชรายการ กดช่องใหม่เห็นอัปเดต
+			end)
+		end
+		dim.Activated:Connect(function() g:Destroy() end)
+		g.Parent = playerGui
+	end
+
 	for i = 1, 4 do
 		local b = slotBtns[i]
 		if b then
 			b.Activated:Connect(function()
-				local has = b:GetAttribute("HasSave")
-				launch(has and { type = "LoadSlot", slot = i } or { type = "NewGame", slot = i })
+				if not b:GetAttribute("HasSave") then
+					launch({ type = "NewGame", slot = i })
+					return
+				end
+				local entries = currentSlots and currentSlots[i] and currentSlots[i].entries
+				if entries and #entries > 1 then
+					openSnapshotPicker(i, entries) -- หลายจุดเซฟ = ให้เลือก
+				else
+					launch({ type = "LoadSlot", slot = i }) -- อันเดียว = โหลดล่าสุดเลย
+				end
 			end)
 		end
 	end
@@ -737,6 +825,7 @@ function MenuUI.open(playerGui, deps)
 		if not MenuUI.running then return end
 		local slots = state.slotList
 		if not slots then return end
+		currentSlots = slots -- ให้ snapshot picker อ่าน entries
 		latest = MenuUI.latestSlot(slots)
 		-- ความคืบหน้า = เฟสของเซฟล่าสุด (ไม่มีเซฟ = เฟส 1) → เพลงเมนู + รายละเอียดห้องเปลี่ยนตาม
 		local menuPhase = (latest and slots[latest] and slots[latest].phase) or 1

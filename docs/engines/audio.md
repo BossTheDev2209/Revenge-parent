@@ -19,6 +19,8 @@ SoundService/
   SFX/       เสียงสั้นครั้งเดียว
 ```
 
+**Toast แจ้งเตือน (มุมขวาล่าง สไตล์ Win11 — `StarterPlayerScripts.Notify`):** เด้งตอนทีม/เพื่อนร่วมทาง auto ลงคลิป (follower ขึ้นเอง) + ตอน DM ใหม่เข้า · เล่นเสียงเบาๆ เอง (`Audio.sfx(name, nil, volumeScale)` — param 3 คูณ Volume) reuse `upload_done`/`ui_click` · วาง Sound `notify`/`dm` ทับได้ถ้าอยากได้เสียงเฉพาะ
+
 **ชื่อ Sound = ชื่อที่โค้ดเรียก** — ไม่มีไฟล์ชื่อนั้น = warn ครั้งเดียวแล้วเงียบ **เกมไม่พัง** ใส่ทีละอันได้ ไม่ต้องรอครบ
 
 ---

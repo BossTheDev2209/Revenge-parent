@@ -43,8 +43,17 @@ local TONES = { plus = true, neutral = true, minus = true }
 -- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่ "Temp read failed" ทุก session (เช็คแล้ว ไม่ใช่ cache กระตุกครั้งเดียว
 -- พังจริงในเครื่องนี้) → เปลี่ยนมาใช้ Enum.Font (ของ client จริง ไม่ต้องโหลดแยก) Roblox fallback glyph ไทยเองอยู่แล้ว
 local DIALOGUE_FONT = if isStudio then Font.fromEnum(Enum.Font.Gotham) else nil
-local DIALOGUE_FONT_BOLD = if isStudio then Font.fromEnum(Enum.Font.GothamBold) else nil
-local INDENT_STEP = 28 -- px ต่อระดับ indent (บรรทัดที่ตั้ง indent=n เลื่อนขวา n*INDENT_STEP)
+
+-- tag กลางประโยค: [slow]/[fast]/[normal] คุมความเร็ว · [b]…[/b] ตัวหนา · [i]…[/i] ตัวเอียง (ผ่าน RichText)
+local FMT_OPEN = { b = "<b>", i = "<i>" }
+local FMT_CLOSE = { ["/b"] = "</b>", ["/i"] = "</i>" }
+local SPEED_TAG = { slow = true, fast = true, normal = true }
+local function escapeRich(ch: string): string
+	if ch == "&" then return "&amp;" end
+	if ch == "<" then return "&lt;" end
+	if ch == ">" then return "&gt;" end
+	return ch
+end
 
 -- ===== pure =====
 
@@ -74,6 +83,48 @@ function DialogueUI.parseTags(line: string)
 		pos = e + 1
 	end
 	return segs
+end
+
+-- แปลงข้อความ+tag → token list สำหรับ typewriter RichText
+--   { m = "<b>" }              markup (ใส่ทันที ไม่หน่วง ไม่มีเสียง)
+--   { c = "ก", speed="slow" }  ตัวอักษร 1 ตัว (พิมพ์ทีละตัวตามความเร็ว)
+-- ดอกจัน "* " นำหน้าประโยค (ต้นข้อความ + หลัง \n) แบบ Undertale · รองรับ [b]/[i]/[/b]/[/i] inline
+function DialogueUI.tokenize(text: string)
+	local toks = {}
+	local speed = "normal"
+	local pos, n = 1, #text
+	local atLineStart = true
+	while pos <= n do
+		-- ดอกจันนำหน้าประโยค ใส่ก่อน markup/ตัวอักษรตัวแรกของบรรทัด (ไม่งั้นโดนครอบ <b> ทับ)
+		if atLineStart and text:sub(pos, pos) ~= "\n" then
+			table.insert(toks, { c = "*", speed = speed })
+			table.insert(toks, { c = " ", speed = speed })
+			atLineStart = false
+		end
+		local s, e, tag = text:find("^%[(%a*/?%a+)%]", pos)
+		if s then
+			if SPEED_TAG[tag] then
+				speed = tag
+			elseif FMT_OPEN[tag] then
+				table.insert(toks, { m = FMT_OPEN[tag] })
+			elseif FMT_CLOSE[tag] then
+				table.insert(toks, { m = FMT_CLOSE[tag] })
+			end -- tag แปลกๆ ทิ้ง
+			pos = e + 1
+		else
+			local b = text:byte(pos)
+			local len = if b >= 0xF0 then 4 elseif b >= 0xE0 then 3 elseif b >= 0xC0 then 2 else 1
+			local ch = text:sub(pos, pos + len - 1)
+			if ch == "\n" then
+				table.insert(toks, { c = "\n", speed = speed })
+				atLineStart = true
+			else
+				table.insert(toks, { c = ch, speed = speed })
+			end
+			pos = pos + len
+		end
+	end
+	return toks
 end
 
 -- แปลง 1 บรรทัดให้เป็นรูปเดียวกันหมด → { speaker=string?, text=string?, choices=table? }
@@ -141,6 +192,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	end
 	DialogueUI.running = true
 	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดินตลอดบท
+	Audio.duckBGM(true) -- หรี่เพลงตอนคุย ได้ยิน blip ชัด
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_Dialogue"
@@ -198,6 +250,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	textLabel.Name = "Text"
 	textLabel.BackgroundTransparency = 1
 	textLabel.FontFace = DIALOGUE_FONT
+	textLabel.RichText = true -- รองรับ <b>/<i> จาก tag [b]/[i] กลางประโยค
 	textLabel.TextSize = B.textSize -- คงที่ ไม่ใช้ TextScaled (ไม่งั้นยาวขึ้นตัวเล็กลง)
 	textLabel.TextWrapped = true -- ยาวเกิน = ขึ้นบรรทัดใหม่
 	textLabel.TextColor3 = B.textColor
@@ -206,11 +259,10 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	textLabel.Text = ""
 	textLabel.Parent = box
 
-	-- ข้อความกินที่ที่เหลือหลังหักช่อง portrait (ไม่โชว์ = กินเต็ม) · indent = เลื่อนขวาเพิ่มทีละระดับ
-	local function layoutText(indent: number?)
+	-- ข้อความกินที่ที่เหลือหลังหักช่อง portrait (ไม่โชว์ = กินเต็ม)
+	local function layoutText()
 		local showingPortrait = portraitVP ~= nil and portraitVP.instance.Visible
-		local left = (showingPortrait and (B.padding * 2 + B.portrait) or B.padding)
-			+ (indent or 0) * INDENT_STEP
+		local left = showingPortrait and (B.padding * 2 + B.portrait) or B.padding
 		textLabel.Position = UDim2.fromOffset(left, B.padding)
 		textLabel.Size = UDim2.fromOffset(B.width - left - B.padding, B.height - B.padding * 2)
 	end
@@ -281,12 +333,10 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 
 	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
 	-- actor = ใช้หา rig สำหรับ portrait viewport (ไม่ส่ง = คนที่คุยอยู่)
-	-- item.bold = ตัวหนาทั้งบรรทัด · item.indent = ระดับย่อหน้า (เลื่อนขวา)
 	local function speak(item, actor: string?)
 		local speaker, text = item.speaker, item.text
 		nameLabel.Visible = speaker ~= nil
 		nameLabel.Text = speaker or ""
-		textLabel.FontFace = (item.bold and DIALOGUE_FONT_BOLD) or DIALOGUE_FONT
 
 		-- ไม่มีชื่อคนพูด = ไม่โชว์หน้าตัวละคร (bullet เฉยๆ) · มีชื่อ = เรนเดอร์ rig สดจากแมพ ณ ตอนนี้
 		if portraitVP then
@@ -296,30 +346,59 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 				portraitVP.clear()
 			end
 		end
-		layoutText(item.indent)
+		layoutText()
 
-		local segs = DialogueUI.parseTags(text)
-		-- ดอกจันนำหน้าประโยค (Undertale) — ใส่ที่ segment แรก + หลัง \n ทุกอัน
-		for i, s in segs do
-			s.text = (s.text:gsub("\n", "\n* "))
-			if i == 1 then s.text = "* " .. s.text end
+		-- typewriter บน RichText: พิมพ์ทีละตัว แต่ปิด tag <b>/<i> ที่เปิดค้างทุกเฟรมให้ markup valid เสมอ
+		local toks = DialogueUI.tokenize(text)
+		local shown, openStack = {}, {}
+		local function closers()
+			local c = ""
+			for k = #openStack, 1, -1 do c ..= "</" .. openStack[k] .. ">" end
+			return c
 		end
-		local full = ""
-		for _, s in segs do full ..= s.text end
+		local function applyMarkup(m)
+			shown[#shown + 1] = m
+			local cn = m:match("^</(%a+)>$")
+			if cn then
+				for k = #openStack, 1, -1 do
+					if openStack[k] == cn then table.remove(openStack, k) break end
+				end
+			else
+				local on = m:match("^<(%a+)>$")
+				if on then table.insert(openStack, on) end
+			end
+		end
+		-- markup เต็ม (ปิด tag ครบ) — ใช้ตอนกดข้าม/จบให้โชว์หมดทันที
+		local full
+		do
+			local buf, stk = {}, {}
+			for _, t in toks do
+				if t.m then
+					buf[#buf + 1] = t.m
+					local cn = t.m:match("^</(%a+)>$")
+					if cn then for k = #stk, 1, -1 do if stk[k] == cn then table.remove(stk, k) break end end
+					else local on = t.m:match("^<(%a+)>$"); if on then table.insert(stk, on) end end
+				else
+					buf[#buf + 1] = escapeRich(t.c)
+				end
+			end
+			for k = #stk, 1, -1 do buf[#buf + 1] = "</" .. stk[k] .. ">" end
+			full = table.concat(buf)
+		end
 
 		local skip = false
 		local conn = box.Activated:Connect(function() skip = true end)
 		textLabel.Text = ""
-		for _, seg in segs do
-			local delay = Config.Dialogue.charDelay[seg.speed] or Config.Dialogue.charDelay.normal
-			-- utf8 ทีละตัวอักษร (ภาษาไทยตัวละหลาย byte)
-			for _, code in utf8.codes(seg.text) do
-				if skip or quit then break end
-				textLabel.Text ..= utf8.char(code)
-				if code ~= 32 then Audio.voice(voiceName) end -- เว้นวรรคไม่ต้องมีเสียง
-				task.wait(delay)
-			end
+		for _, t in toks do
 			if skip or quit then break end
+			if t.m then
+				applyMarkup(t.m)
+			else
+				shown[#shown + 1] = escapeRich(t.c)
+				textLabel.Text = table.concat(shown) .. closers()
+				if t.c ~= " " and t.c ~= "\n" then Audio.voice(voiceName) end -- เว้นวรรค/ขึ้นบรรทัดไม่มีเสียง
+				task.wait(Config.Dialogue.charDelay[t.speed] or Config.Dialogue.charDelay.normal)
+			end
 		end
 		textLabel.Text = full
 		-- กล่องขนาดคงที่ = บทยาวเกินจะโดนตัดหาย เตือนคนเขียนบทให้ซอยประโยค (อย่าย่อฟอนต์)
@@ -367,36 +446,43 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	end
 
 	task.spawn(function()
-		local queue = table.clone(lines)
-		local i = 1
 		local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบบทแล้วหยุดให้หมด กันค้างท่าเดิม
-		while i <= #queue and not quit do
-			local item = DialogueUI.lineOf(queue[i])
-			-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
-			local moved = AnimPlayer.applyLine(item, voiceName)
-			if moved then movedActors[moved] = true end
-			if item.choices then
-				local c = ask(item.choices)
-				if c then -- nil = กดเลิกคุยระหว่างเลือก (quit)
-					table.insert(picks, c.tone or "neutral")
-					-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
-					if c.reply then
-						for k = #c.reply, 1, -1 do
-							table.insert(queue, i + 1, c.reply[k])
+		-- pcall ครอบ playback: บทพังกลางคัน (anim/face หาย ฯลฯ) ก็ยังวิ่ง cleanup ข้างล่างเสมอ
+		-- ไม่งั้น InteractLock ค้าง = prompt ปิด + กระโดด/เดินไม่ได้หลังคุย (bug "บางครั้งกระโดดไม่ได้")
+		local ok, err = pcall(function()
+			local queue = table.clone(lines)
+			local i = 1
+			while i <= #queue and not quit do
+				local item = DialogueUI.lineOf(queue[i])
+				-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
+				local moved = AnimPlayer.applyLine(item, voiceName)
+				if moved then movedActors[moved] = true end
+				if item.choices then
+					local c = ask(item.choices)
+					if c then -- nil = กดเลิกคุยระหว่างเลือก (quit)
+						table.insert(picks, c.tone or "neutral")
+						-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
+						if c.reply then
+							for k = #c.reply, 1, -1 do
+								table.insert(queue, i + 1, c.reply[k])
+							end
 						end
 					end
-				end
-			elseif item.text then
-				-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
-				speak(item, item.actor or voiceName)
-			end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
-			i += 1
-		end
+				elseif item.text then
+					-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
+					speak(item, item.actor or voiceName)
+				end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
+				i += 1
+			end
+		end)
+		if not ok then warn("[DialogueUI] บทพังกลางคัน:", err) end
+		-- cleanup เสมอ (แม้บทพัง)
 		for actor in movedActors do AnimPlayer.stop(actor) end
 		gui:Destroy()
 		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
 		DialogueUI.running = false
 		if InteractLock then InteractLock.unlock() end
+		Audio.duckBGM(false) -- คืนเสียงเพลงเต็ม
 		-- onDone(picks, quit) เรียกเสมอ — caller ต้องคืนกล้อง/unfreeze ทุกกรณี
 		-- quit=true (กดเลิกคุย) = ไม่นับว่าคุยจบ · caller เช็ค quit เองว่าจะยิง DialogueSeen ไหม
 		if onDone then onDone(picks, quit) end

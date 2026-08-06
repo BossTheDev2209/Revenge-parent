@@ -80,14 +80,15 @@ local function findSound(folderName: string, soundName: string)
 	return snd
 end
 
--- เสียงสั้น: clone แล้วเล่นทับกันได้ ไม่ตัดกันเอง
-function AudioService.sfx(name: string, pitchVary: number?)
+-- เสียงสั้น: clone แล้วเล่นทับกันได้ ไม่ตัดกันเอง · volumeScale = คูณ Volume เดิม (เบาลง เช่น toast)
+function AudioService.sfx(name: string, pitchVary: number?, volumeScale: number?)
 	local src = findSound("SFX", name)
 	if not src then return end
 	local s = src:Clone()
 	if pitchVary and pitchVary > 0 then
 		s.PlaybackSpeed = src.PlaybackSpeed + (math.random() * 2 - 1) * pitchVary
 	end
+	if volumeScale then s.Volume = src.Volume * volumeScale end
 	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
@@ -113,6 +114,9 @@ end
 
 -- เพลง: เปลี่ยนแบบ fade | ชื่อเดิม = ไม่ทำอะไร | nil/"" = เงียบ
 local currentBGM, bgmName = nil, nil
+local bgmTargetVol = 0 -- ระดับเสียงเต็มของเพลงปัจจุบัน (ก่อน duck)
+local ducked = false   -- หรี่เพลงอยู่ไหม (ตอนคุย NPC)
+local DUCK_LEVEL = 0.22
 local function fadeOut(snd, t)
 	if not snd then return end
 	game:GetService("TweenService"):Create(snd, TweenInfo.new(t), { Volume = 0 }):Play()
@@ -128,13 +132,22 @@ function AudioService.bgm(name: string?, fadeTime: number?)
 	if not src then return end
 	local s = src:Clone()
 	s.Looped = true
-	local target = src.Volume
+	bgmTargetVol = src.Volume
 	s.Volume = 0
 	s.SoundGroup = master()
 	s.Parent = SoundService
 	s:Play()
-	game:GetService("TweenService"):Create(s, TweenInfo.new(t), { Volume = target }):Play()
+	local goal = if ducked then bgmTargetVol * DUCK_LEVEL else bgmTargetVol
+	game:GetService("TweenService"):Create(s, TweenInfo.new(t), { Volume = goal }):Play()
 	currentBGM = s
+end
+
+-- หรี่เพลงชั่วคราว (ตอนคุย NPC ให้ได้ยิน blip ชัด) แล้วคืนตอนคุยจบ — ไม่เปลี่ยนเพลง แค่ปรับ volume
+function AudioService.duckBGM(on: boolean, fadeTime: number?)
+	ducked = on
+	if not currentBGM then return end
+	local goal = if on then bgmTargetVol * DUCK_LEVEL else bgmTargetVol
+	game:GetService("TweenService"):Create(currentBGM, TweenInfo.new(fadeTime or 0.4), { Volume = goal }):Play()
 end
 
 -- เสียงบรรยากาศ: ซ้อนบนเพลง (คนละเลเยอร์)

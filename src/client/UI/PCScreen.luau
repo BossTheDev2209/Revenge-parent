@@ -230,10 +230,21 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		surface:Destroy()
 		overlay:Destroy()
 		PCScreen.running = false
+		PCScreen.forceClose = nil
 		if InteractLock then InteractLock.unlock() end
 	end
-	exit.Activated:Connect(closeScreen)
-	backup.Activated:Connect(closeScreen)
+	PCScreen.forceClose = closeScreen -- ให้ที่อื่นสั่งปิดได้ (เช่น ข้ามเฟสตอนกำลังใช้คอม)
+	-- ปุ่ม Exit บนจอ: มีแอปเปิดอยู่ = กลับ desktop (ไม่ใช่ปิดคอม) · อยู่ desktop = ปิดคอม
+	-- (เดิมกดออกแอปแล้วปิดคอมเลย — bug)
+	local function closeApp()
+		appFrame.Visible = false
+		appFrame:ClearAllChildren()
+		currentApp = nil
+	end
+	exit.Activated:Connect(function()
+		if appFrame.Visible then closeApp() else closeScreen() end
+	end)
+	backup.Activated:Connect(closeScreen) -- ปุ่มสำรอง (ScreenGui) = ปิดคอมเสมอ กันค้างในจอ
 
 	function PCScreen.refresh(newState)
 		state = newState

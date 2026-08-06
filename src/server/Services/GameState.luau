@@ -50,6 +50,7 @@ function GameState.newGame()
 		lastViralDay = 0,     -- ไว้เช็ค viral 2 วันติด
 		slot = 1,
 		savedAt = 0,
+		settings = { volume = 1 }, -- ค่า preference (เซฟไปกับเกม) — ตอนนี้มีแค่ระดับเสียงรวม
 	}
 end
 
@@ -114,23 +115,78 @@ function GameState.isDirty()
 	return dirty
 end
 
+-- 1 ช่อง (slot) = 1 "ไฟล์เซฟ" เก็บได้หลาย snapshot (docs)
+--   file = { snapshots = { {state=, savedAt=, summary=}, ... }, auto = {snapshot เดียว} }
+--   snapshots[1] = manual ล่าสุด (ใหม่→เก่า, cap MAX_SNAPSHOTS) · auto = autosave (ทับตัวเดียว ไม่รก history)
+local MAX_SNAPSHOTS = 5
+
+-- metadata ต่อ snapshot (ส่งให้ client เลือก — ไม่รวม state เต็ม) · which = "auto" หรือ index ใน snapshots
+local function entryMeta(snap, which)
+	local sum = snap.summary or {}
+	return { which = which, follower = sum.follower, day = sum.day, phase = sum.phase, savedAt = snap.savedAt }
+end
+
+-- อ่านไฟล์ช่อง + migrate เซฟเก่า (state ดิบ ไม่มี .snapshots) → wrap เป็น snapshot เดียว (ไม่พังของเก่า)
+local function readFile(userId: number, slot: number)
+	local ok, data = pcall(function() return store():GetAsync(userId .. "_" .. slot) end)
+	if not ok or data == nil then return nil end
+	if data.snapshots == nil and data.auto == nil then
+		return { snapshots = { { state = data, savedAt = data.savedAt or 0, summary = GameState.slotSummary(data) } } }
+	end
+	data.snapshots = data.snapshots or {}
+	return data
+end
+
 -- ทุกจุดแตะ DataStore ห่อ pcall — fail = warn + เล่นต่อ (Edit mode fail เป็นเรื่องปกติ)
-function GameState.saveSlot(userId: number, state)
+-- isAuto = autosave (ทับ file.auto ตัวเดียว) · ไม่ใช่ = manual (push เข้า history ตัดตัวเก่าสุดถ้าเกิน 5)
+function GameState.saveSlot(userId: number, state, isAuto: boolean?)
 	state.savedAt = os.time()
-	local ok, err = pcall(function()
-		store():SetAsync(userId .. "_" .. state.slot, state)
-	end)
+	local file = readFile(userId, state.slot) or { snapshots = {} }
+	local snap = { state = state, savedAt = state.savedAt, summary = GameState.slotSummary(state) }
+	if isAuto then
+		file.auto = snap
+	else
+		table.insert(file.snapshots, 1, snap)
+		while #file.snapshots > MAX_SNAPSHOTS do table.remove(file.snapshots) end
+	end
+	local ok, err = pcall(function() store():SetAsync(userId .. "_" .. state.slot, file) end)
 	if ok then dirty = false else warn("[GameState] save ไม่สำเร็จ:", err) end
 	return ok
 end
 
-function GameState.loadSlot(userId: number, slot: number)
-	local ok, data = pcall(function()
-		return store():GetAsync(userId .. "_" .. slot)
-	end)
-	if not ok or data == nil then return nil end
+-- which: "auto" | index ใน snapshots | nil (= ล่าสุดข้าม manual+auto)
+function GameState.loadSlot(userId: number, slot: number, which)
+	local file = readFile(userId, slot)
+	if not file then return nil end
+	local snap
+	if which == "auto" then
+		snap = file.auto
+	elseif type(which) == "number" then
+		snap = file.snapshots[which]
+	else
+		snap = file.snapshots[1]
+		if file.auto and (not snap or file.auto.savedAt > snap.savedAt) then snap = file.auto end
+	end
+	if not snap or not snap.state then return nil end
+	local data = snap.state
 	data.slot = slot
 	return GameState.mergeDefaults(data, GameState.newGame())
+end
+
+-- ลบ snapshot เดียว (ว่างหมด = ลบทั้งช่อง)
+function GameState.deleteSnapshot(userId: number, slot: number, which)
+	local file = readFile(userId, slot)
+	if not file then return false end
+	if which == "auto" then
+		file.auto = nil
+	elseif type(which) == "number" then
+		table.remove(file.snapshots, which)
+	end
+	if not file.auto and #file.snapshots == 0 then
+		return GameState.deleteSlot(userId, slot)
+	end
+	local ok = pcall(function() store():SetAsync(userId .. "_" .. slot, file) end)
+	return ok
 end
 
 function GameState.deleteSlot(userId: number, slot: number)
@@ -141,12 +197,27 @@ function GameState.deleteSlot(userId: number, slot: number)
 	return ok
 end
 
--- คืน {[slot] = summary} เฉพาะ slot ที่มี save — หน้า Main Menu ใช้ (Continue = savedAt มากสุด)
+-- คืน {[slot] = summary} เฉพาะ slot ที่มี save — Main Menu/SavePanel ใช้
+-- summary = ข้อมูล snapshot ล่าสุด (แถวย่อ) + count + entries (รายการ snapshot ให้กางเลือก restore)
 function GameState.listSlots(userId: number)
 	local out = {}
 	for slot = 1, MAX_SLOTS do
-		local data = GameState.loadSlot(userId, slot)
-		if data then out[slot] = GameState.slotSummary(data) end
+		local file = readFile(userId, slot)
+		if file then
+			local entries = {}
+			if file.auto then table.insert(entries, entryMeta(file.auto, "auto")) end
+			for idx, snap in file.snapshots do table.insert(entries, entryMeta(snap, idx)) end
+			local latest
+			for _, e in entries do
+				if not latest or (e.savedAt or 0) > (latest.savedAt or 0) then latest = e end
+			end
+			if latest then
+				out[slot] = {
+					follower = latest.follower, day = latest.day, phase = latest.phase, savedAt = latest.savedAt,
+					count = #file.snapshots, hasAuto = file.auto ~= nil, entries = entries,
+				}
+			end
+		end
 	end
 	return out
 end

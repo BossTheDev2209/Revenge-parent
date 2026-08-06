@@ -71,6 +71,7 @@
   <button id="btnSaveProject">บันทึกโปรเจกต์ (.json)</button>
   <button id="btnLoadProject">เปิดโปรเจกต์ (.json)</button>
   <input type="file" id="fileInput" accept=".json" style="display:none">
+  <button id="btnImport">◀ วาง Luau เป็นบล็อก</button>
   <button class="primary" id="btnExport">แปลงเป็น Luau ▶</button>
   <span id="autosaveNote" style="font-size:11px;opacity:.4;margin-left:auto">บันทึกอัตโนมัติในเบราว์เซอร์นี้</span>
 </header>
@@ -84,6 +85,19 @@
   dialogue-editor.html — เครื่องมือช่วยเขียนบท ไม่ต้องพิมพ์ Luau เอง · ทำงาน 100% ในเบราว์เซอร์ ไม่ส่งข้อมูลไปไหน<br>
   ตรงกับ docs/engines/dialogue.md — ครบ p1/p2/p3/after/again, choices+tone+reply, anim/pose/face/actor, tag [slow]/[fast]/[normal]
 </footer>
+
+<div id="importPane" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center;">
+  <div style="background:#1e1e26; padding:20px; border-radius:10px; width:min(760px,92vw); max-height:88vh; display:flex; flex-direction:column; gap:10px;">
+    <h2 style="margin:0;font-size:16px">◀ วาง Luau (รูปแบบไฟล์บท) แล้วแปลงกลับเป็นบล็อก</h2>
+    <div style="font-size:12px;opacity:.6">วางโค้ดทั้งไฟล์ได้เลย (มี <code>return { ... }</code>) — จะแทนที่บทปัจจุบัน</div>
+    <textarea id="importIn" style="width:100%; height:340px; font-family:monospace; font-size:12px; background:#15151b; color:#ddd; border:1px solid #333; border-radius:6px; padding:8px" placeholder="return {&#10;  p1 = {&#10;    { speaker = &quot;แม่&quot;, text = &quot;...&quot; },&#10;  },&#10;}"></textarea>
+    <div id="importErr" style="color:#e06c5a;font-size:12px"></div>
+    <div class="btns">
+      <button id="btnDoImport" class="primary">แปลงเป็นบล็อก ▶</button>
+      <button id="btnCloseImport">ปิด</button>
+    </div>
+  </div>
+</div>
 
 <div id="exportPane">
   <div id="exportBox">
@@ -120,7 +134,7 @@ function emptyScene() {
   for (const p of PHASES) phases[p.key] = [];
   return { phases };
 }
-function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'', bold:false, indent:0 }; }
+function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'' }; }
 function newChoiceOption() { return { text:'', tone:'neutral', reply: [] }; }
 function newChoice() { return { kind:'choice', options: [ newChoiceOption() ] }; }
 function uid() { return Math.random().toString(36).slice(2,9); }
@@ -234,6 +248,17 @@ function insertAtCursor(textarea, tag) {
   textarea.selectionStart = textarea.selectionEnd = start + tag.length;
 }
 
+// ครอบข้อความที่เลือกด้วย open/close (เช่น [b]…[/b]) · ไม่ได้เลือก = แทรกคู่แล้ววางเคอร์เซอร์ตรงกลาง
+function wrapSelection(textarea, open, close) {
+  const start = textarea.selectionStart, end = textarea.selectionEnd;
+  const val = textarea.value;
+  const mid = val.slice(start, end);
+  textarea.value = val.slice(0,start) + open + mid + close + val.slice(end);
+  textarea.dispatchEvent(new Event('input'));
+  textarea.focus();
+  textarea.selectionStart = textarea.selectionEnd = start + open.length + mid.length;
+}
+
 function renderLineFields(block) {
   const wrap = document.createElement('div');
 
@@ -261,35 +286,15 @@ function renderLineFields(block) {
   textField.appendChild(textArea);
   const tagbar = document.createElement('div');
   tagbar.className = 'tagbar';
+  // ความเร็ว (คุมจากจุดที่แทรกไปจนกว่าจะเจอ tag ถัดไป) + ตัวหนา/เอียง (ครอบข้อความ ต้องมีเปิด-ปิด)
   for (const t of ['[slow]','[fast]','[normal]']) {
     tagbar.appendChild(makeBtn(t, () => insertAtCursor(textArea, t)));
   }
+  // [b]…[/b] ตัวหนา · [i]…[/i] ตัวเอียง — ครอบข้อความที่เลือก (ไม่ได้เลือก = แทรกคู่เปล่าให้พิมพ์ตรงกลาง)
+  tagbar.appendChild(makeBtn('B ตัวหนา', () => wrapSelection(textArea, '[b]', '[/b]')));
+  tagbar.appendChild(makeBtn('I ตัวเอียง', () => wrapSelection(textArea, '[i]', '[/i]')));
   textField.appendChild(tagbar);
   wrap.appendChild(textField);
-
-  // จัดรูปแบบข้อความ: ตัวหนา / ย่อหน้า (ตรงกับ DialogueUI line option bold/indent)
-  const fmt = document.createElement('div');
-  fmt.className = 'pose-fields';
-  const boldWrap = document.createElement('label');
-  boldWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
-  const boldCb = document.createElement('input');
-  boldCb.type = 'checkbox';
-  boldCb.checked = !!block.bold;
-  boldCb.onchange = () => { block.bold = boldCb.checked; autosave(); };
-  boldWrap.appendChild(boldCb);
-  boldWrap.appendChild(document.createTextNode('ตัวหนา (bold)'));
-  fmt.appendChild(boldWrap);
-  const indField = document.createElement('div');
-  indField.className = 'field';
-  indField.innerHTML = '<label>ย่อหน้า (indent)</label>';
-  const indInput = document.createElement('input');
-  indInput.type = 'number';
-  indInput.min = '0';
-  indInput.value = block.indent || 0;
-  indInput.oninput = () => { block.indent = Math.max(0, parseInt(indInput.value) || 0); autosave(); };
-  indField.appendChild(indInput);
-  fmt.appendChild(indField);
-  wrap.appendChild(fmt);
 
   const details = document.createElement('details');
   const hasExtra = block.anim || block.pose || block.face || block.actor;
@@ -403,8 +408,7 @@ function luauEscape(s) {
 }
 
 function isPlainTextLine(b) {
-  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor
-    && !b.bold && !(b.indent > 0);
+  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor;
 }
 
 function genLine(b, indent) {
@@ -419,8 +423,6 @@ function genLine(b, indent) {
   if (b.pose) parts.push(`pose = "${luauEscape(b.pose)}"`);
   if (b.face) parts.push(`face = "${luauEscape(b.face)}"`);
   if (b.actor) parts.push(`actor = "${luauEscape(b.actor)}"`);
-  if (b.bold) parts.push(`bold = true`);
-  if (b.indent > 0) parts.push(`indent = ${b.indent}`);
   return `${pad}{ ${parts.join(', ')} },`;
 }
 
@@ -553,6 +555,127 @@ document.getElementById('btnNew').onclick = () => {
   render();
 };
 npcNameInput.oninput = autosave;
+
+// ===================== reverse: Luau -> blocks =====================
+// parser เล็กๆ อ่าน Lua table literal (subset ที่ engine ใช้) → ค่า JS · รองรับ comment/escape/nested
+function parseLuau(src) {
+  const s = src; let i = 0;
+  const err = m => { throw new Error(m); };
+  function skipWs() {
+    while (i < s.length) {
+      const c = s[i];
+      if (c===' '||c==='\t'||c==='\n'||c==='\r') { i++; continue; }
+      if (c==='-' && s[i+1]==='-') {
+        if (s[i+2]==='[' && s[i+3]==='[') { const e=s.indexOf(']]',i+4); i = e<0?s.length:e+2; continue; }
+        const nl=s.indexOf('\n',i); i = nl<0?s.length:nl+1; continue;
+      }
+      break;
+    }
+  }
+  function parseString() {
+    const q=s[i]; i++; let out='';
+    while (i<s.length) {
+      const c=s[i++];
+      if (c==='\\') { const n=s[i++]; out += n==='n'?'\n':n==='t'?'\t':n==='r'?'\r':n; }
+      else if (c===q) return out;
+      else out += c;
+    }
+    err('string ไม่ปิด');
+  }
+  function parseKey() {
+    skipWs();
+    if (s[i]==='[') {
+      i++; skipWs(); let key;
+      if (s[i]==='"'||s[i]==="'") key=parseString();
+      else { const m=/^[\w.]+/.exec(s.slice(i)); key=m[0]; i+=m[0].length; }
+      skipWs(); if (s[i]!==']') err('ต้องมี ]'); i++;
+      skipWs(); if (s[i]!=='=') err('ต้องมี = หลัง [key]'); i++;
+      return key;
+    }
+    const m=/^[A-Za-z_]\w*/.exec(s.slice(i));
+    if (m) { const save=i; i+=m[0].length; skipWs();
+      if (s[i]==='=' && s[i+1]!=='=') { i++; return m[0]; }
+      i=save;
+    }
+    return null;
+  }
+  function parseValue() {
+    skipWs(); const c=s[i];
+    if (c==='{') return parseTable();
+    if (c==='"'||c==="'") return parseString();
+    const m=/^[-\w.]+/.exec(s.slice(i));
+    if (!m) err('ค่าไม่ถูกต้องที่ "'+s.slice(i,i+12)+'"');
+    const tok=m[0]; i+=tok.length;
+    if (tok==='true') return true;
+    if (tok==='false') return false;
+    if (tok==='nil') return null;
+    if (/^-?[\d.]+$/.test(tok)) return parseFloat(tok);
+    return tok;
+  }
+  function parseTable() {
+    i++; const arr=[], obj={}; let hasKey=false;
+    while (true) {
+      skipWs();
+      if (s[i]==='}') { i++; break; }
+      if (i>=s.length) err('table ไม่ปิด (ขาด })');
+      const key=parseKey();
+      const val=parseValue();
+      if (key!==null) { obj[key]=val; hasKey=true; } else arr.push(val);
+      skipWs();
+      if (s[i]===','||s[i]===';') i++;
+      else if (s[i]==='}') { i++; break; }
+      else err('ต้องมี , หรือ } ที่ "'+s.slice(i,i+12)+'"');
+    }
+    if (hasKey) { arr.forEach((v,idx)=>obj[idx+1]=v); return obj; }
+    return arr;
+  }
+  skipWs();
+  if (s.slice(i,i+6)==='return') i+=6;
+  return parseValue();
+}
+
+function mapItem(v) {
+  if (typeof v === 'string') { const l=newLine(); l.text=v; return l; }
+  if (v && typeof v==='object') {
+    if (Array.isArray(v.choices)) {
+      return { kind:'choice', options: v.choices.map(c => ({
+        text: c.text||'', tone: c.tone||'neutral',
+        reply: Array.isArray(c.reply) ? c.reply.map(mapItem) : []
+      })) };
+    }
+    const l=newLine();
+    for (const k of ['speaker','text','anim','pose','face','actor']) if (v[k]!=null) l[k]=String(v[k]);
+    return l;
+  }
+  return newLine();
+}
+function luauToScene(parsed) {
+  const phases={}; for (const p of PHASES) phases[p.key]=[];
+  if (Array.isArray(parsed)) { phases.p1 = parsed.map(mapItem); return { phases }; }
+  if (parsed && typeof parsed==='object') {
+    let any=false;
+    for (const p of PHASES) if (Array.isArray(parsed[p.key])) { phases[p.key]=parsed[p.key].map(mapItem); any=true; }
+    if (!any) throw new Error('ไม่เจอ p1/p2/p3/after/again และไม่ใช่ list ของบรรทัด');
+    return { phases };
+  }
+  throw new Error('รูปแบบไม่ถูกต้อง');
+}
+
+document.getElementById('btnImport').onclick = () => {
+  document.getElementById('importErr').textContent='';
+  document.getElementById('importPane').style.display='flex';
+};
+document.getElementById('btnCloseImport').onclick = () => document.getElementById('importPane').style.display='none';
+document.getElementById('btnDoImport').onclick = () => {
+  const txt=document.getElementById('importIn').value;
+  try {
+    const sc=luauToScene(parseLuau(txt));
+    if (!confirm('แทนที่บทปัจจุบันด้วย Luau ที่วาง? (autosave ในเบราว์เซอร์ยังกู้ได้)')) return;
+    scene=sc; activePhase='p1'; render();
+    document.getElementById('importPane').style.display='none';
+    document.getElementById('importIn').value='';
+  } catch(e) { document.getElementById('importErr').textContent='แปลงไม่ได้: '+e.message; }
+};
 
 // ===================== boot =====================
 loadAutosave();

@@ -139,6 +139,18 @@ function ToolService.summonCart(player)
 	local drop = root.CFrame * CFrame.new(0, 0, -Config.CameraCartSpawnStuds)
 	m:PivotTo(CFrame.lookAt(drop.Position, drop.Position + root.CFrame.LookVector))
 	m.Parent = workspace
+
+	-- ยกฐานให้แตะพื้น (กันจมดิน) — pivot วางที่ระดับ HRP ผู้เล่น แต่ฐานรถอยู่ต่ำกว่า seat
+	-- ถ้าไม่ยก ฐานจะจมใต้ดิน ~1.3 studs ดูตลก (user รายงาน 6 ส.ค.)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { m, char }
+	local cf, size = m:GetBoundingBox()
+	local hit = workspace:Raycast(cf.Position + Vector3.new(0, size.Y, 0), Vector3.new(0, -size.Y * 6, 0), params)
+	if hit then
+		local lowestY = cf.Position.Y - size.Y / 2
+		m:PivotTo(m:GetPivot() + Vector3.new(0, hit.Position.Y - lowestY, 0))
+	end
 	return m
 end
 

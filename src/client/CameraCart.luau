@@ -60,34 +60,47 @@ function CameraCart.init(player, fireAction, getState)
 	local RunService = game:GetService("RunService")
 	local UIS = game:GetService("UserInputService")
 
-	local seatedRoot = nil -- root ของรถที่กำลังนั่ง (nil = ไม่ได้นั่ง)
-
-	local function cartRoot()
+	-- นั่งอยู่บน "รถคันปัจจุบัน" ไหม — เช็ค SeatPart จริง ณ ตอนนั้นเลย ไม่พึ่ง event hum.Seated
+	--   เดิมเก็บ seatedRoot จาก event: ถ้า event มาไม่ทัน/stale ตอนคลิก → เข้าใจว่ายืน → เสกรถใหม่
+	--   ทับคันที่นั่งอยู่ = เด้งตกเก้าอี้ + ไม่ได้อัด (user รายงาน 6 ส.ค. "กดแล้ว storage ไม่เด้ง")
+	--   คืน Seat ของรถถ้านั่งอยู่จริง · nil ถ้าไม่ได้นั่ง
+	local function seatedOnCart()
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local m = workspace:FindFirstChild(Config.CameraCartTemplate)
-		return m and m.PrimaryPart or nil
+		local root = m and m.PrimaryPart
+		return (hum and root and hum.SeatPart == root) and root or nil
 	end
 
-	-- นั่งอยู่บนรถไหม — เช็คทุกครั้งที่สถานะนั่งเปลี่ยน (รถถูกเสกใหม่เรื่อยๆ เทียบ instance ตรงๆ ไม่ได้)
-	local function watchCharacter(char)
-		local hum = char:WaitForChild("Humanoid", 5)
-		if not hum then return end
-		hum.Seated:Connect(function(active, seat)
-			seatedRoot = (active and seat and seat == cartRoot()) and seat or nil
-		end)
+	-- ★ แรงโน้มถ่วงจำลอง: รถ anchored ไม่ตกเอง → raycast หาพื้นแล้วยกฐานให้แตะพื้นทุกเฟรม
+	--   คืน CFrame ที่ปรับ Y ให้ฐานรถแตะพื้น (คงมุมหัน/X/Z เดิม) · ไม่เจอพื้น = คืน CFrame เดิม (ขับตกขอบไม่เด้ง)
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Exclude
+	local function restOnGround(model, seat, goalCF)
+		groundParams.FilterDescendantsInstances = { model, player.Character }
+		local cf, size = model:GetBoundingBox()
+		local baseToSeat = seat.Position.Y - (cf.Position.Y - size.Y / 2) -- seat→ฐาน (คงที่ รถ weld แข็ง)
+		local from = Vector3.new(goalCF.X, goalCF.Y + size.Y, goalCF.Z)
+		local hit = workspace:Raycast(from, Vector3.new(0, -size.Y * 6, 0), groundParams)
+		if not hit then return goalCF end
+		return CFrame.new(goalCF.X, hit.Position.Y + baseToSeat, goalCF.Z) * (goalCF - goalCF.Position)
 	end
-	if player.Character then watchCharacter(player.Character) end
-	player.CharacterAdded:Connect(watchCharacter)
 
 	-- ขับด้วย WASD (Seat ธรรมดาไม่ส่ง Throttle/Steer เหมือน VehicleSeat ต้องอ่าน key เอง)
 	RunService.RenderStepped:Connect(function(dt)
-		if not seatedRoot or not seatedRoot.Parent then return end
+		local seat = seatedOnCart()
+		if not seat then return end
+		-- โมเดลบนสุด (CartSeat อยู่ใน Model ซ้อนหลายชั้น seat.Parent เลยไม่ใช่ตัวบนสุด — bounding box จะผิด)
+		local model = workspace:FindFirstChild(Config.CameraCartTemplate)
+		if not model then return end
 		local throttle, steer = 0, 0
 		if UIS:IsKeyDown(Enum.KeyCode.W) then throttle += 1 end
 		if UIS:IsKeyDown(Enum.KeyCode.S) then throttle -= 1 end
 		if UIS:IsKeyDown(Enum.KeyCode.D) then steer += 1 end
 		if UIS:IsKeyDown(Enum.KeyCode.A) then steer -= 1 end
 		if throttle == 0 and steer == 0 then return end
-		seatedRoot.CFrame = seatedRoot.CFrame * CameraCart.stepOffset(throttle, steer, dt)
+		local goal = seat.CFrame * CameraCart.stepOffset(throttle, steer, dt)
+		seat.CFrame = restOnGround(model, seat, goal) -- ขับแล้วยังแตะพื้นตลอด
 	end)
 
 	-- ★ ผูก Tool กล้องที่เป็นรีโมทเรียกรถ (RecordTool ข้าม ToolSource ตัวนี้ให้แล้ว)
@@ -100,13 +113,14 @@ function CameraCart.init(player, fireAction, getState)
 		tool.Activated:Connect(function()
 			local s = getState()
 			if not CameraCart.canDrive(s) then return end
-			if seatedRoot then
+			local seat = seatedOnCart()
+			if seat then
 				-- นั่งอยู่ = อัดคลิป (เช็คโซนจากตำแหน่งรถ คนนั่งอยู่บนรถ ตำแหน่งเดียวกัน)
 				local name = s and s.filmZone and s.filmZone.spot
 				local spot = name and workspace:FindFirstChild(name, true)
 				local inside = false
 				if spot and spot:IsA("BasePart") then
-					local d = seatedRoot.Position - spot.Position
+					local d = seat.Position - spot.Position
 					inside = (d.X * d.X + d.Z * d.Z) <= Config.Record.zoneRadiusStuds ^ 2
 				end
 				fireAction({ type = "RecordFootage", inZone = inside })

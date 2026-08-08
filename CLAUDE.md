@@ -98,6 +98,12 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
     *(ตัวอย่างจริง 1 ส.ค.: prompt กดไม่ทำงาน → เกือบ rewrite bind logic แต่จริงๆ InteractBinder fix ไม่ sync เข้า Studio เพราะ plugin หลุดหลัง restart)*
 11. **ติดปัญหาที่จะเสียเวลานาน → ค้น Roblox Dev Forum ก่อนลุยเดาเอง** — ปัญหา Roblox เฉพาะทาง (property plugin-only, พฤติกรรม StreamingEnabled, sandbox/capability, quirk ของ engine) มักมีคนเจอ+เฉลยแล้วใน `devforum.roblox.com` · เจอ thread ที่ตรง = ประหยัดชั่วโมง อย่าเพิ่ง rewrite/สร้างระบบใหม่จากการเดา
     ค้นก่อนเมื่อ: debug วนเกิน ~2 รอบไม่คืบ, เจอ error/behavior ที่ไม่เข้าใจสาเหตุ, หรือกำลังจะเขียน workaround ใหญ่ · เอาคำตอบมา cross-check กับของจริงใน Studio ก่อนใช้เสมอ (โพสต์ใน forum อาจเก่า/ผิด/คนละเวอร์ชัน)
+12. **⚠️⚠️ Team Create + git ร่วมกัน — กันงานทับหาย (tragedy 9 ส.ค.: full-sync ทับงาน Phase/interaction/บทหมวย ที่ยังไม่ commit หายเกลี้ยง)**
+    - **ห้าม full-sync (`gen_sync` ทั้งโปรเจกต์ / put ทุกไฟล์) เด็ดขาด** — มัน destroy+recreate สคริปต์ทุกไฟล์จาก git → ทับงานที่อีกคนแก้ใน Studio แต่ยังไม่ commit หายหมด · **sync เฉพาะไฟล์ที่ตัวเองแก้** (surgical single-file — เขียน `.Source` ตรงตัว หรือให้ Rojo sync เฉพาะไฟล์ที่เปลี่ยน)
+    - **commit git ทันทีทุกครั้งที่แก้เสร็จ** — งานที่อยู่ Studio อย่างเดียว = เสี่ยงโดน sync ของอีกคนทับ · **git คือตัวรอดเดียว** (บทหมวยหายเพราะ author ใน Studio ไม่เคย commit)
+    - **`git pull --rebase` ก่อน `git push` ทุกครั้ง** (กัน history ชนกัน)
+    - **แบ่ง ownership ไฟล์** ช่วงแก้พร้อมกัน — ตกลงใครถือไฟล์ไหน อย่าแก้ไฟล์เดียวกันพร้อมกัน · **ก่อนแตะ Studio: pull git ล่าสุด + เช็คว่าอีกคนไม่ได้ถือไฟล์นั้น**
+    - **ของที่อยู่ใน `.rbxl` ไม่ใช่ `src/` ต้อง save/publish place เอง** (git ไม่ track): property ของ service (เช่น `ProximityPromptService.Enabled`), `Model.LevelOfDetail`, GUI instance ใน StarterGui, บทที่ author ใน Studio → **Ctrl+S + publish** ไม่งั้นหาย/revert · ของพวกนี้ mirror ลง `src/` (หรือ `src/studio-only/`) + commit ด้วยถ้าทำได้
 
 ## Layout
 

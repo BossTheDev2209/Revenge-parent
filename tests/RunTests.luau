@@ -508,6 +508,19 @@ do
 	check("งบ 1 = เวฟเดียวขนาด 1 (เล็กกว่า min ได้ตอนงบไม่พอ)", #oneWave == 1 and oneWave[1] == 1)
 end
 
+-- ===== pickKeysUnique (คีย์ PC ไม่ซ้ำกันในเวฟ) =====
+do
+	local keys = EditQTE.pickKeysUnique(4, { "Q", "W", "E", "R", "A" }, rngQueue({ 0, 0, 0, 0 }))
+	check("ได้ครบ 4 คีย์", #keys == 4)
+	local seen, dup = {}, false
+	for _, k in keys do
+		if seen[k] then dup = true end
+		seen[k] = true
+	end
+	check("คีย์ไม่ซ้ำกันในเวฟ", not dup)
+	check("ขอเกิน pool = ได้แค่เท่า pool", #EditQTE.pickKeysUnique(9, { "Q", "W" }, rngQueue({ 0, 0 })) == 2)
+end
+
 -- ===== randomPositions (ตำแหน่งวงกลมกระจาย ไม่ล้นขอบ) =====
 do
 	local pos = EditQTE.randomPositions(4, 0.12, rngQueue({ 0.1, 0.2, 0.9, 0.8, 0.3, 0.4, 0.6, 0.5 }))

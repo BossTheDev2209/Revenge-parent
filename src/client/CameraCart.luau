@@ -147,6 +147,40 @@ function CameraCart.init(player, fireAction, getState)
 	if bp0 then hookBackpack(bp0) end
 	player.ChildAdded:Connect(hookBackpack)
 	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
+
+	-- ★ ป้ายบอกวิธีเล่นเหนือรถ (user feedback 8 ส.ค. "กด Camera_6 แล้ว storage ไม่เด้ง")
+	--   ดีไซน์คือ ยืน=เสกรถ / นั่ง=อัด — คนเล่นไม่รู้ว่าต้องขึ้นนั่งก่อน เลยงงว่าทำไมไม่อัด
+	--   มีรถ + ยังไม่นั่ง → "ขึ้นนั่งเพื่ออัด" · นั่งแล้ว → "กดกล้องเพื่ออัด" · ไม่มีรถ → ซ่อน
+	local hintGui = Instance.new("BillboardGui")
+	hintGui.Name = "CartHint"
+	hintGui.Size = UDim2.new(0, 230, 0, 54)
+	hintGui.StudsOffset = Vector3.new(0, 4.5, 0)
+	hintGui.AlwaysOnTop = true
+	hintGui.Enabled = false
+	local hintLabel = Instance.new("TextLabel")
+	hintLabel.Size = UDim2.new(1, 0, 1, 0)
+	hintLabel.BackgroundTransparency = 1
+	hintLabel.TextColor3 = Color3.new(1, 1, 1)
+	hintLabel.TextStrokeTransparency = 0.25
+	hintLabel.TextScaled = true
+	hintLabel.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+	hintLabel.Parent = hintGui
+	hintGui.Parent = player:WaitForChild("PlayerGui")
+
+	task.spawn(function()
+		while true do
+			local m = workspace:FindFirstChild(Config.CameraCartTemplate)
+			local seat = m and m.PrimaryPart
+			if seat then
+				hintGui.Adornee = seat
+				hintLabel.Text = if seatedOnCart() then "🎬 กดกล้องเพื่ออัดคลิป" else "⬆️ ขึ้นนั่งเพื่ออัดคลิป"
+				hintGui.Enabled = true
+			else
+				hintGui.Enabled = false
+			end
+			task.wait(0.25)
+		end
+	end)
 end
 
 return CameraCart

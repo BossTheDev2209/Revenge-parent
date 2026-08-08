@@ -371,7 +371,8 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	local PANEL_W, PANEL_H = 720, 560
 
-	local gui = mk("ScreenGui", nil, { Name = "Gui_EditQTE", ResetOnSpawn = false, DisplayOrder = 8 })
+	-- IgnoreGuiInset = พื้นดำ dim คลุมเต็มจอถึงแถบบนสุด (ไม่เว้นช่อง topbar ~36px)
+	local gui = mk("ScreenGui", nil, { Name = "Gui_EditQTE", ResetOnSpawn = false, DisplayOrder = 8, IgnoreGuiInset = true })
 	mk("Frame", gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5 })
 
 	local panel = mk("Frame", gui, {

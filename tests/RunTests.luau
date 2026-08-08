@@ -524,6 +524,17 @@ do
 	check("เลือกจุดไกลจากวง active สุด (ไม่โผล่ทับ)", far.x > 0.8 and far.y > 0.8)
 end
 
+-- ===== previewCoverKey (รูปกลางจอเปลี่ยนตามเฟส) =====
+do
+	local lo = function() return 0 end
+	local hi = function() return 0.9 end
+	check("เฟส 1 rng ต่ำ → clip_cover_1", EditQTE.previewCoverKey(1, lo) == "clip_cover_1")
+	check("เฟส 1 rng สูง → clip_cover_2", EditQTE.previewCoverKey(1, hi) == "clip_cover_2")
+	check("เฟส 2 → clip_cover_3", EditQTE.previewCoverKey(2, lo) == "clip_cover_3")
+	check("เฟส 3 rng สูง → clip_cover_6", EditQTE.previewCoverKey(3, hi) == "clip_cover_6")
+	check("เฟสเกิน clamp เป็น 3", EditQTE.previewCoverKey(9, lo) == "clip_cover_5")
+end
+
 -- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====
 check("sponsorPay phase1 rng=0 → 650×0.8×2 = 1040", Formulas.sponsorPay(1, rng0) == 1040)
 local sp = Formulas.sponsorPay(1, rngHi)

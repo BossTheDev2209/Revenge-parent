@@ -8,6 +8,13 @@
 
 **Architecture:** เหมือนเดิม — `EditQTE.luau` = pure functions (เทสด้วย lune/pcall harness) + UI glue (Studio เท่านั้น) ไม่แตะ server เลย (`FinishEdit` รับแค่ `score` 0-200 รวม ไม่สนใจว่าประกอบมายังไง)
 
+**แก้เพิ่มรอบ 5 (8 ส.ค. — พื้นหลัง mock เต็มรูปแบบ) — user feedback (อ้างภาพ Premiere Pro):**
+- `buildEditorMock` วาดฉากหลังจำลองโปรแกรมตัดต่อ (แทน gradient เปล่า) ZIndex 0-1 ใต้วง QTE:
+  toolbar บน · media bin ซ้าย · **effect panel ขวา** (Effect Controls: Motion/Position/Scale/Rotation/Opacity/Time Remap + ค่าจำลอง) · timeline หลายแทร็ก+clip+playhead ล่าง
+- **preview กลางเปลี่ยนตาม progress เนื้อเรื่อง:** `EditQTE.previewCoverKey(phase)` เลือก `UIAssets.clip_cover_N`
+  ตามเฟส (1→1/2, 2→3/4, 3→5/6) · มีรูป = ImageLabel + overlay มืดให้วงเด่น · ยังไม่มีรูป = placeholder "🎞️ คลิปเฟส N"
+- ใส่รูปจริงทีหลัง: `edit_workspace_bg` (ทั้งฉาก) หรือ `clip_cover_1..6` (เฉพาะ preview กลาง) — โค้ดใช้อัตโนมัติ
+
 **แก้เพิ่มรอบ 4 (8 ส.ค. — alternate version "duo") — user feedback:**
 - ทำ **2 เวอร์ชันเลือกได้** ด้วย preset (สลับ `EditQTE.MODE` บรรทัดเดียว ไม่ duplicate โค้ด):
   - `flow` = ไหลต่อเนื่องมากสุด ~4 อันบนจอ (ของรอบ 3)

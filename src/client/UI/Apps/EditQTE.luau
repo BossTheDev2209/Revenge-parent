@@ -113,6 +113,15 @@ function EditQTE.pickPosition(margin: number, avoid, rng): { x: number, y: numbe
 	return best
 end
 
+-- รูป preview กลางจอ (ปกคลิปที่กำลังตัด) ตามเฟส — "เปลี่ยนตาม progress เนื้อเรื่อง"
+--   เฟส 1 → clip_cover_1/2 · เฟส 2 → 3/4 · เฟส 3 → 5/6 (สุ่มในคู่) · คืนชื่อคีย์ UIAssets
+function EditQTE.previewCoverKey(phase: number, rng): string
+	rng = rng or math.random
+	local p = math.clamp(phase or 1, 1, 3)
+	local pick = (p - 1) * 2 + (if rng() < 0.5 then 1 else 2)
+	return "clip_cover_" .. pick
+end
+
 -- footage พอตัด 1 คลิปไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
 function EditQTE.canEdit(state): boolean
 	return state ~= nil and (state.footageGB or 0) >= Config.Record.footagePerClipGB
@@ -256,8 +265,9 @@ end
 
 -- ฉากหลังจำลอง "หน้าโปรแกรมตัดต่อ" (ใช้เมื่อยังไม่มีรูป UIAssets.edit_workspace_bg)
 -- ทุกชิ้น ZIndex 0-1 → อยู่ใต้วงกลม QTE (ZIndex 2-3) เสมอ · ใส่รูปจริงทีหลัง = ImageLabel ทับ mock นี้
--- โครง: toolbar บน · media bin ซ้าย · preview กลาง · timeline หลายแทร็ก+clip+playhead ล่าง
-local function buildEditorMock(area)
+-- โครง (อ้าง Premiere): toolbar บน · media bin ซ้าย · preview กลาง (รูปตามเฟส) · effect panel ขวา · timeline ล่าง
+--   coverImg = asset id ปกคลิปกลางจอ ("" = placeholder) · phaseText = ข้อความบอกเฟสตอนไม่มีรูป
+local function buildEditorMock(area, coverImg: string, phaseText: string)
 	local BG = Color3.fromRGB(22, 24, 33)
 	local PANEL2 = Color3.fromRGB(30, 33, 45)
 	local LINE = Color3.fromRGB(46, 50, 66)
@@ -282,8 +292,25 @@ local function buildEditorMock(area)
 		mk("UIGradient", th, { Color = ColorSequence.new(Color3.fromRGB(62, 68, 92), Color3.fromRGB(38, 42, 56)), Rotation = 30 })
 	end
 
-	-- ===== preview กลาง (คำจางๆ ให้รู้ว่าเป็นจอ preview) =====
-	mk("TextLabel", area, { Position = UDim2.fromOffset(120, 26), Size = UDim2.new(1, -120, 1, -136), BackgroundTransparency = 1, Text = "PREVIEW", TextColor3 = Color3.fromRGB(48, 52, 70), TextSize = 22, FontFace = Font.fromEnum(Enum.Font.GothamBold), ZIndex = 0 })
+	-- ===== preview กลาง (รูปคลิปที่กำลังตัด — เปลี่ยนตามเฟส) — เว้นที่ให้ panel ขวา 140px =====
+	local pv = mk("Frame", area, { Position = UDim2.fromOffset(120, 26), Size = UDim2.new(1, -260, 1, -136), BackgroundColor3 = Color3.fromRGB(12, 13, 18), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 0 })
+	if coverImg and coverImg ~= "" then
+		mk("ImageLabel", pv, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = coverImg, ScaleType = Enum.ScaleType.Crop, ZIndex = 0 })
+		mk("Frame", pv, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 1 }) -- overlay มืดให้วง QTE เด่น
+	else
+		mk("UIGradient", pv, { Color = ColorSequence.new(Color3.fromRGB(30, 34, 48), Color3.fromRGB(14, 15, 22)), Rotation = 90 })
+		mk("TextLabel", pv, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "🎞️ " .. (phaseText or "PREVIEW"), TextColor3 = Color3.fromRGB(70, 76, 98), TextSize = 20, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 0 })
+	end
+
+	-- ===== effect panel ขวา (Effect Controls แบบ Premiere) =====
+	local rp = mk("Frame", area, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 26), Size = UDim2.new(0, 140, 1, -136), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
+	mk("TextLabel", rp, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 15), BackgroundTransparency = 1, Text = "Effect Controls", TextColor3 = Color3.fromRGB(150, 156, 178), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 1 })
+	for i, name in { "Motion", "Position", "Scale", "Rotation", "Opacity", "Time Remap" } do
+		local y = 30 + (i - 1) * 27
+		mk("TextLabel", rp, { Position = UDim2.fromOffset(10, y), Size = UDim2.new(0.55, -10, 0, 14), BackgroundTransparency = 1, Text = name, TextColor3 = Color3.fromRGB(120, 126, 148), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 11, FontFace = Font.fromEnum(Enum.Font.Gotham), ZIndex = 1 })
+		local val = mk("Frame", rp, { Position = UDim2.new(0.55, 0, 0, y), Size = UDim2.new(0.4, 0, 0, 14), BackgroundColor3 = LINE, BorderSizePixel = 0, ZIndex = 1 })
+		mk("UICorner", val, { CornerRadius = UDim.new(0, 3) })
+	end
 
 	-- ===== timeline ล่าง =====
 	local tl = mk("Frame", area, { Position = UDim2.new(0, 0, 1, -110), Size = UDim2.new(1, 0, 0, 110), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
@@ -376,6 +403,10 @@ function EditQTE.start(playerGui, fireAction, getState)
 		ClipsDescendants = true,
 	})
 	mk("UICorner", workspaceArea, { CornerRadius = UDim.new(0, 12) })
+	-- รูป preview กลาง + ป้ายเฟส ตาม progress เนื้อเรื่อง (clip_cover ตามเฟส — ยังว่าง = placeholder)
+	local curPhase = (getState() and getState().phase) or 1
+	local coverImg = (UIAssets and UIAssets[EditQTE.previewCoverKey(curPhase)]) or ""
+	local phaseText = "คลิปเฟส " .. curPhase
 	if UIAssets and UIAssets.edit_workspace_bg ~= "" then
 		mk("ImageLabel", workspaceArea, {
 			Size = UDim2.fromScale(1, 1),
@@ -385,7 +416,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			ZIndex = 0,
 		})
 	else
-		buildEditorMock(workspaceArea) -- จำลองหน้าโปรแกรมตัดต่อด้วยโค้ด (ทับได้ด้วยรูปจริงทีหลัง)
+		buildEditorMock(workspaceArea, coverImg, phaseText) -- จำลองหน้าโปรแกรมตัดต่อ (ทับได้ด้วยรูปจริงทีหลัง)
 	end
 
 	local waveInfo = mk("TextLabel", panel, {

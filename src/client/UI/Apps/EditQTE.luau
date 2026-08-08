@@ -8,13 +8,26 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../../../shared/Formulas")
 
-local TOTAL_HITS = 20
-local MIN_CONCURRENT = 2
-local MAX_CONCURRENT = 4
+local TOTAL_HITS = 20 -- จำนวนวงต่อ 1 คลิป (chain เดียวไหลต่อเนื่อง ไม่แบ่ง block)
 local APPROACH_TIME = 1.5 -- วิ — เวลาที่วงแหวนใช้หดจากขนาดเริ่มมาเท่าวงเป้าหมาย
+local SPAWN_INTERVAL = 0.45 -- วิ — ระยะห่างการเด้งวงถัดไป (chain — วงไหลมาเรื่อยๆ ~3 อันบนจอพร้อมกัน)
 
 local EditQTE = {}
 EditQTE.running = false
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 🔊 ระบบเสียง QTE — user สาย A แก้ตรงนี้ได้เลย (ไม่ต้องแตะ logic)
+--   เล่นเสียง 1 ครั้งตอนกดแต่ละวง ตามเกรดที่ได้ (S/A/B/C)
+--   ค่าคือ "ชื่อ Sound" ที่วางไว้ใน SoundService.SFX (ทีมเสียงวาง Sound object ตั้งชื่อตามนี้ จบ)
+--   • เปลี่ยนเสียง: แก้ชื่อให้ตรงกับ Sound ที่มี หรือวาง Sound ใหม่ใน SoundService.SFX ใช้ชื่อนี้
+--   • ปิดเสียงเกรดไหน: ใส่ "" · ระดับเสียงรวมคุมผ่านแอปตั้งค่า (master SoundGroup) อัตโนมัติ
+-- ═══════════════════════════════════════════════════════════════════════════
+EditQTE.SFX = {
+	S = "qte_perfect", -- กดเป๊ะ (เขียว)
+	A = "qte_good",    -- ดี (ฟ้า)
+	B = "qte_ok",      -- พอใช้ (เหลือง)
+	C = "qte_miss",    -- พลาด/หมดเวลา (แดง)
+}
 
 -- คะแนนต่อวง: พีคตอนวงแหวนหดมาเท่าวงเป้าหมายพอดี (t=window) ไล่เส้นตรงจาก 0 (เพิ่งโผล่)
 -- redesign 8 ส.ค. — เดิมพีคกลาง window (10×(1-|t-half|/half)) เปลี่ยนให้ตรงกับภาพ "วงบีบมาทับกันพอดี = perfect"
@@ -46,67 +59,48 @@ function EditQTE.colorFor(tier: string): Color3
 	return TIER_COLOR[tier] or TIER_COLOR.C
 end
 
--- แบ่งงบรวม (20) เป็นเวฟสุ่มขนาด min-max วง — เวฟสุดท้ายเล็กกว่า min ได้ถ้างบเหลือไม่พอ
-function EditQTE.planWaves(total: number, minC: number, maxC: number, rng): { number }
-	rng = rng or math.random
-	local waves = {}
-	local remaining = total
-	while remaining > 0 do
-		local roll = minC + math.floor(rng() * (maxC - minC + 1))
-		local size = math.min(roll, remaining)
-		table.insert(waves, size)
-		remaining -= size
-	end
-	return waves
-end
-
 -- ชุดคีย์สำหรับ PC — โซนซ้ายมือ เอื้อมง่าย ไม่ต้องขยับมือจากเมาส์มาก
 local KEY_POOL = { "Q", "W", "E", "R", "A", "S", "D", "F" }
+EditQTE.KEY_POOL = KEY_POOL
 
--- สุ่มคีย์ไม่ซ้ำ n ตัวจาก pool (แต่ละวงในเวฟต้องคีย์ต่างกัน ไม่งั้นกดคีย์เดียว resolve หลายวง)
--- Fisher-Yates partial — n เกิน #pool ได้แค่เท่า #pool (n สูงสุด = MAX_CONCURRENT พอกับ pool อยู่แล้ว)
-function EditQTE.pickKeysUnique(n: number, pool, rng): { string }
+-- เลือกคีย์ว่าง 1 ตัว (ไม่ชนกับวงที่ยัง active) — chain มีหลายวงพร้อมกัน คีย์ต้องไม่ซ้ำ
+-- used = set { [keyName]=true } ของคีย์ที่ถูกใช้อยู่ · ไม่มีว่าง = คืนสุ่มทั้ง pool (เกิดยาก pool 8 > concurrent ~3)
+function EditQTE.pickFreeKey(pool, used, rng): string
 	rng = rng or math.random
-	local bag = {}
-	for i, v in pool do
-		bag[i] = v
+	local free = {}
+	for _, k in pool do
+		if not (used and used[k]) then
+			table.insert(free, k)
+		end
 	end
-	local out = {}
-	local count = math.min(n, #bag)
-	for i = 1, count do
-		local j = i + math.floor(rng() * (#bag - i + 1))
-		bag[i], bag[j] = bag[j], bag[i]
-		out[i] = bag[i]
-	end
-	return out
+	local bag = if #free > 0 then free else pool
+	return bag[math.floor(rng() * #bag) + 1]
 end
 
--- ตำแหน่งวงกลม n วง กระจายในกรอบ (0,0)-(1,1) เว้น margin ขอบ กันชนกันเองแบบหยาบๆ (retry สุ่มใหม่ถ้าใกล้กันเกิน)
-function EditQTE.randomPositions(n: number, margin: number, rng): { { x: number, y: number } }
+-- สุ่ม 1 ตำแหน่งในกรอบ (0,0)-(1,1) เว้น margin ขอบ + เลี่ยงจุดใน avoid (วงที่ยังโชว์อยู่) แบบหยาบๆ
+function EditQTE.pickPosition(margin: number, avoid, rng): { x: number, y: number }
 	rng = rng or math.random
-	local out = {}
-	local minGap = margin * 1.5
-	for _ = 1, n do
-		local x, y
-		local tries = 0
-		repeat
-			x = margin + rng() * (1 - margin * 2)
-			y = margin + rng() * (1 - margin * 2)
-			tries += 1
-			local tooClose = false
-			for _, p in out do
+	local minGap = margin * 1.6
+	local x, y
+	local tries = 0
+	repeat
+		x = margin + rng() * (1 - margin * 2)
+		y = margin + rng() * (1 - margin * 2)
+		tries += 1
+		local tooClose = false
+		if avoid then
+			for _, p in avoid do
 				if (p.x - x) ^ 2 + (p.y - y) ^ 2 < minGap ^ 2 then
 					tooClose = true
 					break
 				end
 			end
-			if not tooClose or tries > 8 then
-				break
-			end
-		until false
-		table.insert(out, { x = x, y = y })
-	end
-	return out
+		end
+		if not tooClose or tries > 10 then
+			break
+		end
+	until false
+	return { x = x, y = y }
 end
 
 -- footage พอตัด 1 คลิปไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
@@ -131,11 +125,24 @@ function EditQTE.toast(playerGui, text: string)
 end
 
 -- ===== UI glue (Studio เท่านั้น) =====
--- osu-style redesign (8 ส.ค.): เวฟ 2-4 วงพร้อมกัน แทนตัวอักษรทีละตัว
---   input เดียว (.Activated) ใช้ได้ทั้งคลิกเมาส์และแตะจอ — ไม่มี branch แยก platform
+-- osu-style redesign (8 ส.ค.): chain 20 วงไหลต่อเนื่อง (ไม่แบ่ง block) + เสียงตามเกรด
+--   PC = กดตัวอักษร · มือถือ = แตะเลข · เสียงเล่นตอนกดแต่ละวงตาม tier (EditQTE.SFX)
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else nil
+-- AudioService อยู่ที่ SPS.AudioService (EditQTE = SPS.UI.Apps.EditQTE → ขึ้น 3 ชั้น)
+local AudioService = if isStudio
+	then require(script.Parent.Parent.Parent.AudioService)
+	else nil
+
+-- เล่นเสียงตามเกรด — ผ่านระบบกลาง AudioService.sfx (คุม master volume ให้เอง)
+-- ชื่อเสียงมาจาก EditQTE.SFX (user แก้ได้) ต้องมี Sound ชื่อนั้นใน SoundService.SFX ไม่งั้นเงียบ (ไม่พัง)
+local function playGradeSfx(tier: string)
+	local name = EditQTE.SFX[tier]
+	if AudioService and name and name ~= "" then
+		AudioService.sfx(name)
+	end
+end
 
 local COLORS = {
 	panel = Color3.fromRGB(18, 20, 28),
@@ -149,7 +156,6 @@ local COLORS = {
 }
 
 local PLAY_MARGIN = 0.22 -- scale — เว้นขอบกันวงแหวนขนาดใหญ่สุดล้นขอบ play area
-local STAGGER = 0.32 -- วิ — วงถัดไปเริ่มหดช้ากว่าวงก่อนหน้าเท่านี้ (โผล่พร้อมกัน แต่หดไล่กัน)
 
 local function mk(class, parent, props)
 	local o = Instance.new(class)
@@ -160,11 +166,11 @@ local function mk(class, parent, props)
 	return o
 end
 
--- 1 วงกลม: วงเป้าหมาย (ปุ่มกดจริง label ตรงกลาง) + วงแหวนหดเข้าหา
---   labelText = ตัวอักษร (PC) หรือเลขลำดับ (mobile) · startDelay = รอกี่วิก่อนวงแหวนเริ่มหด (stagger)
+-- 1 วงกลม: วงเป้าหมาย (ปุ่มกดจริง label ตรงกลาง) + วงแหวนหดเข้าหา (โผล่ปุ๊บเริ่มหดเลย)
+--   labelText = ตัวอักษร (PC) หรือเลขลำดับ (mobile)
 --   คืน press() = ฟังก์ชัน resolve วงนี้ (คีย์บอร์ด PC เรียกผ่านตัวนี้ · เมาส์/แตะเรียกเองผ่าน .Activated)
 -- onResolve(points 0-10, tier) เรียกครั้งเดียวเสมอ ไม่ว่ากดทันหรือหมดเวลา
-local function spawnCircle(RunService, parent, posScale, labelText: string, startDelay: number, onResolve)
+local function spawnCircle(RunService, parent, posScale, labelText: string, onResolve)
 	local SIZE_TARGET = 84
 	local SIZE_START = 190
 
@@ -176,7 +182,7 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, star
 		ZIndex = 2,
 	})
 	mk("UICorner", ring, { CornerRadius = UDim.new(1, 0) })
-	local ringStroke = mk("UIStroke", ring, { Thickness = 4, Color = COLORS.ring, Transparency = 0.4 })
+	local ringStroke = mk("UIStroke", ring, { Thickness = 4, Color = COLORS.ring, Transparency = 0.1 })
 
 	local btn = mk("TextButton", parent, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -199,7 +205,7 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, star
 	pad.PaddingBottom = UDim.new(0, 18)
 
 	local resolved = false
-	local startAt = os.clock() + startDelay -- เวลาที่วงแหวน "เริ่มหด" (ก่อนหน้านี้ค้างขนาดเต็ม)
+	local startAt = os.clock() -- โผล่ปุ๊บวงแหวนเริ่มหดทันที
 
 	local function finish(points: number)
 		if resolved then return end
@@ -214,7 +220,7 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, star
 		onResolve(points, tier)
 	end
 
-	-- กด (คีย์/เมาส์/แตะ) — คิดคะแนนจากเวลาเทียบ startAt · กดก่อนวงเริ่มหด (t<0) = scoreFor คืน 0
+	-- กด (คีย์/เมาส์/แตะ) — คิดคะแนนจากเวลาเทียบ startAt
 	local function press()
 		finish(EditQTE.scoreFor(os.clock() - startAt, APPROACH_TIME))
 	end
@@ -226,60 +232,14 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, star
 			if t >= APPROACH_TIME then
 				finish(0) -- หมดเวลา = พลาด (แดง)
 				break
-			elseif t < 0 then
-				-- ยังไม่ถึงคิวหด — ค้างขนาดเต็ม + จางๆ ให้รู้ว่ายังไม่ active
-				ringStroke.Transparency = 0.7
-			else
-				ringStroke.Transparency = 0.1
-				local k = t / APPROACH_TIME
-				ring.Size = UDim2.fromOffset(SIZE_START - (SIZE_START - SIZE_TARGET) * k, SIZE_START - (SIZE_START - SIZE_TARGET) * k)
 			end
+			local k = t / APPROACH_TIME
+			ring.Size = UDim2.fromOffset(SIZE_START - (SIZE_START - SIZE_TARGET) * k, SIZE_START - (SIZE_START - SIZE_TARGET) * k)
 			RunService.Heartbeat:Wait()
 		end
 	end)
 
 	return press
-end
-
--- 1 เวฟ = n วงโผล่พร้อมกัน หดเหลื่อมกัน (stagger) — block จนครบทุกวง คืน (คะแนนรวม, bucket)
--- useTouch = true → label เลข แตะจอ · false → label ตัวอักษร กดคีย์บอร์ด (คลิกเมาส์ก็ได้)
-local function runWave(RunService, UIS, playArea, n: number, useTouch: boolean): (number, { [string]: number })
-	local positions = EditQTE.randomPositions(n, PLAY_MARGIN)
-	local keys = if useTouch then {} else EditQTE.pickKeysUnique(n, KEY_POOL)
-	local byKey = {} -- ชื่อคีย์ → press() (เฉพาะ PC)
-	local doneCount = 0
-	local waveTotal = 0
-	local buckets = { S = 0, A = 0, B = 0, C = 0 }
-
-	local keyConn
-	if not useTouch then
-		keyConn = UIS.InputBegan:Connect(function(input, gp)
-			if gp or input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-			local fn = byKey[input.KeyCode.Name]
-			if fn then fn() end -- press() มี guard resolved อยู่แล้ว กดคีย์วงที่ resolve ไปแล้ว = no-op
-		end)
-	end
-
-	for i = 1, n do
-		local label = if useTouch then tostring(i) else keys[i]
-		local press = spawnCircle(RunService, playArea, positions[i], label, (i - 1) * STAGGER,
-			function(points, tier)
-				waveTotal += points
-				buckets[tier] += 1
-				doneCount += 1
-			end)
-		if not useTouch and keys[i] then
-			byKey[keys[i]] = press
-		end
-	end
-
-	while doneCount < n do
-		RunService.Heartbeat:Wait()
-	end
-	if keyConn then
-		keyConn:Disconnect()
-	end
-	return waveTotal, buckets
 end
 
 -- fireAction = function(actionTable) ยิงเข้า Remotes.Action (Main.client ส่งมา)
@@ -435,23 +395,65 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	local round
 	round = function()
-		local waves = EditQTE.planWaves(TOTAL_HITS, MIN_CONCURRENT, MAX_CONCURRENT)
 		local total = 0
+		local done = 0
 		local buckets = { S = 0, A = 0, B = 0, C = 0 }
+		local activeKeys = {} -- คีย์ที่วง active ใช้อยู่ (PC — กันคีย์ซ้ำในวงที่ซ้อนเวลากัน)
+		local activePos = {} -- ตำแหน่งวง active (กันวงใหม่โผล่ทับวงเดิม)
+		local byKey = {} -- ชื่อคีย์ → press() ของวง active ตัวนั้น (PC)
 		summary.Visible = false
 		workspaceArea.Visible = true
 		waveInfo.Visible = true
 
-		local howto = if useTouch then "แตะวงตามลำดับเลข" else "กดตัวอักษรบนวง"
-		for waveIdx, n in waves do
-			waveInfo.Text = ("เวฟ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  สะสม %d/200")
-				:format(waveIdx, #waves, howto, total)
-			local waveTotal, waveBuckets = runWave(RunService, UIS, workspaceArea, n, useTouch)
-			total += waveTotal
-			for k, v in waveBuckets do
-				buckets[k] += v
-			end
-			task.wait(0.3) -- เว้นจังหวะสั้นๆ ให้เห็นผลก่อนเวฟถัดไปโผล่
+		-- คีย์บอร์ด (PC) — ต่อครั้งเดียวตลอด chain · กดคีย์ = resolve วงของคีย์นั้น
+		local keyConn
+		if not useTouch then
+			keyConn = UIS.InputBegan:Connect(function(input, gp)
+				if gp or input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+				local fn = byKey[input.KeyCode.Name]
+				if fn then fn() end -- press() guard resolved อยู่แล้ว
+			end)
+		end
+
+		local howto = if useTouch then "แตะวงตามเลข" else "กดตัวอักษรบนวง"
+		-- chain: เด้งวงทีละอันห่างกัน SPAWN_INTERVAL (วงก่อนหน้ายังหดค้างอยู่บนจอ ~3 อันพร้อมกัน)
+		for i = 1, TOTAL_HITS do
+			waveInfo.Text = ("อันที่ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  สะสม %d/200")
+				:format(i, TOTAL_HITS, howto, total)
+			local pos = EditQTE.pickPosition(PLAY_MARGIN, activePos)
+			local posKey = pos -- reference เดียวกัน ใช้ลบออกจาก activePos ตอน resolve
+			table.insert(activePos, posKey)
+			local key = if useTouch then nil else EditQTE.pickFreeKey(KEY_POOL, activeKeys)
+			if key then activeKeys[key] = true end
+			local label = if useTouch then tostring(i) else key
+
+			local press
+			press = spawnCircle(RunService, workspaceArea, pos, label, function(points, tier)
+				total += points
+				buckets[tier] += 1
+				done += 1
+				playGradeSfx(tier)
+				if key then
+					activeKeys[key] = nil
+					if byKey[key] == press then byKey[key] = nil end
+				end
+				for idx, p in activePos do
+					if p == posKey then
+						table.remove(activePos, idx)
+						break
+					end
+				end
+			end)
+			if key then byKey[key] = press end
+			task.wait(SPAWN_INTERVAL)
+		end
+
+		-- รอวงที่ยังค้างบนจอ (spawn ครบแล้วแต่ยังหดไม่จบ) ให้ resolve หมดก่อนสรุป
+		while done < TOTAL_HITS do
+			RunService.Heartbeat:Wait()
+		end
+		if keyConn then
+			keyConn:Disconnect()
 		end
 
 		fireAction({ type = "FinishEdit", score = total })

@@ -8,6 +8,12 @@
 
 **Architecture:** เหมือนเดิม — `EditQTE.luau` = pure functions (เทสด้วย lune/pcall harness) + UI glue (Studio เท่านั้น) ไม่แตะ server เลย (`FinishEdit` รับแค่ `score` 0-200 รวม ไม่สนใจว่าประกอบมายังไง)
 
+**แก้เพิ่มรอบ 3 (8 ส.ค. — เปลี่ยนจาก "เวฟ block" เป็น "chain") — user feedback:**
+- **ไม่แบ่ง block แล้ว:** เดิมแบ่งเป็นเวฟ 2-4 วง รอครบเวฟ · เปลี่ยนเป็น **chain เดียว 20 วง**ที่เด้งทีละอันต่อเนื่อง (ห่างกัน `SPAWN_INTERVAL` 0.45 วิ) วงก่อนหน้ายังหดค้างบนจอ → ~3-4 อันซ้อนกันพร้อมกัน ไหลไม่ขาด (เหมือน osu จริง)
+- **stagger หายไปเอง:** ไม่ต้องมี `startDelay` แล้ว เพราะการ spawn ทีละอันห่างกันคือ stagger ในตัว — วงโผล่ปุ๊บเริ่มหดทันที
+- **เสียงตามเกรด (variant SFX):** เล่นเสียงตอนกดแต่ละวงตาม tier (S/A/B/C) ผ่าน `AudioService.sfx(name)` (ระบบเสียงกลาง คุม master volume ให้) · **user แก้ได้ที่ `EditQTE.SFX`** (map tier → ชื่อ Sound ใน `SoundService.SFX`) — ทีมเสียงวาง Sound ชื่อ `qte_perfect`/`qte_good`/`qte_ok`/`qte_miss` แล้วเล่นเอง ยังไม่มี = เงียบ (warn once ไม่พัง)
+- **pure ใหม่:** `pickFreeKey` (เลือกคีย์ว่างไม่ชนวง active) แทน `pickKeysUnique` · `pickPosition` (สุ่ม 1 ตำแหน่งเลี่ยงวง active) แทน `randomPositions` · ลบ `planWaves` ทิ้ง
+
 **แก้เพิ่มรอบ 2 (8 ส.ค. หลังเทสรอบแรก) — user feedback:**
 - **การหดเหลื่อมกัน (stagger):** ทุกวงในเวฟยัง**โผล่พร้อมกัน** (เห็นล่วงหน้า) แต่วงแหวนเริ่ม**หดไล่กัน** — วงที่ 1 หดก่อน วงที่ 2 หดตามหลัง `STAGGER` วิ ระหว่างรอ ring คงขนาดเต็ม (ยังไม่หด · กดตอนยังไม่หด = 0 คะแนน กันกดมั่ว)
 - **Input แยก platform (เปลี่ยนจากรอบแรกที่ใช้ .Activated เดียว):**

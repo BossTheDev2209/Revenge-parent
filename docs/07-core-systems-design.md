@@ -168,27 +168,27 @@ end
 
 > ⚠️ **redesign ตัดสินใจในแชท 8 ส.ค. 2569 ไม่ใช่ requirement จาก PDF เดิม** — spec เก่า (ปุ่มตัวอักษรทีละตัว คีย์บอร์ดอย่างเดียว) ถูกแทนที่ทั้งหมด รายละเอียดเต็ม + เหตุผลอยู่ที่ `plans/2026-08-08-editqte-osu-redesign.md`
 
-**Spec ปัจจุบัน:** รวม 20 วง จัดเป็น**เวฟ** สุ่มขนาด 2-4 วง/เวฟ โผล่พร้อมกันทั้งเวฟ วงแหวนหด 1.5 วิ/วง เข้าหาวงเป้าหมาย แม่นแค่ไหน = คะแนน เต็ม 200 → tier
+**Spec ปัจจุบัน:** **chain เดียว 20 วง**เด้งทีละอันต่อเนื่อง (ห่างกัน 0.45 วิ) วงก่อนหน้ายังหดค้าง → ~3-4 อันซ้อนบนจอ ไหลไม่ขาด · วงแหวนหด 1.5 วิ/วง เข้าหาวงเป้าหมาย แม่นแค่ไหน = คะแนน เต็ม 200 → tier
 
 **Flow:**
 
 ```
 นั่ง seat (Interact_Camera) → Gui_Computer เปิด App_Edit
 → เลือก footage (slider GB) → เริ่ม QTE
-→ ทีละเวฟ (2-4 วงพร้อมกัน): แต่ละวงมีเลขลำดับ + วงแหวนหด 1.5 วิ เข้าหาวงเป้าหมาย
-   กด (คลิก/แตะจอ — input เดียวกันทั้ง 2 แพลตฟอร์ม) ตอนวงแหวนหดมาทับวงเป้าหมายพอดี = คะแนนเต็ม 10
-   กดเร็วไป = คะแนนน้อยลง | ไม่กดจนหมดเวลา = พลาด (แดง, 0)
-   รอครบทุกวงในเวฟก่อนขึ้นเวฟถัดไป จนครบงบ 20
+→ chain: เด้งวงทีละอัน ห่างกัน SPAWN_INTERVAL (0.45 วิ) วงก่อนหน้ายังหดค้างบนจอ
+   แต่ละวงมี label (PC=ตัวอักษร / มือถือ=เลข) + วงแหวนหด 1.5 วิ เข้าหาวงเป้าหมาย
+   กดตอนวงแหวนหดมาทับวงเป้าหมายพอดี = คะแนนเต็ม 10 · กดเร็วไป = น้อยลง · ไม่กดจนหมดเวลา = พลาด (แดง 0)
+   จนครบ 20 วง → รอวงที่ยังค้างบนจอ resolve หมด
 → รวมคะแนนทุกวง → ยิง Action {type="FinishEdit", score=จำนวน}
 → server: clamp 0-200 → Formulas.vidqTier → เก็บ clip ลง state.clips → push()
 ```
 
-- **ทั้งมินิเกมอยู่ client ตัวเดียว** (`UI.Apps.EditQTE`) — server รับแค่คะแนนจบ (singleplayer ไม่ต้องกัน cheat) **ไม่แตะ server เลยตอน redesign** — `FinishEdit{score}` รูปแบบเดิมเป๊ะ
-- **ไม่มีคีย์บอร์ดอีกต่อไป** — input เดียว `.Activated` ของปุ่มวงกลม (Roblox ยิงให้ทั้งคลิกเมาส์และแตะจอเอง ไม่ต้องแยก branch platform) แก้ปัญหาเดิมที่เล่นบนมือถือไม่ได้เลย (เช็คเฉพาะ `UserInputType.Keyboard`)
-- เวฟ: `EditQTE.planWaves(total, minC, maxC, rng)` แบ่งงบ 20 เป็นเวฟสุ่ม 2-4 (เวฟสุดท้ายเล็กกว่าได้ถ้างบไม่พอ)
-- ตำแหน่งวง: `EditQTE.randomPositions(n, margin, rng)` กระจายในกรอบ play area เว้นขอบกันล้นจอ
-- คะแนนต่อวง: `EditQTE.scoreFor(t, window)` = ไล่เส้นตรง 0→10 พีคตอน t=window (วงแหวนหดมาเท่าวงเป้าหมายพอดี) — **เปลี่ยนจากเดิมที่พีคกลาง window**
-- สี 4 tier ต่อวง (`EditQTE.tierFor`/`colorFor`): เขียว=S(9-10) ฟ้า=A(6-8) เหลือง=B(3-5) แดง=C(0-2 หรือพลาด)
+- **ทั้งมินิเกมอยู่ client ตัวเดียว** (`UI.Apps.EditQTE`) — server รับแค่คะแนนจบ (singleplayer ไม่ต้องกัน cheat) **ไม่แตะ server เลย** — `FinishEdit{score}` รูปแบบเดิมเป๊ะ
+- **Input แยก platform:** PC (มีคีย์บอร์ด) = วงแสดง**ตัวอักษร** กดคีย์นั้น (คลิกเมาส์ก็ได้) · มือถือ (ไม่มีคีย์บอร์ด) = วงแสดง**เลข** แตะวง — ตรวจ `TouchEnabled and not KeyboardEnabled`
+- คีย์ PC ไม่ซ้ำวงที่ซ้อนเวลากัน: `EditQTE.pickFreeKey(pool, used, rng)` · ตำแหน่งเลี่ยงวง active: `EditQTE.pickPosition(margin, avoid, rng)`
+- คะแนนต่อวง: `EditQTE.scoreFor(t, window)` = ไล่เส้นตรง 0→10 พีคตอน t=window (วงแหวนหดมาเท่าวงเป้าหมายพอดี)
+- สี 4 tier ต่อวง (`EditQTE.tierFor`/`colorFor`): เขียว=S(9-10) ฟ้า=A(6-8) เหลือง=B(3-5) แดง=C(0-2/พลาด)
+- **เสียงตามเกรด (variant SFX):** เล่นตอนกดแต่ละวงตาม tier ผ่าน `AudioService.sfx(name)` · แก้ที่ `EditQTE.SFX` (map tier → ชื่อ Sound ใน `SoundService.SFX`: `qte_perfect`/`qte_good`/`qte_ok`/`qte_miss`) · ทีมเสียงวาง Sound ชื่อนี้แล้วเล่นเอง — ยังไม่มี = เงียบ ไม่พัง
 - Responsive: `UIScale` + fit-to-screen (pattern เดียวกับ `ShopKiosk.fitScale`)
 - ตัดคลิปเสร็จ → MentalService.apply(-20) ตาม config
 

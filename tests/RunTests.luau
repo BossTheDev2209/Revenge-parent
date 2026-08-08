@@ -491,45 +491,21 @@ check("colorFor คืน Color3 ครบ 4 tier", typeof(EditQTE.colorFor("S")
 	and typeof(EditQTE.colorFor("A")) == "Color3" and typeof(EditQTE.colorFor("B")) == "Color3"
 	and typeof(EditQTE.colorFor("C")) == "Color3")
 
--- ===== planWaves (สุ่มเวฟ 2-4 วง จนครบงบ 20) =====
+-- ===== pickFreeKey (chain: คีย์ PC ไม่ชนวงที่ active) =====
 -- ★ ห่อ do...end: ไฟล์นี้เป็น chunk เดียวยาวมาก ชนเพดาน Luau 200 local registers/chunk แล้ว
---   (เจอจริง 8 ส.ค. ตอนเพิ่มเทส EditQTE ชุดนี้) — scope ให้แคบ คืน register ให้โค้ดข้างล่างใช้ต่อ
+--   (เจอจริง 8 ส.ค.) — scope ให้แคบ คืน register ให้โค้ดข้างล่างใช้ต่อ
 do
-	-- ไม่ fix rng: จำนวนรอบสุ่มไม่แน่นอน (ขึ้นกับ roll แต่ละครั้ง) ต่างจากเทสอื่นที่รู้จำนวนเรียกล่วงหน้า
-	-- เชคแค่ invariant (ช่วง 1-4, รวม=งบ) ไม่ต้องเป๊ะค่าไหน — math.random ปกติพอ
-	local waves = EditQTE.planWaves(20, 2, 4)
-	local sum = 0
-	for _, n in waves do
-		check("ทุกเวฟอยู่ในช่วง 1-4 (ยกเว้นเวฟสุดท้ายถ้างบไม่พอ)", n >= 1 and n <= 4)
-		sum += n
-	end
-	check("รวมทุกเวฟ = งบทั้งหมด 20 พอดี", sum == 20)
-	local oneWave = EditQTE.planWaves(1, 2, 4, rngQueue({ 0 }))
-	check("งบ 1 = เวฟเดียวขนาด 1 (เล็กกว่า min ได้ตอนงบไม่พอ)", #oneWave == 1 and oneWave[1] == 1)
+	check("เลี่ยงคีย์ที่ใช้อยู่", EditQTE.pickFreeKey({ "Q", "W" }, { Q = true }, rngQueue({ 0 })) == "W")
+	check("ไม่มีคีย์ว่าง = fallback สุ่มทั้ง pool (ไม่ nil)",
+		EditQTE.pickFreeKey({ "Q" }, { Q = true }, rngQueue({ 0 })) == "Q")
+	check("ไม่มี used = สุ่มได้ทั้ง pool", EditQTE.pickFreeKey({ "Q", "W" }, {}, rngQueue({ 0.99 })) == "W")
 end
 
--- ===== pickKeysUnique (คีย์ PC ไม่ซ้ำกันในเวฟ) =====
+-- ===== pickPosition (chain: สุ่ม 1 ตำแหน่ง เลี่ยงวง active ไม่ล้นขอบ) =====
 do
-	local keys = EditQTE.pickKeysUnique(4, { "Q", "W", "E", "R", "A" }, rngQueue({ 0, 0, 0, 0 }))
-	check("ได้ครบ 4 คีย์", #keys == 4)
-	local seen, dup = {}, false
-	for _, k in keys do
-		if seen[k] then dup = true end
-		seen[k] = true
-	end
-	check("คีย์ไม่ซ้ำกันในเวฟ", not dup)
-	check("ขอเกิน pool = ได้แค่เท่า pool", #EditQTE.pickKeysUnique(9, { "Q", "W" }, rngQueue({ 0, 0 })) == 2)
-end
-
--- ===== randomPositions (ตำแหน่งวงกลมกระจาย ไม่ล้นขอบ) =====
-do
-	local pos = EditQTE.randomPositions(4, 0.12, rngQueue({ 0.1, 0.2, 0.9, 0.8, 0.3, 0.4, 0.6, 0.5 }))
-	check("ตำแหน่งครบตามจำนวนที่ขอ", #pos == 4)
-	local inBounds = true
-	for _, p in pos do
-		if p.x < 0.12 or p.x > 0.88 or p.y < 0.12 or p.y > 0.88 then inBounds = false end
-	end
-	check("ทุกตำแหน่งอยู่ในกรอบ margin ไม่ล้นขอบ", inBounds)
+	local p = EditQTE.pickPosition(0.12, {}, rngQueue({ 0.5, 0.5 }))
+	check("อยู่ในกรอบ margin", p.x >= 0.12 and p.x <= 0.88 and p.y >= 0.12 and p.y <= 0.88)
+	check("มี field x,y", type(p.x) == "number" and type(p.y) == "number")
 end
 
 -- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====

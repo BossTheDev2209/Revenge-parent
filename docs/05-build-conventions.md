@@ -295,6 +295,22 @@ Dialogue engine (design doc §7) เป็น **ทางเดียว ไม�
 | เปิด Studio พร้อมกันสองคน | MCP ต่อ instance ที่เปิดอยู่ save ทับกัน = งานหาย |
 | แก้เกมหลัง 12 ส.ค. 18:00 | กรรมการเช็ค Last Updated → ปิดงานจริง **11 ส.ค.** |
 
+## 5.5 Responsive UI — HUD/แผง ไม่เพี้ยนข้ามอุปกรณ์ (มือถือ/แท็บเล็ต/PC)
+
+เกมเล่นทั้งมือถือ+PC → GUI ต้อง scale ตามจอ ไม่ใช่ pixel ตายตัว · **HUD ปัจจุบันทำครบแล้ว ยึดสไตล์นี้เวลาทำ UI ใหม่:**
+
+| กฎ | ทำไม |
+|----|------|
+| **Size ใช้ Scale ไม่ใช่ Offset** (`UDim2.fromScale`) | Offset = pixel คงที่ → จอเล็กล้น จอใหญ่จิ๋ว |
+| **ใส่ `UIAspectRatioConstraint` ทุกกล่อง/ปุ่ม** | กัน scale แล้วยืดผิดสัดส่วนบนจอ aspect ต่างกัน |
+| **Position ใช้ Scale + ตั้ง `AnchorPoint`** (มุม/กลางที่ต้องยึด) | ไม่งั้นยึดมุมซ้ายบน แล้วเลื่อนหลุดจอ |
+| **Text ใช้ `TextScaled = true`** | ตัวอักษรโตตามกล่อง · ไม่ใช้ `TextSize` คงที่ |
+| **Font = `FredokaOne`** (ฟอนต์หลัก HUD) + `UIStroke` บางๆ (thickness ~1, สีเข้ม `RGB(27,27,27)`) | ให้ทุก UI ดูเป็นชุดเดียว |
+| ป้ายลอย/popup **parent ไว้กับกล่องที่มันเกาะ** ไม่ใช่ ScreenGui + offset | เกาะกล่อง = ขยับ+scale ตามกล่องเอง (เช่น `HUD.popup` เกาะ FollowerBox) |
+| อยากย่อ/ขยายทั้งแผงพร้อมกัน | ใส่ `UIScale` ตัวเดียวที่ ScreenGui แล้วปรับตาม `AbsoluteSize` ของ viewport |
+
+**เช็คทุกครั้ง:** Studio → **Test → Device** สลับ iPhone แนวตั้ง / แท็บเล็ต / จอ 16:9 ดูตาจริงก่อนปิดงาน
+
 ---
 
 ## 6. กฎสำหรับ Claude Code

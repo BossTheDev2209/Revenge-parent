@@ -380,26 +380,31 @@ function HUD.init(playerGui)
 	end
 end
 
--- ตัวเลขเด้งจางหาย 1.5 วิ ข้างช่องที่เปลี่ยน (PDF หน้า 5 "1,024 +300")
-function HUD.popup(anchor, text: string, color: Color3)
-	if not HUD.gui then return end
+-- ตัวเลขเด้งจางหาย 1.5 วิ เหนือกล่องที่เปลี่ยน (PDF หน้า 5 "1,024 +300")
+-- เกาะกล่องจริง (parent = hostBox) → responsive ตามจอเอง · font/stroke ตรงชุด HUD (FredokaOne)
+function HUD.popup(hostBox, text: string, color: Color3)
+	if not hostBox then return end
 	local l = Instance.new("TextLabel")
-	l.Size = UDim2.new(0, 120, 0, 26)
-	l.Position = anchor
+	-- ลอยลงล่างกล่อง (กล่อง HUD อยู่ขอบบนจอ ลอยขึ้นจะหลุดจอ)
+	l.AnchorPoint = Vector2.new(0.5, 0)
+	l.Position = UDim2.fromScale(0.5, 1.05)
+	l.Size = UDim2.fromScale(0.7, 0.7)
 	l.BackgroundTransparency = 1
-	l.TextColor3 = color
-	l.TextStrokeTransparency = 0.4
+	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
-	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.TextColor3 = color
 	l.Text = text
-	l.Parent = HUD.gui
-	local tween = game:GetService("TweenService"):Create(l, TweenInfo.new(1.5), {
-		TextTransparency = 1,
-		TextStrokeTransparency = 1,
-		Position = anchor + UDim2.new(0, 0, 0, -26),
-	})
-	tween:Play()
-	tween.Completed:Connect(function() l:Destroy() end)
+	l.ZIndex = 10
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Color = Color3.fromRGB(27, 27, 27)
+	stroke.Parent = l
+	l.Parent = hostBox
+	local ts = game:GetService("TweenService")
+	ts:Create(l, TweenInfo.new(1.5), { TextTransparency = 1, Position = UDim2.fromScale(0.5, 1.7) }):Play()
+	local st = ts:Create(stroke, TweenInfo.new(1.5), { Transparency = 1 })
+	st:Play()
+	st.Completed:Connect(function() l:Destroy() end)
 end
 
 -- ช่อง storage = footage ที่อัดมา (GB) ไม่ใช่จำนวนคลิป — PDF หน้า 5 "790 GB / 1T", เต็ม = FULL
@@ -421,12 +426,14 @@ function HUD.update(state)
 	if p then
 		local dF, dM = state.follower - p.follower, state.money - p.money
 		local dG = (state.footageGB or 0) - (p.footageGB or 0)
+		local fBox = HUD.followerLabel and HUD.followerLabel.Parent
+		local mBox = HUD.moneyLabel and HUD.moneyLabel.Parent
 		if dF ~= 0 then
-			HUD.popup(UDim2.new(0.5, -STAT_W - 5 + 12, 0, 2), ("%+d"):format(dF),
+			HUD.popup(fBox, ("%+d"):format(dF),
 				dF > 0 and Color3.fromRGB(90, 230, 130) or Color3.fromRGB(240, 90, 90))
 		end
 		if dM ~= 0 then
-			HUD.popup(UDim2.new(0.5, STAT_W - 40, 0, 2), ("%+d"):format(dM),
+			HUD.popup(mBox, ("%+d"):format(dM),
 				dM > 0 and Color3.fromRGB(240, 220, 80) or Color3.fromRGB(240, 90, 90))
 		end
 		-- +GB ไม่ขึ้นตรงนี้แล้ว — ภาพร่างให้ลอยรอบตัวผู้เล่นตอนกดอัด (RecordTool.floatGain)

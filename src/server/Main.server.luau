@@ -278,7 +278,13 @@ Players.PlayerAdded:Connect(function(player)
 		task.wait(0.5) -- รอ Backpack ใหม่หลังเกิด
 		ToolService.sync(player, state)
 	end)
-	GameState.push(state)
+	GameState.push(state) -- ส่ง state ทันที ไม่รอ DataStore
+	-- prefetch slotList ระหว่างผู้เล่นยังโหลดเข้าเกม (listSlots yield ~1.6s) → พร้อมก่อนเมนูเปิด
+	-- เมนูเปิดมา seed จาก state.slotList ที่ push นี้ส่งไปแล้ว = ไม่ต้องรอ RequestSlots อีกรอบ
+	task.spawn(function()
+		state.slotList = GameState.listSlots(player.UserId)
+		GameState.push(state)
+	end)
 end)
 
 -- autosave ทุก 60 วิ ถ้ามีอะไรเปลี่ยน + ตอนปิดเกม

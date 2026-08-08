@@ -167,7 +167,8 @@ playerGui.ChildAdded:Connect(refreshBackpack)
 playerGui.ChildRemoved:Connect(refreshBackpack)
 
 -- เกมเริ่มที่เมนู (freeze จนกดเล่น) · onNewGame = เล่น intro หลังเริ่มเกมใหม่
-MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening })
+MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening,
+	getState = function() return latestState end }) -- seed slotList ที่ server prefetch มาแล้ว (ไม่ต้องรอ)
 
 -- ปุ่มเซฟเล็กมุมซ้ายล่างระหว่างเล่น
 local saveGui = Instance.new("ScreenGui")

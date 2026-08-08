@@ -865,6 +865,10 @@ function MenuUI.open(playerGui, deps)
 			doContinue()
 		end
 	end
+
+	-- seed จาก state ที่ server prefetch slotList มาแล้วตอน join → พร้อมทันที ไม่ต้องรอ RequestSlots (1.6s)
+	local seed = deps.getState and deps.getState()
+	if seed and seed.slotList then MenuUI.updateSlots(seed) end
 end
 
 -- ===== fallback: ไม่มี MenuScene ในแมพ (เกมต้องเข้าได้เสมอ) =====
@@ -947,6 +951,10 @@ function MenuUI.openFallback(playerGui, deps)
 			doContinue()
 		end
 	end
+
+	-- seed จาก state ที่ server prefetch slotList มาแล้วตอน join → พร้อมทันที ไม่ต้องรอ RequestSlots
+	local seed = deps.getState and deps.getState()
+	if seed and seed.slotList then MenuUI.updateSlots(seed) end
 end
 
 return MenuUI

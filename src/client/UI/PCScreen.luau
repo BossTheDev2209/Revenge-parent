@@ -18,14 +18,10 @@ local PIXELS_PER_STUD = 250 -- จอ 4×2.6 studs → canvas 1000×650 px
 local ZOOM_TIME = 0.4
 
 -- หน้าตาเครื่องต่อเฟส (สีถูกทับด้วย wallpaper รูปถ้าทีมใส่ asset แล้ว)
---   gTop/gBot = ไล่สี wallpaper การ์ตูน · accent = สีเด่น (taskbar start/widget) · bar = สี taskbar
 local STYLES = {
-	[1] = { deviceName = "โน้ตบุ๊คมือสอง", wall = Color3.fromRGB(95, 115, 135), wallAsset = "wallpaper_phase1",
-		gTop = Color3.fromRGB(126, 206, 255), gBot = Color3.fromRGB(176, 232, 210), accent = Color3.fromRGB(88, 150, 240), bar = Color3.fromRGB(40, 52, 74) },
-	[2] = { deviceName = "คอมตั้งโต๊ะ", wall = Color3.fromRGB(40, 120, 200), wallAsset = "wallpaper_phase2",
-		gTop = Color3.fromRGB(90, 172, 240), gBot = Color3.fromRGB(44, 72, 150), accent = Color3.fromRGB(92, 186, 255), bar = Color3.fromRGB(26, 36, 64) },
-	[3] = { deviceName = "เครื่องเทพ RGB", wall = Color3.fromRGB(30, 22, 55), wallAsset = "wallpaper_phase3", neon = true,
-		gTop = Color3.fromRGB(72, 40, 122), gBot = Color3.fromRGB(18, 10, 36), accent = Color3.fromRGB(162, 102, 255), bar = Color3.fromRGB(22, 14, 44) },
+	[1] = { deviceName = "โน้ตบุ๊คมือสอง", wall = Color3.fromRGB(95, 115, 135), wallAsset = "wallpaper_phase1" },
+	[2] = { deviceName = "คอมตั้งโต๊ะ", wall = Color3.fromRGB(40, 120, 200), wallAsset = "wallpaper_phase2" },
+	[3] = { deviceName = "เครื่องเทพ RGB", wall = Color3.fromRGB(30, 22, 55), wallAsset = "wallpaper_phase3", neon = true },
 }
 
 -- กล้องบินไปหน้าจอ: ระยะพอดีให้จอเต็มเฟรมแนวตั้ง
@@ -75,39 +71,22 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 	screen.BackgroundColor3 = style.wall
 	screen.Parent = surface
 
-	-- helper สร้าง instance สั้นๆ (ใช้แต่งจอ desktop — layer ตกแต่ง ZIndex 0 ใต้ปุ่ม/แอป)
-	local function mk(class, parent, props)
-		local o = Instance.new(class)
-		for k, v in props do o[k] = v end
-		o.Parent = parent
-		return o
-	end
-
 	local wallId = UIAssets[style.wallAsset]
 	if wallId ~= "" then
-		mk("ImageLabel", screen, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
-			Image = wallId, ScaleType = Enum.ScaleType.Crop, ZIndex = 0 })
-	else
-		-- ไม่มีรูป = วาด wallpaper การ์ตูนเอง: ไล่สีทแยง + ก้อนนุ่มกระจาย (เมฆ/โบเก้) เติมมิติ
-		screen.BackgroundColor3 = Color3.new(1, 1, 1) -- ให้ gradient โชว์สีจริง
-		mk("UIGradient", screen, { Color = ColorSequence.new(style.gTop, style.gBot), Rotation = 115 })
-		local blobCol = style.neon and Color3.fromRGB(185, 125, 255) or Color3.new(1, 1, 1)
-		for _, b in { { 0.13, 0.18, 160 }, { 0.74, 0.13, 120 }, { 0.88, 0.58, 180 }, { 0.30, 0.82, 140 }, { 0.55, 0.42, 100 } } do
-			local blob = mk("Frame", screen, {
-				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(b[1], b[2]),
-				Size = UDim2.fromOffset(b[3], b[3]), BackgroundColor3 = blobCol,
-				BackgroundTransparency = style.neon and 0.82 or 0.87, BorderSizePixel = 0, ZIndex = 0,
-			})
-			mk("UICorner", blob, { CornerRadius = UDim.new(1, 0) })
-		end
+		local wall = Instance.new("ImageLabel")
+		wall.Size = UDim2.new(1, 0, 1, 0)
+		wall.BackgroundTransparency = 1
+		wall.Image = wallId
+		wall.ScaleType = Enum.ScaleType.Crop
+		wall.Parent = screen
 	end
 
 	if style.neon then
-		mk("UIStroke", screen, { Thickness = 6, Color = Color3.fromRGB(120, 80, 255) })
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 6
+		stroke.Color = Color3.fromRGB(120, 80, 255)
+		stroke.Parent = screen
 	end
-
-	-- ★ ชั้นตกแต่ง desktop (taskbar + widget) — ซ่อนตอนเปิดแอป (openApp/closeApp toggle) กัน bleed ทับแอป
-	local desktopDecor = mk("Frame", screen, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 0 })
 
 	-- host แอปที่เปิดอยู่ (ขวาของ desktop icon)
 	local appFrame = Instance.new("Frame")
@@ -136,7 +115,6 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		c.CornerRadius = UDim.new(0, 10)
 		c.Parent = appFrame
 		appFrame.Visible = true
-		desktopDecor.Visible = false -- ซ่อน taskbar/widget ตอนเปิดแอป (กันโผล่ทับ)
 		currentApp = app.create(appFrame, deps)
 		if currentApp and currentApp.refresh and state then currentApp.refresh(state) end
 	end
@@ -152,15 +130,6 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		local row = (i - 1) % 5
 		local x = 24 + col * (ICON + 40)
 		local y = 20 + row * (ICON + LABEL_H + GAP)
-		-- เงา + แผ่นรองสติกเกอร์ ใต้ไอคอน (การ์ตูน ยกลอยจาก wallpaper) — ZIndex 0 ใต้ปุ่มจริง
-		local sh = mk("Frame", screen, { Position = UDim2.fromOffset(x + 3, y + 5), Size = UDim2.fromOffset(ICON, ICON),
-			BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.72, BorderSizePixel = 0, ZIndex = 0 })
-		mk("UICorner", sh, { CornerRadius = UDim.new(0, 18) })
-		local tile = mk("Frame", screen, { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(ICON, ICON),
-			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.06, BorderSizePixel = 0, ZIndex = 0 })
-		mk("UICorner", tile, { CornerRadius = UDim.new(0, 18) })
-		mk("UIStroke", tile, { Thickness = 2.5, Color = style.accent, Transparency = 0.2 })
-
 		local assetId = app.id and UIAssets["app_" .. app.id] or ""
 		local btn
 		if assetId ~= "" then
@@ -171,25 +140,23 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 			btn = Instance.new("TextButton")
 			btn.Text = app.label
 			btn.TextScaled = true
-			btn.FontFace = Font.fromEnum(Enum.Font.GothamBold)
-			btn.BackgroundTransparency = 1
-			btn.TextColor3 = Color3.fromRGB(40, 46, 66)
+			btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			btn.BackgroundTransparency = 0.25
+			local bc = Instance.new("UICorner")
+			bc.CornerRadius = UDim.new(0, 8)
+			bc.Parent = btn
 		end
 		btn.Size = UDim2.new(0, ICON, 0, ICON)
 		btn.Position = UDim2.new(0, x, 0, y)
-		local bc = Instance.new("UICorner")
-		bc.CornerRadius = UDim.new(0, 18)
-		bc.Parent = btn
-		btn.Parent = screen -- ZIndex ปุ่ม = default 1 (บนแผ่นรอง) · Activated เดิมไม่แตะ
+		btn.Parent = screen
 
 		local name = Instance.new("TextLabel")
-		name.Size = UDim2.new(0, ICON + 24, 0, LABEL_H)
-		name.Position = UDim2.new(0, x - 12, 0, y + ICON + 3)
+		name.Size = UDim2.new(0, ICON + 20, 0, LABEL_H)
+		name.Position = UDim2.new(0, x - 10, 0, y + ICON + 2)
 		name.BackgroundTransparency = 1
 		name.TextColor3 = Color3.new(1, 1, 1)
-		name.TextStrokeTransparency = 0.15
+		name.TextStrokeTransparency = 0.4
 		name.TextScaled = true
-		name.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 		name.Text = app.name or app.label
 		name.Parent = screen
 
@@ -198,58 +165,15 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		end)
 	end
 
-	-- ===== widget การ์ตูนกลางจอ (เติมช่องว่าง desktop) — โชว์ตอนไม่ได้เปิดแอป =====
-	local card = mk("Frame", desktopDecor, {
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.58, 0.46),
-		Size = UDim2.fromOffset(360, 210), BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 0,
-	})
-	mk("UICorner", card, { CornerRadius = UDim.new(0, 24) })
-	mk("UIStroke", card, { Thickness = 3, Color = style.accent, Transparency = 0.15 })
-	local cardShadow = mk("Frame", desktopDecor, {
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.58, 0.47),
-		Size = UDim2.fromOffset(368, 218), BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.78, BorderSizePixel = 0, ZIndex = 0,
-	})
-	mk("UICorner", cardShadow, { CornerRadius = UDim.new(0, 26) })
-	cardShadow.ZIndex = 0
-	mk("TextLabel", card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.1),
-		Size = UDim2.fromScale(0.9, 0.34), BackgroundTransparency = 1, Text = "🎬  " .. style.deviceName,
-		TextColor3 = Color3.fromRGB(38, 44, 64), TextScaled = true, FontFace = Font.fromEnum(Enum.Font.GothamBold), ZIndex = 1 })
-	local dNow = (state and state.day) or 1
-	local pNow = (state and state.phase) or 1
-	mk("TextLabel", card, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.46),
-		Size = UDim2.fromScale(0.86, 0.2), BackgroundTransparency = 1,
-		Text = ("📅 วันที่ %d      ▸ เฟส %d"):format(dNow, pNow),
-		TextColor3 = Color3.fromRGB(90, 98, 122), TextScaled = true, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 1 })
-	mk("TextLabel", card, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.9),
-		Size = UDim2.fromScale(0.88, 0.22), BackgroundTransparency = 1, Text = "เลือกแอปทางซ้ายเพื่อเริ่มทำงาน ✨",
-		TextColor3 = style.accent, TextScaled = true, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 1 })
-
-	-- ===== taskbar ล่าง (ฟีล PC) — start + ชื่อเครื่อง + จุด pin + นาฬิกาวัน =====
-	local tb = mk("Frame", desktopDecor, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 1),
-		Size = UDim2.new(1, -24, 0, 50), BackgroundColor3 = style.bar,
-		BackgroundTransparency = 0.1, BorderSizePixel = 0, ZIndex = 0,
-	})
-	mk("UICorner", tb, { CornerRadius = UDim.new(0, 14) })
-	mk("UIStroke", tb, { Thickness = 2, Color = style.accent, Transparency = 0.55 })
-	local start = mk("Frame", tb, { Position = UDim2.fromOffset(10, 9), Size = UDim2.fromOffset(150, 32),
-		BackgroundColor3 = style.accent, BackgroundTransparency = 0.1, BorderSizePixel = 0, ZIndex = 1 })
-	mk("UICorner", start, { CornerRadius = UDim.new(0, 10) })
-	mk("TextLabel", start, { Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -16, 1, 0), BackgroundTransparency = 1,
-		Text = "⊞  " .. style.deviceName, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left,
-		TextScaled = true, FontFace = Font.fromEnum(Enum.Font.GothamBold), ZIndex = 2 })
-	-- จุด pin กลาง (ตกแต่ง)
-	for d = 0, 3 do
-		local dot = mk("Frame", tb, { Position = UDim2.fromOffset(180 + d * 30, 15), Size = UDim2.fromOffset(20, 20),
-			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0, ZIndex = 1 })
-		mk("UICorner", dot, { CornerRadius = UDim.new(0, 6) })
-	end
-	mk("TextLabel", tb, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0),
-		Size = UDim2.fromOffset(150, 26), BackgroundTransparency = 1, Text = ("🔋  วันที่ %d"):format(dNow),
-		TextColor3 = Color3.fromRGB(220, 226, 240), TextXAlignment = Enum.TextXAlignment.Right,
-		TextScaled = true, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 1 })
+	local deviceLabel = Instance.new("TextLabel")
+	deviceLabel.Size = UDim2.new(0.3, 0, 0, 24)
+	deviceLabel.Position = UDim2.new(0.68, 0, 1, -28)
+	deviceLabel.BackgroundTransparency = 1
+	deviceLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
+	deviceLabel.TextStrokeTransparency = 0.5
+	deviceLabel.TextScaled = true
+	deviceLabel.Text = style.deviceName
+	deviceLabel.Parent = screen
 
 	surface.Parent = playerGui
 
@@ -265,24 +189,15 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		exit.Position = UDim2.new(1, -70, 0, 14)
 	else
 		exit = Instance.new("TextButton")
-		exit.Text = "✕  ออก"
+		exit.Text = "Exit ⏻"
 		exit.TextScaled = true
-		exit.FontFace = Font.fromEnum(Enum.Font.GothamBold)
-		exit.TextColor3 = Color3.new(1, 1, 1)
-		exit.BackgroundColor3 = Color3.fromRGB(232, 78, 88) -- ปุ่มปิดหน้าต่างแบบ PC (แดงมน)
-		exit.Size = UDim2.new(0, 118, 0, 44)
-		exit.Position = UDim2.new(1, -134, 0, 14)
-		local ec = Instance.new("UICorner")
-		ec.CornerRadius = UDim.new(0, 12)
-		ec.Parent = exit
-		local ep = Instance.new("UIPadding")
-		ep.PaddingTop = UDim.new(0, 10)
-		ep.PaddingBottom = UDim.new(0, 10)
-		ep.Parent = exit
+		exit.TextColor3 = Color3.fromRGB(30, 60, 160)
+		exit.BackgroundColor3 = Color3.new(1, 1, 1)
+		exit.Size = UDim2.new(0, 120, 0, 44)
+		exit.Position = UDim2.new(1, -136, 0, 14)
 		local es = Instance.new("UIStroke")
-		es.Color = Color3.new(1, 1, 1)
+		es.Color = Color3.fromRGB(30, 60, 160)
 		es.Thickness = 2
-		es.Transparency = 0.4
 		es.Parent = exit
 	end
 	exit.ZIndex = 5
@@ -325,7 +240,6 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		appFrame.Visible = false
 		appFrame:ClearAllChildren()
 		currentApp = nil
-		desktopDecor.Visible = true -- กลับ desktop = โชว์ taskbar/widget อีกครั้ง
 	end
 	exit.Activated:Connect(function()
 		if appFrame.Visible then closeApp() else closeScreen() end

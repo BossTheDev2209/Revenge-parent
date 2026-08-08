@@ -1,5 +1,6 @@
--- EditQTE.luau — มินิเกมตัดคลิป (docs/07 §3.4 + PDF หน้า 7): 20 ปุ่ม 1.5 วิ/ปุ่ม เต็ม 200
--- pure: scoreFor / pickKeys (lune เทส) | UI glue: start() overlay สร้างเอง (รอทีมทำ Gui_Computer จริง)
+-- EditQTE.luau — มินิเกมตัดคลิป (docs/07 §3.4 + PDF หน้า 7): เลือกขนาด footage ก่อน แล้ว QTE วงแหวน
+--   ขนาด↑ (Config.ClipSizes) = วง/จอเยอะ+หดเร็ว+วงมาก แลก reward ×(gb/32) · คะแนน normalize เป็น 0–200 (VidQ)
+-- pure: scoreFor / normalizeScore / clipSizesFor / pickKeys (lune เทส) | UI glue: start() overlay สร้างเอง
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -8,23 +9,15 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../../../shared/Formulas")
 
-local TOTAL_HITS = 20 -- จำนวนวงต่อ 1 คลิป (chain ไหลต่อเนื่อง ไม่แบ่ง block)
-
 local EditQTE = {}
 EditQTE.running = false
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 🎮 เวอร์ชันการเล่น — สลับ MODE ตรงนี้ได้เลย (user เลือกได้ว่าชอบแบบไหน)
---   flow = วงไหลต่อเนื่อง มากสุด ~4 อันบนจอ (เร็ว มันส์ เหมาะคนชิน)
---   duo  = มากสุด 2 อันบนจอ ตำแหน่งไม่ซ้อนกัน (อ่านง่าย ไม่ตาลาย)
---   • maxOnScreen = วงสูงสุดที่โผล่พร้อมกัน · spawnInterval = ห่างการเด้งวงถัดไป (วิ)
---   • approach = เวลาที่วงแหวนหดจนทับวงเป้าหมาย (วิ) — สั้นลง = ยากขึ้น
+-- 🎮 ความยาก/จำนวนวง = ต่อ "ขนาด footage" ที่ผู้เล่นเลือก → อยู่ที่ Config.ClipSizes
+--   (แถว gb=32 = baseline เดิม "duo" · เพิ่ม/แก้ตัวเลขได้ที่นั่นที่เดียว)
+--   • hits = จำนวนวง/คลิป · maxOnScreen = วงสูงสุดบนจอพร้อมกัน
+--   • spawnInterval = ห่างการเด้งวงถัดไป (วิ) · approach = เวลาวงแหวนหดจนทับ (สั้น=ยาก)
 -- ═══════════════════════════════════════════════════════════════════════════
-EditQTE.MODE = "duo"
-EditQTE.PRESETS = {
-	flow = { maxOnScreen = 4, spawnInterval = 0.45, approach = 1.5 },
-	duo = { maxOnScreen = 2, spawnInterval = 0.4, approach = 1.4 },
-}
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 🔊 ระบบเสียง QTE — user สาย A แก้ตรงนี้ได้เลย (ไม่ต้องแตะ logic)
@@ -122,9 +115,33 @@ function EditQTE.previewCoverKey(phase: number, rng): string
 	return "clip_cover_" .. pick
 end
 
--- footage พอตัด 1 คลิปไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
-function EditQTE.canEdit(state): boolean
-	return state ~= nil and (state.footageGB or 0) >= Config.Record.footagePerClipGB
+-- footage พอตัดคลิปขนาด footageGB ไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
+-- footageGB ไม่ส่ง = 32 baseline (backward-compat) · ใช้เช็คขนาดเจาะจง
+function EditQTE.canEdit(state, footageGB): boolean
+	local cost = tonumber(footageGB) or Config.Record.footagePerClipGB
+	return state ~= nil and (state.footageGB or 0) >= cost
+end
+
+-- รายการขนาดคลิปที่ผู้เล่นเลือกได้ตอนนี้ = ขนาดใน Config.ClipSizes ที่ footage ปัจจุบัน ≥ gb
+-- คืน list (เรียงเล็ก→ใหญ่ตาม Config) · footage ไม่พอขนาดเล็กสุด = คืน {} (เปิดหน้าตัดไม่ได้)
+function EditQTE.clipSizesFor(state): { any }
+	local have = (state and state.footageGB) or 0
+	local out = {}
+	for _, s in Config.ClipSizes do
+		if have >= s.gb then
+			table.insert(out, s)
+		end
+	end
+	return out
+end
+
+-- normalize คะแนนรวมเป็นสเกล 0–200 (VidQ คงที่) — hits แปรผันตามขนาด แต่ VidQ ต้องวัด %ความแม่น
+-- total = ผลรวม points (แต่ละวง 0–10) · hits = จำนวนวงของคลิปนั้น → max = hits×10
+function EditQTE.normalizeScore(total: number, hits: number): number
+	if not hits or hits <= 0 then return 0 end
+	local maxRaw = hits * 10
+	local scaled = (total or 0) / maxRaw * Config.MaxClipAccuracy
+	return math.clamp(math.floor(scaled + 0.5), 0, Config.MaxClipAccuracy)
 end
 
 -- ข้อความเตือนกลางจอ 2 วิ (ใช้ตอน footage ไม่พอ)
@@ -337,9 +354,10 @@ end
 function EditQTE.start(playerGui, fireAction, getState)
 	if EditQTE.running then return end
 	getState = getState or function() return nil end
-	if not EditQTE.canEdit(getState()) then
-		EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมี %d GB — ออกไปอัดคลิปก่อน")
-			:format(Config.Record.footagePerClipGB))
+	-- gate เปิดหน้าตัด = มี footage ≥ ขนาดเล็กสุดที่เลือกได้ (ClipSizes[1].gb) ไม่ใช่ 32 ตายตัว
+	if #EditQTE.clipSizesFor(getState()) == 0 then
+		EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB — ออกไปอัดคลิปก่อน")
+			:format(Config.ClipSizes[1].gb))
 		return
 	end
 	EditQTE.running = true
@@ -484,10 +502,10 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	gui.Parent = playerGui
 
-	local preset = EditQTE.PRESETS[EditQTE.MODE] or EditQTE.PRESETS.flow
+	local round, showSizeSelect
 
-	local round
-	round = function()
+	-- 1 รอบ QTE = ตัด 1 คลิปขนาด size.gb · size = แถวจาก Config.ClipSizes (hits/maxOnScreen/…)
+	round = function(size)
 		local total = 0
 		local done = 0
 		local active = 0 -- วงที่โชว์อยู่บนจอตอนนี้ (spawn แล้วยังไม่ resolve) — ใช้ cap maxOnScreen
@@ -510,14 +528,14 @@ function EditQTE.start(playerGui, fireAction, getState)
 		end
 
 		local howto = if useTouch then "แตะวงตามเลข" else "กดตัวอักษรบนวง"
-		-- chain: เด้งวงทีละอัน · cap ไม่เกิน preset.maxOnScreen อันบนจอ (duo = 2) · ตำแหน่งไม่ทับวง active
-		for i = 1, TOTAL_HITS do
+		-- chain: เด้งวงทีละอัน · cap ไม่เกิน size.maxOnScreen อันบนจอ · ตำแหน่งไม่ทับวง active
+		for i = 1, size.hits do
 			-- รอให้มีที่ว่าง (จำนวนวงบนจอไม่เกิน maxOnScreen) ก่อนเด้งอันใหม่
-			while active >= preset.maxOnScreen do
+			while active >= size.maxOnScreen do
 				RunService.Heartbeat:Wait()
 			end
-			waveInfo.Text = ("อันที่ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  สะสม %d/200")
-				:format(i, TOTAL_HITS, howto, total)
+			waveInfo.Text = ("อันที่ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  %d GB ×%.2f")
+				:format(i, size.hits, howto, size.gb, Formulas.clipSizeMult(size.gb))
 			local pos = EditQTE.pickPosition(PLAY_MARGIN, activePos)
 			local posKey = pos -- reference เดียวกัน ใช้ลบออกจาก activePos ตอน resolve
 			table.insert(activePos, posKey)
@@ -527,7 +545,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			active += 1
 
 			local press
-			press = spawnCircle(RunService, workspaceArea, pos, label, preset.approach,
+			press = spawnCircle(RunService, workspaceArea, pos, label, size.approach,
 				function(points, tier) -- onResolve: ทันทีที่กด/หมดเวลา
 					total += points
 					buckets[tier] += 1
@@ -548,27 +566,29 @@ function EditQTE.start(playerGui, fireAction, getState)
 					end
 				end)
 			if key then byKey[key] = press end
-			task.wait(preset.spawnInterval)
+			task.wait(size.spawnInterval)
 		end
 
 		-- รอวงที่ยังค้างบนจอ (spawn ครบแล้วแต่ยังหดไม่จบ) ให้ resolve หมดก่อนสรุป
-		while done < TOTAL_HITS do
+		while done < size.hits do
 			RunService.Heartbeat:Wait()
 		end
 		if keyConn then
 			keyConn:Disconnect()
 		end
 
-		fireAction({ type = "FinishEdit", score = total })
+		-- normalize เป็น 0–200 (VidQ คงที่แม้ hits ต่างกัน) แล้วส่งขนาดที่เลือกไปหัก footage + คูณ reward
+		local score = EditQTE.normalizeScore(total, size.hits)
+		fireAction({ type = "FinishEdit", score = score, footageGB = size.gb })
 
-		-- จอสรุป: Edit more = ตัดคลิปใหม่ต่อเลย | Done = ออก (อัปที่แอป Upload)
-		local tier = Formulas.vidqTier(total)
+		-- จอสรุป: Edit more = เลือกขนาดใหม่แล้วตัดต่อ | Done = ออก (อัปที่แอป Upload)
+		local tier = Formulas.vidqTier(score)
 		workspaceArea.Visible = false
 		waveInfo.Visible = false
 		summary.Visible = true
-		scoreRow.Text = ("Score : %d/200      Video Quality : %s"):format(total, tier)
-		statsLabel.Text = ("stats:   %d  S\n           %d  A\n           %d  B\n           %d  C\n\nตัดอีกคลิป เสียใจอีก %d")
-			:format(buckets.S, buckets.A, buckets.B, buckets.C, math.abs(Config.Mental.deltas.clipEdit))
+		scoreRow.Text = ("Score : %d/200      Video Quality : %s"):format(score, tier)
+		statsLabel.Text = ("ขนาด : %d GB  ×%.2f\nstats:   %d  S\n           %d  A\n           %d  B\n           %d  C\n\nตัดอีกคลิป เสียใจอีก %d")
+			:format(size.gb, Formulas.clipSizeMult(size.gb), buckets.S, buckets.A, buckets.B, buckets.C, math.abs(Config.Mental.deltas.clipEdit))
 		local st = getState()
 		local capGB = Config.StorageLadderGB[st and Formulas.activeLevel(st, "storage") or 1]
 			or Config.StorageLadderGB[1]
@@ -594,14 +614,14 @@ function EditQTE.start(playerGui, fireAction, getState)
 		local close = summaryBtn("Done", 0.87, Color3.fromRGB(90, 92, 104))
 
 		more.Activated:Connect(function()
-			if not EditQTE.canEdit(getState()) then
-				EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมี %d GB — ออกไปอัดคลิปก่อน")
-					:format(Config.Record.footagePerClipGB))
+			if #EditQTE.clipSizesFor(getState()) == 0 then
+				EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB — ออกไปอัดคลิปก่อน")
+					:format(Config.ClipSizes[1].gb))
 				return
 			end
 			more:Destroy()
 			close:Destroy()
-			task.spawn(round)
+			showSizeSelect()
 		end)
 		close.Activated:Connect(function()
 			fitConn:Disconnect()
@@ -610,7 +630,163 @@ function EditQTE.start(playerGui, fireAction, getState)
 		end)
 	end
 
-	task.spawn(round)
+	-- ── หน้าเลือกขนาด footage ก่อนตัด (สไลเดอร์ snap ตามขนาดที่ซื้อได้) ──
+	-- แตะราง/ลากหัวเลื่อน = เลือกขนาด · ใหญ่ = reward สูงแต่ QTE โหด (ดูตัวเลขสดในกล่องข้อมูล)
+	showSizeSelect = function()
+		local sizes = EditQTE.clipSizesFor(getState())
+		if #sizes == 0 then
+			EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB"):format(Config.ClipSizes[1].gb))
+			fitConn:Disconnect()
+			gui:Destroy()
+			EditQTE.running = false
+			return
+		end
+		summary.Visible = false
+		workspaceArea.Visible = true
+		waveInfo.Visible = false
+
+		local haveGB = math.floor((getState() and getState().footageGB) or 0)
+		local n = #sizes
+		local L, W = 0.09, 0.82 -- ราง: เริ่ม 9% กว้าง 82% ของ sel (เว้นขอบ)
+		local function fracAt(i) return if n == 1 then 0.5 else (i - 1) / (n - 1) end
+
+		local sel = mk("Frame", panel, {
+			Name = "SizeSelect",
+			Position = UDim2.fromOffset(20, 60),
+			Size = UDim2.new(1, -40, 0, 418),
+			BackgroundColor3 = COLORS.workspace,
+			ClipsDescendants = true,
+		})
+		mk("UICorner", sel, { CornerRadius = UDim.new(0, 12) })
+		mk("TextLabel", sel, {
+			Position = UDim2.fromOffset(24, 20), Size = UDim2.new(1, -48, 0, 36),
+			BackgroundTransparency = 1, Text = "🎬  จะตัดคลิปขนาดเท่าไหร่?",
+			TextColor3 = COLORS.text, TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 26, FontFace = Font.fromEnum(Enum.Font.GothamBold),
+		})
+		mk("TextLabel", sel, {
+			Position = UDim2.fromOffset(24, 58), Size = UDim2.new(1, -48, 0, 22),
+			BackgroundTransparency = 1, Text = ("footage ที่มี : %d GB   —   ใหญ่ขึ้น = รางวัลมากขึ้น แต่ตัดยากขึ้น"):format(haveGB),
+			TextColor3 = COLORS.dim, TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 15, FontFace = Font.fromEnum(Enum.Font.Gotham),
+		})
+
+		-- ราง + เส้น + จุด tick + ป้าย GB
+		local trackY = 128
+		local track = mk("TextButton", sel, {
+			Position = UDim2.new(L, 0, 0, trackY), Size = UDim2.new(W, 0, 0, 40),
+			BackgroundTransparency = 1, Text = "", AutoButtonColor = false, ZIndex = 2,
+		})
+		local line = mk("Frame", track, {
+			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
+			Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = COLORS.accent, BorderSizePixel = 0, ZIndex = 2,
+		})
+		mk("UICorner", line, { CornerRadius = UDim.new(1, 0) })
+		for i, s in sizes do
+			local f = fracAt(i)
+			local dot = mk("Frame", track, {
+				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(f, 0, 0.5, 0),
+				Size = UDim2.fromOffset(12, 12), BackgroundColor3 = COLORS.ring, BorderSizePixel = 0, ZIndex = 3,
+			})
+			mk("UICorner", dot, { CornerRadius = UDim.new(1, 0) })
+			mk("TextLabel", sel, {
+				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(L + W * f, 0, 0, trackY + 34),
+				Size = UDim2.fromOffset(80, 18), BackgroundTransparency = 1, Text = s.gb .. " GB",
+				TextColor3 = COLORS.dim, TextSize = 14, FontFace = Font.fromEnum(Enum.Font.Gotham), ZIndex = 2,
+			})
+		end
+		local handle = mk("Frame", track, {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
+			Size = UDim2.fromOffset(26, 26), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 4,
+		})
+		mk("UICorner", handle, { CornerRadius = UDim.new(1, 0) })
+		mk("UIStroke", handle, { Thickness = 3, Color = COLORS.accent })
+
+		local info = mk("TextLabel", sel, {
+			Position = UDim2.fromOffset(30, 208), Size = UDim2.new(1, -60, 0, 120),
+			BackgroundTransparency = 1, TextColor3 = COLORS.text,
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+			TextSize = 18, FontFace = Font.fromEnum(Enum.Font.Gotham), Text = "",
+		})
+
+		-- default = baseline 32 ถ้าเลือกได้ ไม่งั้นตัวใหญ่สุดที่ซื้อได้
+		local idx = n
+		for i, s in sizes do
+			if s.gb == Config.Record.footagePerClipGB then idx = i end
+		end
+
+		local function refresh()
+			local s = sizes[idx]
+			handle.Position = UDim2.new(fracAt(idx), 0, 0.5, 0)
+			info.Text = ("ขนาด : %d GB          รางวัล  ×%.2f\n\nความยาก : สูงสุด %d วงบนจอ · %d วง · หด %.2fs/วง\n\nใช้ footage %d GB   →   เหลือ %d GB")
+				:format(s.gb, Formulas.clipSizeMult(s.gb), s.maxOnScreen, s.hits, s.approach, s.gb, haveGB - s.gb)
+		end
+		local function setIdx(i)
+			idx = math.clamp(i, 1, n)
+			refresh()
+		end
+		refresh()
+
+		-- ลาก/แตะราง → snap จุดที่ใกล้สุด (snap เผื่อ input.Position คลาดจาก abs เล็กน้อยไม่กระทบ)
+		local function pickFromX(px)
+			local ax, aw = track.AbsolutePosition.X, track.AbsoluteSize.X
+			if aw <= 0 then return end
+			local f = math.clamp((px - ax) / aw, 0, 1)
+			setIdx(math.floor(f * (n - 1) + 0.5) + 1)
+		end
+		local dragging = false
+		local moveConn, endConn
+		track.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				pickFromX(inp.Position.X)
+			end
+		end)
+		moveConn = UIS.InputChanged:Connect(function(inp)
+			if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+				pickFromX(inp.Position.X)
+			end
+		end)
+		endConn = UIS.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+				dragging = false
+			end
+		end)
+
+		local function cleanup()
+			if moveConn then moveConn:Disconnect() end
+			if endConn then endConn:Disconnect() end
+			sel:Destroy()
+		end
+
+		local function selBtn(text, xScale, color)
+			local b = mk("TextButton", sel, {
+				AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(xScale, 0, 1, -14),
+				Size = UDim2.fromOffset(180, 46), Text = text, TextScaled = true,
+				TextColor3 = Color3.new(1, 1, 1), BackgroundColor3 = color, ZIndex = 3,
+			})
+			mk("UICorner", b, { CornerRadius = UDim.new(0, 8) })
+			local p = mk("UIPadding", b, {})
+			p.PaddingTop = UDim.new(0, 10)
+			p.PaddingBottom = UDim.new(0, 10)
+			return b
+		end
+		local go = selBtn("เริ่มตัด!", 0.7, COLORS.accent)
+		local cancel = selBtn("ยกเลิก", 0.3, Color3.fromRGB(90, 92, 104))
+		go.Activated:Connect(function()
+			local chosen = sizes[idx]
+			cleanup()
+			task.spawn(function() round(chosen) end)
+		end)
+		cancel.Activated:Connect(function()
+			cleanup()
+			fitConn:Disconnect()
+			gui:Destroy()
+			EditQTE.running = false
+		end)
+	end
+
+	showSizeSelect()
 end
 
 return EditQTE

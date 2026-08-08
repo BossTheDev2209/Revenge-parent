@@ -361,6 +361,58 @@ rce.footageGB = 32
 check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == true)
 check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
 
+-- ===== เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค. — docs/02 §9.5) =====
+do
+	-- clipSizeMult = gb / 32 baseline (proportional)
+	check("clipSizeMult 32 = 1.0 (baseline)", Formulas.clipSizeMult(32) == 1.0)
+	check("clipSizeMult 8/16/64/128 = 0.25/0.5/2/4",
+		Formulas.clipSizeMult(8) == 0.25 and Formulas.clipSizeMult(16) == 0.5
+		and Formulas.clipSizeMult(64) == 2 and Formulas.clipSizeMult(128) == 4)
+	check("clipSizeMult ค่ามั่ว/nil = 1 ไม่พัง",
+		Formulas.clipSizeMult(nil) == 1 and Formulas.clipSizeMult(0) == 1 and Formulas.clipSizeMult(-5) == 1)
+
+	-- normalizeScore: ต่างจำนวน hits แต่กด perfect หมด = 200 เท่ากัน (VidQ วัด %ความแม่น)
+	check("normalize perfect = 200 ทุกขนาด hits",
+		EditQTE.normalizeScore(100, 10) == 200 and EditQTE.normalizeScore(200, 20) == 200
+		and EditQTE.normalizeScore(400, 40) == 200)
+	check("normalize ครึ่ง = 100", EditQTE.normalizeScore(100, 20) == 100)
+	check("normalize 0 = 0", EditQTE.normalizeScore(0, 20) == 0)
+	check("normalize hits 0 ไม่พัง = 0", EditQTE.normalizeScore(50, 0) == 0)
+	check("normalize เกินเพดาน clamp 200", EditQTE.normalizeScore(9999, 20) == 200)
+
+	-- clipSizesFor: กรองเฉพาะขนาดที่ footage ปัจจุบันซื้อได้
+	local function stFoot(g) return { footageGB = g } end
+	check("footage 0 = เลือกขนาดไม่ได้", #EditQTE.clipSizesFor(stFoot(0)) == 0)
+	check("footage 8 = ได้ขนาดเดียว (8)",
+		#EditQTE.clipSizesFor(stFoot(8)) == 1 and EditQTE.clipSizesFor(stFoot(8))[1].gb == 8)
+	check("footage 40 = ได้ 8/16/32 (ไม่ถึง 64)", #EditQTE.clipSizesFor(stFoot(40)) == 3)
+	check("footage 999 = ได้ครบทุกขนาด", #EditQTE.clipSizesFor(stFoot(999)) == #Config.ClipSizes)
+	check("ไม่มี state = ว่าง", #EditQTE.clipSizesFor(nil) == 0)
+
+	-- spendForClip แปรผันตามขนาด (default 32 backward-compat)
+	check("minClipGB = ClipSizes[1].gb", RecordService.minClipGB() == Config.ClipSizes[1].gb)
+	local sp = { footageGB = 100 }
+	check("spend 64 หัก 64 เหลือ 36", RecordService.spendForClip(sp, 64) == true and sp.footageGB == 36)
+	check("spend 64 ซ้ำ footage ไม่พอ ไม่หัก", RecordService.spendForClip(sp, 64) == false and sp.footageGB == 36)
+	check("spend 8 (min) จาก 36 ได้ เหลือ 28", RecordService.spendForClip(sp, 8) == true and sp.footageGB == 28)
+	local spDef = { footageGB = 50 }
+	check("spend ไม่ใส่ขนาด = default 32", RecordService.spendForClip(spDef) == true and spDef.footageGB == 18)
+
+	-- finishEdit เก็บ footageGB + sizeMult ลงคลิป
+	local cz = GameState.newGame()
+	FollowerService.finishEdit(cz, { score = 200, footageGB = 64 })
+	check("finishEdit เก็บ footageGB + sizeMult", cz.clips[1].footageGB == 64 and cz.clips[1].sizeMult == 2)
+	FollowerService.finishEdit(cz, { score = 100 })
+	check("finishEdit ไม่ใส่ขนาด = 32 baseline mult 1", cz.clips[2].footageGB == 32 and cz.clips[2].sizeMult == 1)
+
+	-- uploadClip คูณ sizeMult: 64GB(S) เฟส1 base=400 × VidQ2.0 × mental1.0 = 800 × sizeMult2 = 1600
+	local up = GameState.newGame()
+	FollowerService.finishEdit(up, { score = 200, footageGB = 64 })
+	local before = up.follower
+	local ok = FollowerService.uploadClip(up, { clip = 1 }, 50, rngQueue({ 0, 0, 0.5 }))
+	check("uploadClip คูณ sizeMult (64GB = 1600 follower)", ok == true and (up.follower - before) == 1600)
+end
+
 -- Tool ในมือต้องตรง state (กล้อง 6 ระดับ 6 โมเดล, โน้ตบุ๊คเฉพาะเฟส 1)
 local ToolService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.ToolService)

@@ -15,9 +15,13 @@ local FollowerService = {}
 -- → ฝั่ง server เหมือนกันทุกรอบ: 1 รอบ QTE = 1 คลิปใหม่ + ใจ −20 (Main ยิง clipEdit ให้)
 function FollowerService.finishEdit(state, action)
 	local score = math.clamp(tonumber(action.score) or 0, 0, Config.MaxClipAccuracy)
+	-- ขนาด footage ที่ผู้เล่นเลือก (ไม่ส่ง = 32 baseline) → คูณ reward ตอนอัป (proportional)
+	local footageGB = tonumber(action.footageGB) or Config.Record.footagePerClipGB
 	table.insert(state.clips, {
 		tier = Formulas.vidqTier(score),
 		score = score,
+		footageGB = footageGB,
+		sizeMult = Formulas.clipSizeMult(footageGB),
 		uploaded = false,
 	})
 end
@@ -29,6 +33,7 @@ function FollowerService.uploadClip(state, action, mentalPct: number, rng)
 	if not clip or clip.uploaded then return false, false end
 	local phase = Formulas.phaseFor(state.follower)
 	local gained, viral = Formulas.followerGain(phase, clip.tier, mentalPct, rng)
+	gained = math.floor(gained * (clip.sizeMult or 1)) -- คูณขนาด footage ที่เลือก (money ตามไปเอง)
 	state.follower += gained
 	state.money += Formulas.moneyGain(gained, phase)
 	state.phase = Formulas.phaseFor(state.follower)

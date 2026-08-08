@@ -246,10 +246,27 @@ Config.Record = {
 	-- โซนถ่าย (จุดแดง PDF หน้า 4): อัดนอกโซนได้ base rate, ในโซน × ตัวคูณตามเฟส
 	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
 	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
-	-- ตัด 1 คลิปกิน footage เท่านี้ (lock 27 ก.ค.) — คงที่ ไม่ผูก VidQ เพราะ VidQ รู้หลังตัดจบ
-	-- กล้อง L1: 32 คลิก/คลิป, storage L1 เก็บได้ 4 คลิป | กล้อง L6: 1 คลิก/คลิป = เหตุผลที่ต้องอัปกล้อง
+	-- ตัด 1 คลิป: default 32 GB = baseline ×1.0 ของ ClipSizes (denominator ของ sizeMult ด้วย)
+	-- เดิม lock 27 ก.ค. คงที่ · unlock 8 ส.ค. ให้ผู้เล่นเลือกขนาดได้ (docs/02 §9.5) — 32 ยังเป็น baseline/ค่า default
+	-- กล้อง L1: 32 คลิก/32GB, storage L1 เก็บได้ 4 คลิป | กล้อง L6: 1 คลิก/32GB = เหตุผลที่ต้องอัปกล้อง
 	footagePerClipGB = 32,
 	zoneRadiusStuds = 18, -- รัศมีวงโซน (agent เลือก — ปรับได้ ไม่มีใน PDF)
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 🎬 ClipSizes — เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค.)
+--   ขนาด↑ = QTE ยากขึ้น (วงบนจอเยอะ + หดเร็ว + วงมาก) แลกกับ reward ×(gb/32)
+--   • rewardMult ไม่เก็บที่นี่ — คำนวณ Formulas.clipSizeMult(gb)=gb/footagePerClipGB (proportional lock)
+--   • difficulty (hits/maxOnScreen/spawnInterval/approach) tune ได้อิสระตรงนี้
+--   • baseline = แถว gb=32 (= preset "duo" เดิม) · เพิ่มแถว 256/512… ได้เลย ("ไปเรื่อยๆ")
+--   • ผู้เล่นเลือกได้เฉพาะขนาดที่ footage ปัจจุบัน ≥ gb (EditQTE.clipSizesFor กรองให้)
+-- ═══════════════════════════════════════════════════════════════════════════
+Config.ClipSizes = {
+	{ gb = 8,   hits = 10, maxOnScreen = 1, spawnInterval = 0.55, approach = 1.70 },
+	{ gb = 16,  hits = 14, maxOnScreen = 2, spawnInterval = 0.48, approach = 1.55 },
+	{ gb = 32,  hits = 20, maxOnScreen = 2, spawnInterval = 0.40, approach = 1.40 }, -- baseline ×1.0
+	{ gb = 64,  hits = 28, maxOnScreen = 3, spawnInterval = 0.34, approach = 1.20 },
+	{ gb = 128, hits = 40, maxOnScreen = 4, spawnInterval = 0.28, approach = 1.05 },
 }
 
 Config.SponsorUnlockFollowers = 10_000

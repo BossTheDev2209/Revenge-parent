@@ -57,6 +57,14 @@ function Formulas.followerGain(phase: number, tier: string, mentalPct: number, r
 	return math.floor(n), isViral
 end
 
+-- ตัวคูณ reward ตามขนาด footage/คลิป (proportional, user lock 8 ส.ค.) = gb / 32(baseline)
+-- 8→×0.25, 16→×0.5, 32→×1.0, 64→×2, 128→×4 · เพดานเงินไม่ขยับ (ผูกเพดาน follower 1M ตายตัว)
+function Formulas.clipSizeMult(footageGB: number): number
+	local base = Config.Record.footagePerClipGB
+	if not footageGB or footageGB <= 0 or base <= 0 then return 1 end
+	return footageGB / base
+end
+
 -- design doc §4: เงิน = follower ที่ได้จากคลิป × rate ของเฟส
 function Formulas.moneyGain(followers: number, phase: number): number
 	return math.floor(followers * Config.MoneyRatePerFollower[phase])

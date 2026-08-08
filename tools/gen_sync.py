@@ -80,14 +80,15 @@ parts = [
 	return f
 end""",
     """local function put(parent, name, class, src)
-	local m = parent:FindFirstChild(name)
-	if m and m.ClassName ~= class then m:Destroy(); m = nil end
-	if not m then
-		m = Instance.new(class)
-		m.Name = name
-		m.Parent = parent
-		table.insert(made, parent:GetFullName() .. '.' .. name)
-	end
+	-- Destroy+recreate เสมอ = instance ใหม่ทุกครั้ง → require cache (VM ค้างข้าม execute_luau) เจอตัวใหม่ = fresh
+	-- แตะเฉพาะ instance ที่ sync คุม (ชื่อตรง parent ตรง) ของทีมที่ชื่อไม่ตรงไม่โดน
+	local existing = parent:FindFirstChild(name)
+	local isNew = existing == nil or existing.ClassName ~= class
+	if existing then existing:Destroy() end
+	local m = Instance.new(class)
+	m.Name = name
+	m.Parent = parent
+	if isNew then table.insert(made, parent:GetFullName() .. '.' .. name) end
 	m.Source = src
 	table.insert(done, name)
 end""",

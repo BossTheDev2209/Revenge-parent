@@ -65,15 +65,25 @@ function RecordService.record(state, o)
 	return { ok = true, gained = gained, bonus = bonus, full = RecordService.isFull(state), reason = nil }
 end
 
--- ===== วงจรปิด: footage → คลิป (lock 27 ก.ค.) =====
-function RecordService.canEdit(state): boolean
-	return (state.footageGB or 0) >= Config.Record.footagePerClipGB
+-- ===== วงจรปิด: footage → คลิป (unlock 8 ส.ค. — ขนาดแปรผัน docs/02 §9.5) =====
+-- ขนาดเล็กสุดที่ตัดได้ (gate เปิดหน้าตัดต่อ) = แถวแรกของ ClipSizes
+function RecordService.minClipGB(): number
+	local sizes = Config.ClipSizes
+	return (sizes and sizes[1] and sizes[1].gb) or Config.Record.footagePerClipGB
 end
 
--- หัก footage เพื่อตัด 1 คลิป — ไม่พอ = false (Main ไม่สร้างคลิป ไม่หักใจ)
-function RecordService.spendForClip(state): boolean
-	if not RecordService.canEdit(state) then return false end
-	state.footageGB -= Config.Record.footagePerClipGB
+-- footage พอตัดคลิปขนาด footageGB ไหม (default = 32 baseline, backward-compat)
+function RecordService.canEdit(state, footageGB): boolean
+	local cost = tonumber(footageGB) or Config.Record.footagePerClipGB
+	return (state.footageGB or 0) >= cost
+end
+
+-- หัก footage เพื่อตัด 1 คลิปขนาด footageGB — ไม่พอ = false (Main ไม่สร้างคลิป ไม่หักใจ)
+-- footageGB ไม่ส่ง = 32 (backward-compat) · client ส่งขนาดที่ผู้เล่นเลือก
+function RecordService.spendForClip(state, footageGB): boolean
+	local cost = tonumber(footageGB) or Config.Record.footagePerClipGB
+	if (state.footageGB or 0) < cost then return false end
+	state.footageGB -= cost
 	return true
 end
 

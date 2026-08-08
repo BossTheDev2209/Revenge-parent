@@ -473,16 +473,51 @@ da.day += 1
 check("วันใหม่ใช้ได้อีก", MentalService.doActivity(da, "Bed") == true)
 check("activity มั่วคืน false", MentalService.doActivity(da, "อาบน้ำ") == false)
 
--- ===== EditQTE scoring (PDF หน้า 7 — กดกลาง window เป๊ะ = 10) =====
-check("กดกลาง window (0.75s) = 10", EditQTE.scoreFor(0.75, 1.5) == 10)
-check("กดทันทีที่ขึ้น (0s) = 0", EditQTE.scoreFor(0, 1.5) == 0)
-check("กดวินาทีสุดท้าย = 0", EditQTE.scoreFor(1.5, 1.5) == 0)
-check("กดครึ่งทางถึงกลาง = 5", EditQTE.scoreFor(0.375, 1.5) == 5)
-check("ไม่ติดลบ", EditQTE.scoreFor(99, 1.5) == 0)
-local qkeys = EditQTE.pickKeys(20, { "Q", "W", "E" }, rngQueue({
-	0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4, 0.9, 0, 0.4 }))
-check("pickKeys ครบ 20 ตัว", #qkeys == 20)
-check("rng fix เลือกถูกตัว", qkeys[1] == "Q" and qkeys[2] == "W" and qkeys[3] == "E")
+-- ===== EditQTE scoring ใหม่ (redesign 8 ส.ค. — พีคตอนวงแหวนปิดพอดี ไม่ใช่กลาง window) =====
+check("วงแหวนปิดพอดี (t=window) = 10 เต็ม", EditQTE.scoreFor(1.5, 1.5) == 10)
+check("กดทันทีที่โผล่ (t=0) = 0", EditQTE.scoreFor(0, 1.5) == 0)
+check("กดครึ่งทาง = 5", EditQTE.scoreFor(0.75, 1.5) == 5)
+check("กด 90% ทาง ~9", EditQTE.scoreFor(1.35, 1.5) == 9)
+-- t เกิน window ไม่มีทางเกิดจริง (timeout ยิง auto-miss ก่อนกดได้เสมอ) แค่ต้องไม่ทะลุกรอบ 0-10
+check("t เกิน window ไม่ทะลุคะแนนเต็ม 10", EditQTE.scoreFor(99, 1.5) == 10)
+check("t ติดลบไม่พัง คืน 0", EditQTE.scoreFor(-1, 1.5) == 0)
+
+-- ===== tierFor / colorFor (สี 4 ระดับ ผูก S/A/B/C) =====
+check("9-10 = S (เขียว)", EditQTE.tierFor(10) == "S" and EditQTE.tierFor(9) == "S")
+check("6-8 = A (ฟ้า)", EditQTE.tierFor(6) == "A" and EditQTE.tierFor(8) == "A")
+check("3-5 = B (เหลือง)", EditQTE.tierFor(3) == "B" and EditQTE.tierFor(5) == "B")
+check("0-2 = C (แดง)", EditQTE.tierFor(0) == "C" and EditQTE.tierFor(2) == "C")
+check("colorFor คืน Color3 ครบ 4 tier", typeof(EditQTE.colorFor("S")) == "Color3"
+	and typeof(EditQTE.colorFor("A")) == "Color3" and typeof(EditQTE.colorFor("B")) == "Color3"
+	and typeof(EditQTE.colorFor("C")) == "Color3")
+
+-- ===== planWaves (สุ่มเวฟ 2-4 วง จนครบงบ 20) =====
+-- ★ ห่อ do...end: ไฟล์นี้เป็น chunk เดียวยาวมาก ชนเพดาน Luau 200 local registers/chunk แล้ว
+--   (เจอจริง 8 ส.ค. ตอนเพิ่มเทส EditQTE ชุดนี้) — scope ให้แคบ คืน register ให้โค้ดข้างล่างใช้ต่อ
+do
+	-- ไม่ fix rng: จำนวนรอบสุ่มไม่แน่นอน (ขึ้นกับ roll แต่ละครั้ง) ต่างจากเทสอื่นที่รู้จำนวนเรียกล่วงหน้า
+	-- เชคแค่ invariant (ช่วง 1-4, รวม=งบ) ไม่ต้องเป๊ะค่าไหน — math.random ปกติพอ
+	local waves = EditQTE.planWaves(20, 2, 4)
+	local sum = 0
+	for _, n in waves do
+		check("ทุกเวฟอยู่ในช่วง 1-4 (ยกเว้นเวฟสุดท้ายถ้างบไม่พอ)", n >= 1 and n <= 4)
+		sum += n
+	end
+	check("รวมทุกเวฟ = งบทั้งหมด 20 พอดี", sum == 20)
+	local oneWave = EditQTE.planWaves(1, 2, 4, rngQueue({ 0 }))
+	check("งบ 1 = เวฟเดียวขนาด 1 (เล็กกว่า min ได้ตอนงบไม่พอ)", #oneWave == 1 and oneWave[1] == 1)
+end
+
+-- ===== randomPositions (ตำแหน่งวงกลมกระจาย ไม่ล้นขอบ) =====
+do
+	local pos = EditQTE.randomPositions(4, 0.12, rngQueue({ 0.1, 0.2, 0.9, 0.8, 0.3, 0.4, 0.6, 0.5 }))
+	check("ตำแหน่งครบตามจำนวนที่ขอ", #pos == 4)
+	local inBounds = true
+	for _, p in pos do
+		if p.x < 0.12 or p.x > 0.88 or p.y < 0.12 or p.y > 0.88 then inBounds = false end
+	end
+	check("ทุกตำแหน่งอยู่ในกรอบ margin ไม่ล้นขอบ", inBounds)
+end
 
 -- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====
 check("sponsorPay phase1 rng=0 → 650×0.8×2 = 1040", Formulas.sponsorPay(1, rng0) == 1040)

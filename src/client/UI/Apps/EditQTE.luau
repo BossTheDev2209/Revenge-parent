@@ -8,24 +8,82 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../../../shared/Formulas")
 
-local QTE_KEYS = { "Q", "W", "E", "A", "S", "D", "Z", "X", "C" }
-local QTE_COUNT = 20
-local QTE_WINDOW = 1.5
+local TOTAL_HITS = 20
+local MIN_CONCURRENT = 2
+local MAX_CONCURRENT = 4
+local APPROACH_TIME = 1.5 -- วิ — เวลาที่วงแหวนใช้หดจากขนาดเริ่มมาเท่าวงเป้าหมาย
 
 local EditQTE = {}
 EditQTE.running = false
 
--- คะแนนต่อปุ่ม: กดตรงกลาง window เป๊ะ = 10, ขอบ = 0 (ปัดลง)
+-- คะแนนต่อวง: พีคตอนวงแหวนหดมาเท่าวงเป้าหมายพอดี (t=window) ไล่เส้นตรงจาก 0 (เพิ่งโผล่)
+-- redesign 8 ส.ค. — เดิมพีคกลาง window (10×(1-|t-half|/half)) เปลี่ยนให้ตรงกับภาพ "วงบีบมาทับกันพอดี = perfect"
 function EditQTE.scoreFor(t: number, window: number): number
-	local half = window / 2
-	return math.max(0, math.floor(10 * (1 - math.abs(t - half) / half)))
+	if t <= 0 or window <= 0 then return 0 end
+	return math.clamp(math.floor(10 * math.min(t, window) / window), 0, 10)
 end
 
-function EditQTE.pickKeys(count: number, keys, rng)
+-- 9-10=S(เขียว) 6-8=A(ฟ้า) 3-5=B(เหลือง) 0-2=C(แดง) — พลาด/หมดเวลาก็เข้า C ผ่าน points=0
+function EditQTE.tierFor(points: number): string
+	if points >= 9 then
+		return "S"
+	elseif points >= 6 then
+		return "A"
+	elseif points >= 3 then
+		return "B"
+	else
+		return "C"
+	end
+end
+
+local TIER_COLOR = {
+	S = Color3.fromRGB(80, 230, 140), -- เขียว
+	A = Color3.fromRGB(90, 170, 255), -- ฟ้า
+	B = Color3.fromRGB(255, 210, 80), -- เหลือง
+	C = Color3.fromRGB(255, 90, 90), -- แดง (รวมกรณีพลาด/หมดเวลา)
+}
+function EditQTE.colorFor(tier: string): Color3
+	return TIER_COLOR[tier] or TIER_COLOR.C
+end
+
+-- แบ่งงบรวม (20) เป็นเวฟสุ่มขนาด min-max วง — เวฟสุดท้ายเล็กกว่า min ได้ถ้างบเหลือไม่พอ
+function EditQTE.planWaves(total: number, minC: number, maxC: number, rng): { number }
+	rng = rng or math.random
+	local waves = {}
+	local remaining = total
+	while remaining > 0 do
+		local roll = minC + math.floor(rng() * (maxC - minC + 1))
+		local size = math.min(roll, remaining)
+		table.insert(waves, size)
+		remaining -= size
+	end
+	return waves
+end
+
+-- ตำแหน่งวงกลม n วง กระจายในกรอบ (0,0)-(1,1) เว้น margin ขอบ กันชนกันเองแบบหยาบๆ (retry สุ่มใหม่ถ้าใกล้กันเกิน)
+function EditQTE.randomPositions(n: number, margin: number, rng): { { x: number, y: number } }
 	rng = rng or math.random
 	local out = {}
-	for i = 1, count do
-		out[i] = keys[math.floor(rng() * #keys) + 1]
+	local minGap = margin * 1.5
+	for _ = 1, n do
+		local x, y
+		local tries = 0
+		repeat
+			x = margin + rng() * (1 - margin * 2)
+			y = margin + rng() * (1 - margin * 2)
+			tries += 1
+			local tooClose = false
+			for _, p in out do
+				if (p.x - x) ^ 2 + (p.y - y) ^ 2 < minGap ^ 2 then
+					tooClose = true
+					break
+				end
+			end
+			if not tooClose or tries > 8 then
+				break
+			end
+		until false
+		table.insert(out, { x = x, y = y })
 	end
 	return out
 end
@@ -52,6 +110,124 @@ function EditQTE.toast(playerGui, text: string)
 end
 
 -- ===== UI glue (Studio เท่านั้น) =====
+-- osu-style redesign (8 ส.ค.): เวฟ 2-4 วงพร้อมกัน แทนตัวอักษรทีละตัว
+--   input เดียว (.Activated) ใช้ได้ทั้งคลิกเมาส์และแตะจอ — ไม่มี branch แยก platform
+local UIAssets = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
+	else nil
+
+local COLORS = {
+	panel = Color3.fromRGB(18, 20, 28),
+	header = Color3.fromRGB(26, 29, 40),
+	workspace = Color3.fromRGB(24, 27, 37),
+	accent = Color3.fromRGB(90, 140, 240),
+	text = Color3.fromRGB(235, 236, 242),
+	dim = Color3.fromRGB(150, 154, 168),
+	circleFill = Color3.fromRGB(40, 44, 58),
+	ring = Color3.fromRGB(220, 224, 236),
+}
+
+local PLAY_MARGIN = 0.22 -- scale — เว้นขอบกันวงแหวนขนาดใหญ่สุดล้นขอบ play area
+
+local function mk(class, parent, props)
+	local o = Instance.new(class)
+	for k, v in props do
+		o[k] = v
+	end
+	o.Parent = parent
+	return o
+end
+
+-- 1 วงกลม: วงเป้าหมาย (ปุ่มกดจริง เลขลำดับตรงกลาง) + วงแหวนหดเข้าหา
+-- onResolve(points 0-10, tier) เรียกครั้งเดียวเสมอ ไม่ว่ากดทันหรือหมดเวลา
+local function spawnCircle(RunService, parent, posScale, seqNum, onResolve)
+	local SIZE_TARGET = 84
+	local SIZE_START = 190
+
+	local ring = mk("Frame", parent, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(posScale.x, posScale.y),
+		Size = UDim2.fromOffset(SIZE_START, SIZE_START),
+		BackgroundTransparency = 1,
+		ZIndex = 2,
+	})
+	mk("UICorner", ring, { CornerRadius = UDim.new(1, 0) })
+	mk("UIStroke", ring, { Thickness = 4, Color = COLORS.ring, Transparency = 0.1 })
+
+	local btn = mk("TextButton", parent, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(posScale.x, posScale.y),
+		Size = UDim2.fromOffset(SIZE_TARGET, SIZE_TARGET),
+		BackgroundColor3 = COLORS.circleFill,
+		AutoButtonColor = false,
+		Text = tostring(seqNum),
+		TextScaled = true,
+		TextColor3 = Color3.new(1, 1, 1),
+		FontFace = Font.fromEnum(Enum.Font.GothamBold),
+		ZIndex = 3,
+	})
+	mk("UICorner", btn, { CornerRadius = UDim.new(1, 0) })
+	mk("UIStroke", btn, { Thickness = 3, Color = COLORS.accent, Transparency = 0.15 })
+	local pad = mk("UIPadding", btn, {}) -- กันเลขชิดขอบวงกลมตอน TextScaled
+	pad.PaddingLeft = UDim.new(0, 18)
+	pad.PaddingRight = UDim.new(0, 18)
+	pad.PaddingTop = UDim.new(0, 18)
+	pad.PaddingBottom = UDim.new(0, 18)
+
+	local resolved = false
+	local t0 = os.clock()
+
+	local function finish(points: number)
+		if resolved then return end
+		resolved = true
+		local tier = EditQTE.tierFor(points)
+		btn.BackgroundColor3 = EditQTE.colorFor(tier)
+		ring.Visible = false
+		task.delay(0.25, function()
+			btn:Destroy()
+			ring:Destroy()
+		end)
+		onResolve(points, tier)
+	end
+
+	btn.Activated:Connect(function()
+		finish(EditQTE.scoreFor(os.clock() - t0, APPROACH_TIME))
+	end)
+
+	task.spawn(function()
+		while not resolved do
+			local t = os.clock() - t0
+			if t >= APPROACH_TIME then
+				finish(0) -- หมดเวลา = พลาด (แดง)
+				break
+			end
+			local k = t / APPROACH_TIME
+			local s = SIZE_START - (SIZE_START - SIZE_TARGET) * k
+			ring.Size = UDim2.fromOffset(s, s)
+			RunService.Heartbeat:Wait()
+		end
+	end)
+end
+
+-- 1 เวฟ = n วงพร้อมกัน — block จนครบทุกวง คืน (คะแนนรวมเวฟนี้, ตาราง bucket ของเวฟนี้)
+local function runWave(RunService, playArea, n: number): (number, { [string]: number })
+	local positions = EditQTE.randomPositions(n, PLAY_MARGIN)
+	local doneCount = 0
+	local waveTotal = 0
+	local buckets = { S = 0, A = 0, B = 0, C = 0 }
+	for i = 1, n do
+		spawnCircle(RunService, playArea, positions[i], i, function(points, tier)
+			waveTotal += points
+			buckets[tier] += 1
+			doneCount += 1
+		end)
+	end
+	while doneCount < n do
+		RunService.Heartbeat:Wait()
+	end
+	return waveTotal, buckets
+end
+
 -- fireAction = function(actionTable) ยิงเข้า Remotes.Action (Main.client ส่งมา)
 -- getState = function() คืน state ล่าสุด (ใช้เช็ค footage ก่อนตัดทุกรอบ)
 function EditQTE.start(playerGui, fireAction, getState)
@@ -64,104 +240,108 @@ function EditQTE.start(playerGui, fireAction, getState)
 	end
 	EditQTE.running = true
 
-	local UIS = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
+	local GuiService = game:GetService("GuiService")
 
-	-- ===== layout ตามภาพร่าง `ui screenshot/PC-Edit-2/3 ui.png` =====
-	--   จอตัดต่อ = แผงกลางจอ: กรอบ preview ใหญ่ (★ เว้นว่างรอรูป `edit_workspace_bg`/`clip_cover_*`)
-	--   ใต้ preview = timeline + ปุ่มที่ต้องกด | จบรอบ = แถว Score/Video Quality + stats + ปุ่ม
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "Gui_EditQTE"
-	gui.ResetOnSpawn = false
-	local dim = Instance.new("Frame")
-	dim.Size = UDim2.new(1, 0, 1, 0)
-	dim.BackgroundColor3 = Color3.new(0, 0, 0)
-	dim.BackgroundTransparency = 0.5
-	dim.Parent = gui
+	local PANEL_W, PANEL_H = 720, 560
 
-	local panelFrame = Instance.new("Frame")
-	panelFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	panelFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	panelFrame.Size = UDim2.new(0, 720, 0, 560)
-	panelFrame.BackgroundColor3 = Color3.fromRGB(245, 246, 250)
-	panelFrame.Parent = dim
-	local ps = Instance.new("UIStroke")
-	ps.Color = Color3.fromRGB(30, 60, 160)
-	ps.Thickness = 3
-	ps.Parent = panelFrame
+	local gui = mk("ScreenGui", nil, { Name = "Gui_EditQTE", ResetOnSpawn = false, DisplayOrder = 8 })
+	mk("Frame", gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5 })
 
-	-- ★ กรอบ preview — พื้นที่รูปคลิป ยังไม่มีรูปก็เป็นกล่องเทา
-	local preview = Instance.new("Frame")
-	preview.Name = "ArtSlot_Preview"
-	preview.Position = UDim2.new(0, 20, 0, 20)
-	preview.Size = UDim2.new(1, -40, 0, 300)
-	preview.BackgroundColor3 = Color3.fromRGB(225, 228, 234)
-	preview.Parent = panelFrame
-	local prs = Instance.new("UIStroke")
-	prs.Color = Color3.fromRGB(30, 60, 160)
-	prs.Thickness = 2
-	prs.Parent = preview
+	local panel = mk("Frame", gui, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(PANEL_W, PANEL_H),
+		BackgroundColor3 = COLORS.panel,
+	})
+	mk("UICorner", panel, { CornerRadius = UDim.new(0, 16) })
+	mk("UIStroke", panel, { Thickness = 2, Color = COLORS.accent, Transparency = 0.3 })
 
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-	keyLabel.Size = UDim2.new(0, 150, 0, 150)
-	keyLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-	keyLabel.TextScaled = true
-	keyLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	keyLabel.BackgroundTransparency = 0.15
-	keyLabel.TextColor3 = Color3.new(1, 1, 1)
-	keyLabel.Parent = preview
-	local kc = Instance.new("UICorner")
-	kc.CornerRadius = UDim.new(0, 16)
-	kc.Parent = keyLabel
+	-- responsive: ย่อทั้งแผงให้พอดีจอ (pattern เดียวกับ ShopKiosk.fitScale)
+	local uiScale = mk("UIScale", panel, {})
+	local cam = workspace.CurrentCamera
+	local function fitToScreen()
+		local vp = cam.ViewportSize
+		local inset = GuiService:GetGuiInset()
+		local margin = 24
+		local fit = math.min((vp.X - margin * 2) / PANEL_W, (vp.Y - inset.Y - margin * 2) / PANEL_H)
+		uiScale.Scale = math.clamp(fit, 0.35, 1)
+	end
+	fitToScreen()
+	local fitConn = cam:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen)
 
-	-- timeline ใต้ preview (ภาพร่าง: วง QTE วิ่งบน timeline)
-	local track = Instance.new("Frame")
-	track.Position = UDim2.new(0, 20, 0, 336)
-	track.Size = UDim2.new(1, -40, 0, 18)
-	track.BackgroundColor3 = Color3.new(1, 1, 1)
-	track.Parent = panelFrame
-	local ts = Instance.new("UIStroke")
-	ts.Color = Color3.fromRGB(30, 60, 160)
-	ts.Parent = track
-	local bar = Instance.new("Frame")
-	bar.Size = UDim2.new(1, -4, 1, -4)
-	bar.Position = UDim2.new(0, 2, 0, 2)
-	bar.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-	bar.BorderSizePixel = 0
-	bar.Parent = track
+	local header = mk("Frame", panel, {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.new(1, 0, 0, 44),
+		BackgroundColor3 = COLORS.header,
+	})
+	mk("UICorner", header, { CornerRadius = UDim.new(0, 16) })
+	mk("TextLabel", header, {
+		Position = UDim2.fromOffset(20, 0),
+		Size = UDim2.new(1, -40, 1, 0),
+		BackgroundTransparency = 1,
+		Text = "🎬  โปรแกรมตัดต่อ",
+		TextColor3 = COLORS.text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextScaled = true,
+		FontFace = Font.fromEnum(Enum.Font.GothamBold),
+	})
 
-	local info = Instance.new("TextLabel")
-	info.Position = UDim2.new(0, 20, 0, 362)
-	info.Size = UDim2.new(1, -40, 0, 30)
-	info.BackgroundTransparency = 1
-	info.TextColor3 = Color3.fromRGB(30, 30, 40)
-	info.TextScaled = true
-	info.TextXAlignment = Enum.TextXAlignment.Left
-	info.Text = "กดปุ่มตามจังหวะ! ตรงกลางแถบ = คะแนนเต็ม"
-	info.Parent = panelFrame
+	-- ★ พื้นหลังโปรแกรมตัดต่อ — มีรูป (UIAssets.edit_workspace_bg) ใช้เลย ไม่มี = ธีมเข้มแทนกล่องเทา
+	local workspaceArea = mk("Frame", panel, {
+		Position = UDim2.fromOffset(20, 60),
+		Size = UDim2.new(1, -40, 0, 380),
+		BackgroundColor3 = COLORS.workspace,
+		ClipsDescendants = true,
+	})
+	mk("UICorner", workspaceArea, { CornerRadius = UDim.new(0, 12) })
+	if UIAssets and UIAssets.edit_workspace_bg ~= "" then
+		mk("ImageLabel", workspaceArea, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = UIAssets.edit_workspace_bg,
+			ScaleType = Enum.ScaleType.Crop,
+			ZIndex = 0,
+		})
+	else
+		local grad = mk("UIGradient", workspaceArea, {
+			Color = ColorSequence.new(Color3.fromRGB(32, 36, 50), Color3.fromRGB(18, 20, 28)),
+			Rotation = 45,
+		})
+	end
+
+	local waveInfo = mk("TextLabel", panel, {
+		Position = UDim2.fromOffset(20, 448),
+		Size = UDim2.new(1, -40, 0, 30),
+		BackgroundTransparency = 1,
+		TextColor3 = COLORS.dim,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "",
+	})
 
 	-- ---------- จอสรุป (ซ่อนไว้ก่อน) ----------
 	local summary = Instance.new("Frame")
-	summary.Position = UDim2.new(0, 20, 0, 336)
-	summary.Size = UDim2.new(1, -40, 1, -356)
+	summary.Position = UDim2.new(0, 20, 0, 60)
+	summary.Size = UDim2.new(1, -40, 0, 418)
 	summary.BackgroundTransparency = 1
 	summary.Visible = false
-	summary.Parent = panelFrame
+	summary.Parent = panel
 
 	local scoreRow = Instance.new("TextLabel")
 	scoreRow.Size = UDim2.new(1, 0, 0, 40)
 	scoreRow.BackgroundTransparency = 1
-	scoreRow.TextColor3 = Color3.fromRGB(30, 60, 160)
+	scoreRow.TextColor3 = COLORS.accent
 	scoreRow.TextScaled = true
 	scoreRow.TextXAlignment = Enum.TextXAlignment.Left
+	scoreRow.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	scoreRow.Text = ""
 	scoreRow.Parent = summary
 
 	local rule = Instance.new("Frame")
 	rule.Position = UDim2.new(0, 0, 0, 46)
 	rule.Size = UDim2.new(1, 0, 0, 2)
-	rule.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	rule.BackgroundColor3 = COLORS.header
 	rule.BorderSizePixel = 0
 	rule.Parent = summary
 
@@ -169,7 +349,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 	statsLabel.Position = UDim2.new(0, 0, 0, 56)
 	statsLabel.Size = UDim2.new(0.5, -10, 1, -66)
 	statsLabel.BackgroundTransparency = 1
-	statsLabel.TextColor3 = Color3.fromRGB(30, 30, 40)
+	statsLabel.TextColor3 = COLORS.text
 	statsLabel.TextSize = 18
 	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
 	statsLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -179,7 +359,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 	local vrule = Instance.new("Frame")
 	vrule.Position = UDim2.new(0.5, 0, 0, 56)
 	vrule.Size = UDim2.new(0, 2, 1, -66)
-	vrule.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	vrule.BackgroundColor3 = COLORS.header
 	vrule.BorderSizePixel = 0
 	vrule.Parent = summary
 
@@ -187,7 +367,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 	footageLabel.Position = UDim2.new(0.53, 0, 0, 56)
 	footageLabel.Size = UDim2.new(0.47, 0, 0, 30)
 	footageLabel.BackgroundTransparency = 1
-	footageLabel.TextColor3 = Color3.fromRGB(30, 30, 40)
+	footageLabel.TextColor3 = COLORS.text
 	footageLabel.TextScaled = true
 	footageLabel.TextXAlignment = Enum.TextXAlignment.Left
 	footageLabel.Text = ""
@@ -195,55 +375,32 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	gui.Parent = playerGui
 
-	local made = 0 -- ตัดไปกี่คลิปในการนั่งครั้งนี้
 	local round
 	round = function()
-		local seq = EditQTE.pickKeys(QTE_COUNT, QTE_KEYS)
+		local waves = EditQTE.planWaves(TOTAL_HITS, MIN_CONCURRENT, MAX_CONCURRENT)
 		local total = 0
-		local buckets = { S = 0, A = 0, B = 0, C = 0 } -- นับความแม่นต่อวง (ใช้ C/B/A/S ตาม design lock)
+		local buckets = { S = 0, A = 0, B = 0, C = 0 }
 		summary.Visible = false
-		track.Visible = true
-		info.Visible = true
-		bar.Visible = true
-		for i, key in seq do
-			keyLabel.Text = key
-			info.Text = ("ปุ่มที่ %d/%d | คะแนน %d"):format(i, QTE_COUNT, total)
-			local t0 = os.clock()
-			local pressed = nil
-			local conn = UIS.InputBegan:Connect(function(input, gp)
-				if gp or pressed then return end
-				if input.UserInputType == Enum.UserInputType.Keyboard then
-					pressed = { key = input.KeyCode.Name, t = os.clock() - t0 }
-				end
-			end)
-			while os.clock() - t0 < QTE_WINDOW and not pressed do
-				bar.Size = UDim2.new(1 - (os.clock() - t0) / QTE_WINDOW, -4, 1, -4)
-				RunService.Heartbeat:Wait()
+		workspaceArea.Visible = true
+		waveInfo.Visible = true
+
+		for waveIdx, n in waves do
+			waveInfo.Text = ("เวฟ %d/%d — %d วงพร้อมกัน  |  คะแนนสะสม %d/200")
+				:format(waveIdx, #waves, n, total)
+			local waveTotal, waveBuckets = runWave(RunService, workspaceArea, n)
+			total += waveTotal
+			for k, v in waveBuckets do
+				buckets[k] += v
 			end
-			conn:Disconnect()
-			if pressed and pressed.key == key then
-				local got = EditQTE.scoreFor(pressed.t, QTE_WINDOW)
-				total += got
-				local b = got >= 9 and "S" or got >= 6 and "A" or got >= 3 and "B" or "C"
-				buckets[b] += 1
-				keyLabel.TextColor3 = got >= 7 and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 220, 80)
-			else
-				buckets.C += 1
-				keyLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-			end
-			task.wait(0.15)
-			keyLabel.TextColor3 = Color3.new(1, 1, 1)
+			task.wait(0.3) -- เว้นจังหวะสั้นๆ ให้เห็นผลก่อนเวฟถัดไปโผล่
 		end
 
 		fireAction({ type = "FinishEdit", score = total })
-		made += 1
 
-		-- จอสรุป (ภาพร่าง PC-Edit-3): Edit more = ตัดคลิปใหม่ต่อเลย | Done = ออก (อัปที่แอป Upload)
+		-- จอสรุป: Edit more = ตัดคลิปใหม่ต่อเลย | Done = ออก (อัปที่แอป Upload)
 		local tier = Formulas.vidqTier(total)
-		keyLabel.Text = tier
-		keyLabel.TextColor3 = Color3.new(1, 1, 1)
-		track.Visible = false
-		info.Visible = false
+		workspaceArea.Visible = false
+		waveInfo.Visible = false
 		summary.Visible = true
 		scoreRow.Text = ("Score : %d/200      Video Quality : %s"):format(total, tier)
 		statsLabel.Text = ("stats:   %d  S\n           %d  A\n           %d  B\n           %d  C\n\nตัดอีกคลิป เสียใจอีก %d")
@@ -269,8 +426,8 @@ function EditQTE.start(playerGui, fireAction, getState)
 			c.Parent = b
 			return b
 		end
-		local more = summaryBtn("Edit more", 0.63, Color3.fromRGB(80, 160, 255))
-		local close = summaryBtn("Done", 0.87, Color3.fromRGB(120, 120, 130))
+		local more = summaryBtn("Edit more", 0.63, COLORS.accent)
+		local close = summaryBtn("Done", 0.87, Color3.fromRGB(90, 92, 104))
 
 		more.Activated:Connect(function()
 			if not EditQTE.canEdit(getState()) then
@@ -280,11 +437,10 @@ function EditQTE.start(playerGui, fireAction, getState)
 			end
 			more:Destroy()
 			close:Destroy()
-			keyLabel.TextColor3 = Color3.new(1, 1, 1)
-			bar.Size = UDim2.new(1, -4, 1, -4)
 			task.spawn(round)
 		end)
 		close.Activated:Connect(function()
+			fitConn:Disconnect()
 			gui:Destroy()
 			EditQTE.running = false
 		end)

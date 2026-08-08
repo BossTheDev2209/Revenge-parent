@@ -115,13 +115,15 @@
 
 **ร่างใน PDF:** (จอ 1) "How much footage for this video?" **slider 0→1T** + "footage left: 650 GB" + ปุ่ม Let's go / (จอ 2) จอตัดต่อ: พื้นหลังโปรแกรมตัดต่อ static + ภาพสุ่มจาก pool + **QTE โผล่บน timeline ล่าง** (Q, Z, A วงกลมจังหวะแบบ osu) + โชว์ rating การกดล่าสุด "S!" / (จอ 3) สรุป: Score 182/200, Video Quality: B, stats (label เก่า bad/normal/good/awesome — **ใช้ C/B/A/S ตาม design doc**), footage left, ปุ่ม **Edit more / Done**
 
+> ⚠️ **QTE redesign ตัดสินใจใหม่ 8 ส.ค. 2569** (ไม่ใช่ตาม PDF เป๊ะแล้ว) — จาก "ปุ่มตัวอักษรบน timeline" เป็น "เวฟ 2-4 วงกลม osu-style พร้อมกันทั่ว play area" **เหตุผลหลัก: PDF เดิมและ implementation แรกเป็นคีย์บอร์ดล้วน เล่นมือถือไม่ได้เลย** ตอนนี้ใช้ `.Activated` (คลิก/แตะเหมือนกัน) แทน รายละเอียด → `plans/2026-08-08-editqte-osu-redesign.md`
+
 | ชิ้น | สถานะ | ต้องทำ |
 |------|-------|--------|
 | slider เลือก footage | 🔴 | จอแรกก่อน QTE: slider GB (ขั้นต่ำ ❓ *เสนอ 50 GB/คลิป*) — `FinishEdit` ส่ง `footageUsed` ไปหักด้วย |
-| QTE บน timeline | 🟡 (ตอนนี้โผล่กลางจอ) | ย้ายปุ่มวิ่งซ้าย→ขวาบนแถบ timeline + จุดกดตรงกลาง — logic scoring เดิมใช้ได้ |
-| rating ต่อปุ่ม (S!) | 🟡 | มีสีเขียว/เหลือง/แดงแล้ว — เปลี่ยนเป็น text S!/A/B/C ตามคะแนน 10/7/4/อื่น |
-| จอสรุป + Edit more | 🟡 | มีสรุป+tier แล้ว — เพิ่มปุ่ม "Edit more" (วน slider ใหม่ถ้า footage เหลือ) |
-| ภาพสุ่มใน preview | 🔴 | pool รูปใน UIAssets (ทีมวาด/แคป) — cosmetic |
+| QTE เวฟวงกลม osu-style | ✅ (8 ส.ค.) | เวฟ 2-4 วงพร้อมกัน กระจายทั่ว play area วงแหวนหด + input universal (คลิก/แตะ) — responsive แล้ว |
+| สี tier ต่อวง (เขียว/ฟ้า/เหลือง/แดง) | ✅ (8 ส.ค.) | `EditQTE.tierFor`/`colorFor` ผูก S/A/B/C ตาม design doc |
+| จอสรุป + Edit more | 🟡 | มีสรุป+tier แล้ว — เพิ่มปุ่ม "Edit more" (วน slider ใหม่ถ้า footage เหลือ — ตอนนี้ยังไม่มี slider) |
+| ภาพสุ่มใน preview + พื้นหลังโปรแกรมตัดต่อ | 🔴 | `UIAssets.edit_workspace_bg`/`qte_ring_outer`/`qte_ring_target`/`clip_cover_*` เตรียมช่องรอแล้ว โค้ดใช้อัตโนมัติถ้ามีรูป ตอนนี้ยังว่างทุกช่อง (fallback ธีมเข้มโปรแกรมมิ่ง) |
 
 ## 6. Upload app (PDF หน้า 8 บน)
 

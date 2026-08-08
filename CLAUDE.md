@@ -96,6 +96,8 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
 10. **พฤติกรรมใน Studio ไม่ตรงกับโค้ด → เช็ค Rojo sync ก่อน ห้ามแก้ logic** — ยืนยันว่าโค้ดเข้า Studio จริงก่อน (เทียบ `.Source` ที่ sync กับไฟล์ใน `src/`) แล้วค่อย debug logic
     Rojo plugin หลุดทุกครั้งที่ restart Studio → ต้องกด Connect ใหม่ · edit ที่ไม่ sync = กำลัง debug โค้ดคนละตัวกับที่รันอยู่ (เสียเวลาเปล่า)
     *(ตัวอย่างจริง 1 ส.ค.: prompt กดไม่ทำงาน → เกือบ rewrite bind logic แต่จริงๆ InteractBinder fix ไม่ sync เข้า Studio เพราะ plugin หลุดหลัง restart)*
+11. **ติดปัญหาที่จะเสียเวลานาน → ค้น Roblox Dev Forum ก่อนลุยเดาเอง** — ปัญหา Roblox เฉพาะทาง (property plugin-only, พฤติกรรม StreamingEnabled, sandbox/capability, quirk ของ engine) มักมีคนเจอ+เฉลยแล้วใน `devforum.roblox.com` · เจอ thread ที่ตรง = ประหยัดชั่วโมง อย่าเพิ่ง rewrite/สร้างระบบใหม่จากการเดา
+    ค้นก่อนเมื่อ: debug วนเกิน ~2 รอบไม่คืบ, เจอ error/behavior ที่ไม่เข้าใจสาเหตุ, หรือกำลังจะเขียน workaround ใหญ่ · เอาคำตอบมา cross-check กับของจริงใน Studio ก่อนใช้เสมอ (โพสต์ใน forum อาจเก่า/ผิด/คนละเวอร์ชัน)
 
 ## Layout
 

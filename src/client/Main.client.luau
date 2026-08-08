@@ -150,7 +150,7 @@ end
 local StarterGui = game:GetService("StarterGui")
 local MODAL_GUIS = {
 	Gui_Cutscene = true, Gui_Dialogue = true, Gui_MainMenu = true,
-	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PCExit = true,
+	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PC = true,
 	Gui_SavePanel = true,
 }
 local function refreshBackpack()

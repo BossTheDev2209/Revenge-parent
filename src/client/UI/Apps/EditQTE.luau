@@ -634,9 +634,16 @@ function EditQTE.start(playerGui, fireAction, getState)
 	-- ── หน้าเลือกขนาด footage ก่อนตัด (สไลเดอร์ snap ตามขนาดที่ซื้อได้) ──
 	-- แตะราง/ลากหัวเลื่อน = เลือกขนาด · ใหญ่ = reward สูงแต่ QTE โหด (ดูตัวเลขสดในกล่องข้อมูล)
 	showSizeSelect = function()
-		local sizes = EditQTE.clipSizesFor(getState())
-		if #sizes == 0 then
-			EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB"):format(Config.ClipSizes[1].gb))
+		local haveGB = math.floor((getState() and getState().footageGB) or 0)
+		-- โชว์ "ทุก level" เสมอ (เห็น progression) — ตัวที่ footage ไม่พอ = ล็อก เลือกไม่ได้
+		local sizes = Config.ClipSizes
+		local n = #sizes
+		local maxIdx = 0 -- ตัวใหญ่สุดที่ footage พอ (0 = ไม่พอแม้ตัวเล็กสุด)
+		for i, s in sizes do
+			if haveGB >= s.gb then maxIdx = i end
+		end
+		if maxIdx == 0 then
+			EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB"):format(sizes[1].gb))
 			fitConn:Disconnect()
 			gui:Destroy()
 			EditQTE.running = false
@@ -646,9 +653,8 @@ function EditQTE.start(playerGui, fireAction, getState)
 		workspaceArea.Visible = true
 		waveInfo.Visible = false
 
-		local haveGB = math.floor((getState() and getState().footageGB) or 0)
-		local n = #sizes
 		local L, W = 0.09, 0.82 -- ราง: เริ่ม 9% กว้าง 82% ของ sel (เว้นขอบ)
+		local LOCKED_COL = Color3.fromRGB(96, 100, 116)
 		local function fracAt(i) return if n == 1 then 0.5 else (i - 1) / (n - 1) end
 
 		local sel = mk("Frame", panel, {
@@ -672,33 +678,43 @@ function EditQTE.start(playerGui, fireAction, getState)
 			TextSize = 15, FontFace = Font.fromEnum(Enum.Font.Gotham),
 		})
 
-		-- ราง + เส้น + จุด tick + ป้าย GB
+		-- ราง: เส้นเทาเต็ม (พื้น) + fill ฟ้าถึงหัวเลื่อนเท่านั้น + จุด tick ทุกขนาด + ป้าย GB
 		local trackY = 128
 		local track = mk("TextButton", sel, {
 			Position = UDim2.new(L, 0, 0, trackY), Size = UDim2.new(W, 0, 0, 40),
 			BackgroundTransparency = 1, Text = "", AutoButtonColor = false, ZIndex = 2,
 		})
-		local line = mk("Frame", track, {
+		local baseLine = mk("Frame", track, {
 			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
-			Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = COLORS.accent, BorderSizePixel = 0, ZIndex = 2,
+			Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = Color3.fromRGB(58, 62, 82), BorderSizePixel = 0, ZIndex = 2,
 		})
-		mk("UICorner", line, { CornerRadius = UDim.new(1, 0) })
+		mk("UICorner", baseLine, { CornerRadius = UDim.new(1, 0) })
+		local fill = mk("Frame", track, {
+			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
+			Size = UDim2.new(0, 0, 0, 6), BackgroundColor3 = COLORS.accent, BorderSizePixel = 0, ZIndex = 3,
+		})
+		mk("UICorner", fill, { CornerRadius = UDim.new(1, 0) })
 		for i, s in sizes do
 			local f = fracAt(i)
+			local locked = i > maxIdx
 			local dot = mk("Frame", track, {
 				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(f, 0, 0.5, 0),
-				Size = UDim2.fromOffset(12, 12), BackgroundColor3 = COLORS.ring, BorderSizePixel = 0, ZIndex = 3,
+				Size = UDim2.fromOffset(12, 12), BackgroundColor3 = if locked then LOCKED_COL else COLORS.ring,
+				BorderSizePixel = 0, ZIndex = 4,
 			})
 			mk("UICorner", dot, { CornerRadius = UDim.new(1, 0) })
+			-- ป้าย: GB + ตัวคูณ reward (เห็น progression) · ล็อก = จาง + 🔒
 			mk("TextLabel", sel, {
 				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(L + W * f, 0, 0, trackY + 34),
-				Size = UDim2.fromOffset(80, 18), BackgroundTransparency = 1, Text = s.gb .. " GB",
-				TextColor3 = COLORS.dim, TextSize = 14, FontFace = Font.fromEnum(Enum.Font.Gotham), ZIndex = 2,
+				Size = UDim2.fromOffset(96, 34), BackgroundTransparency = 1,
+				Text = ("%s%d GB\n×%.2f"):format(if locked then "🔒 " else "", s.gb, Formulas.clipSizeMult(s.gb)),
+				TextColor3 = if locked then LOCKED_COL else COLORS.dim,
+				TextSize = 13, FontFace = Font.fromEnum(Enum.Font.Gotham), ZIndex = 2,
 			})
 		end
 		local handle = mk("Frame", track, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
-			Size = UDim2.fromOffset(26, 26), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 4,
+			Size = UDim2.fromOffset(26, 26), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 5,
 		})
 		mk("UICorner", handle, { CornerRadius = UDim.new(1, 0) })
 		mk("UIStroke", handle, { Thickness = 3, Color = COLORS.accent })
@@ -710,25 +726,28 @@ function EditQTE.start(playerGui, fireAction, getState)
 			TextSize = 18, FontFace = Font.fromEnum(Enum.Font.Gotham), Text = "",
 		})
 
-		-- default = baseline 32 ถ้าเลือกได้ ไม่งั้นตัวใหญ่สุดที่ซื้อได้
-		local idx = n
+		-- default = baseline 32 ถ้าปลดล็อก ไม่งั้นตัวใหญ่สุดที่ footage พอ
+		local idx = maxIdx
 		for i, s in sizes do
-			if s.gb == Config.Record.footagePerClipGB then idx = i end
+			if s.gb == Config.Record.footagePerClipGB and i <= maxIdx then idx = i end
 		end
 
 		local function refresh()
 			local s = sizes[idx]
-			handle.Position = UDim2.new(fracAt(idx), 0, 0.5, 0)
+			local f = fracAt(idx)
+			handle.Position = UDim2.new(f, 0, 0.5, 0)
+			fill.Size = UDim2.new(f, 0, 0, 6) -- ฟ้าถึงหัวเลื่อนเท่านั้น
 			info.Text = ("ขนาด : %d GB          รางวัล  ×%.2f\n\nความยาก : สูงสุด %d วงบนจอ · %d วง · หด %.2fs/วง\n\nใช้ footage %d GB   →   เหลือ %d GB")
 				:format(s.gb, Formulas.clipSizeMult(s.gb), s.maxOnScreen, s.hits, s.approach, s.gb, haveGB - s.gb)
 		end
+		-- clamp ที่ maxIdx = เลือกได้เฉพาะขนาดที่ปลดล็อก (ลากเลยไปตัวที่ล็อกไม่ได้)
 		local function setIdx(i)
-			idx = math.clamp(i, 1, n)
+			idx = math.clamp(i, 1, maxIdx)
 			refresh()
 		end
 		refresh()
 
-		-- ลาก/แตะราง → snap จุดที่ใกล้สุด (snap เผื่อ input.Position คลาดจาก abs เล็กน้อยไม่กระทบ)
+		-- ลาก/แตะราง → snap จุดใกล้สุด (map ทุก tick แล้ว clamp เป็นตัวปลดล็อกใน setIdx)
 		local function pickFromX(px)
 			local ax, aw = track.AbsolutePosition.X, track.AbsoluteSize.X
 			if aw <= 0 then return end

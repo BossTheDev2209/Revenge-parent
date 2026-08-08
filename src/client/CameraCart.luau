@@ -167,15 +167,25 @@ function CameraCart.init(player, fireAction, getState)
 	hintLabel.Parent = hintGui
 	hintGui.Parent = player:WaitForChild("PlayerGui")
 
+	local seatedAt = nil -- os.clock ตอนเพิ่งนั่ง (nil = ยังไม่นั่ง)
 	task.spawn(function()
 		while true do
 			local m = workspace:FindFirstChild(Config.CameraCartTemplate)
 			local seat = m and m.PrimaryPart
 			if seat then
 				hintGui.Adornee = seat
-				hintLabel.Text = if seatedOnCart() then "🎬 กดกล้องเพื่ออัดคลิป" else "⬆️ ขึ้นนั่งเพื่ออัดคลิป"
-				hintGui.Enabled = true
+				if seatedOnCart() then
+					if not seatedAt then seatedAt = os.clock() end -- transition ยืน→นั่ง = เริ่มจับเวลา
+					-- โชว์ "กดกล้องเพื่ออัด" แค่ 2 วิแรกหลังนั่ง แล้วซ่อน (รู้แล้วไม่ต้องเตือนค้างบังจอ)
+					hintLabel.Text = "🎬 กดกล้องเพื่ออัดคลิป"
+					hintGui.Enabled = (os.clock() - seatedAt) < 2
+				else
+					seatedAt = nil -- ลุกแล้ว = รีเซ็ต (นั่งใหม่โชว์ป้ายอีก 2 วิ)
+					hintLabel.Text = "⬆️ ขึ้นนั่งเพื่ออัดคลิป"
+					hintGui.Enabled = true
+				end
 			else
+				seatedAt = nil
 				hintGui.Enabled = false
 			end
 			task.wait(0.25)

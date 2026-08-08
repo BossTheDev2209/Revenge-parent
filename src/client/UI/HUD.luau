@@ -164,7 +164,7 @@ function HUD.build(parent): ScreenGui
 	HUD.phaseLabel.TextColor3 = Color3.new(1, 1, 1)
 	HUD.phaseLabel.TextStrokeTransparency = 0.4
 	HUD.phaseLabel.TextSize = 14
-	HUD.phaseLabel.Text = "เฟส 1"
+	HUD.phaseLabel.Text = "Phase 1"
 	HUD.phaseLabel.Parent = track
 	local goal = Instance.new("TextLabel")
 	goal.Size = UDim2.new(0, 60, 0, BAR_H)
@@ -454,7 +454,7 @@ function HUD.update(state)
 	HUD.serverHour = state.timeOfDay
 	HUD.frozen = state.frozen == true
 	if HUD.dayLabel then HUD.dayLabel.Text = tostring(state.day) end
-	if HUD.phaseLabel then HUD.phaseLabel.Text = ("เฟส %d"):format(state.phase) end
+	if HUD.phaseLabel then HUD.phaseLabel.Text = ("Phase %d"):format(state.phase) end
 	setStat(HUD.storageLabel, HUD.storageText(state))
 	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[Formulas.activeLevel(state, "camera")] or "?"))
 

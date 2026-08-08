@@ -1,8 +1,15 @@
-# copy CutsceneCamTool เข้าโฟลเดอร์ plugin ของ Studio (plugin ติดตั้งเป็นสำเนา ไม่ auto-update)
-# รันหลังแก้ tools/CutsceneCamTool.plugin.luau ทุกครั้ง แล้ว restart Studio (หรือ Studio รีโหลด plugin เอง)
-$src = Join-Path $PSScriptRoot 'CutsceneCamTool.plugin.luau'
+# copy plugin ทั้งหมดเข้าโฟลเดอร์ plugin ของ Studio (plugin ติดตั้งเป็นสำเนา ไม่ auto-update)
+# รันหลังแก้ tools/*.plugin.luau ทุกครั้ง แล้ว restart Studio (หรือ Studio รีโหลด plugin เอง)
 $dstDir = Join-Path $env:LOCALAPPDATA 'Roblox\Plugins'
-$dst = Join-Path $dstDir 'CutsceneCamTool.lua'
 New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
-Copy-Item -Path $src -Destination $dst -Force
-Write-Host "copied -> $dst"
+
+$plugins = @(
+    @{ src = 'CutsceneCamTool.plugin.luau'; dst = 'CutsceneCamTool.lua' },
+    @{ src = 'LodFix.plugin.luau';          dst = 'LodFix.lua' }
+)
+foreach ($p in $plugins) {
+    $src = Join-Path $PSScriptRoot $p.src
+    $dst = Join-Path $dstDir $p.dst
+    Copy-Item -Path $src -Destination $dst -Force
+    Write-Host "copied -> $dst"
+}

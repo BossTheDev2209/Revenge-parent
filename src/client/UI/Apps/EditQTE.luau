@@ -8,12 +8,23 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../../../shared/Formulas")
 
-local TOTAL_HITS = 20 -- จำนวนวงต่อ 1 คลิป (chain เดียวไหลต่อเนื่อง ไม่แบ่ง block)
-local APPROACH_TIME = 1.5 -- วิ — เวลาที่วงแหวนใช้หดจากขนาดเริ่มมาเท่าวงเป้าหมาย
-local SPAWN_INTERVAL = 0.45 -- วิ — ระยะห่างการเด้งวงถัดไป (chain — วงไหลมาเรื่อยๆ ~3 อันบนจอพร้อมกัน)
+local TOTAL_HITS = 20 -- จำนวนวงต่อ 1 คลิป (chain ไหลต่อเนื่อง ไม่แบ่ง block)
 
 local EditQTE = {}
 EditQTE.running = false
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 🎮 เวอร์ชันการเล่น — สลับ MODE ตรงนี้ได้เลย (user เลือกได้ว่าชอบแบบไหน)
+--   flow = วงไหลต่อเนื่อง มากสุด ~4 อันบนจอ (เร็ว มันส์ เหมาะคนชิน)
+--   duo  = มากสุด 2 อันบนจอ ตำแหน่งไม่ซ้อนกัน (อ่านง่าย ไม่ตาลาย)
+--   • maxOnScreen = วงสูงสุดที่โผล่พร้อมกัน · spawnInterval = ห่างการเด้งวงถัดไป (วิ)
+--   • approach = เวลาที่วงแหวนหดจนทับวงเป้าหมาย (วิ) — สั้นลง = ยากขึ้น
+-- ═══════════════════════════════════════════════════════════════════════════
+EditQTE.MODE = "duo"
+EditQTE.PRESETS = {
+	flow = { maxOnScreen = 4, spawnInterval = 0.45, approach = 1.5 },
+	duo = { maxOnScreen = 2, spawnInterval = 0.4, approach = 1.4 },
+}
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 🔊 ระบบเสียง QTE — user สาย A แก้ตรงนี้ได้เลย (ไม่ต้องแตะ logic)
@@ -77,30 +88,29 @@ function EditQTE.pickFreeKey(pool, used, rng): string
 	return bag[math.floor(rng() * #bag) + 1]
 end
 
--- สุ่ม 1 ตำแหน่งในกรอบ (0,0)-(1,1) เว้น margin ขอบ + เลี่ยงจุดใน avoid (วงที่ยังโชว์อยู่) แบบหยาบๆ
+-- สุ่ม 1 ตำแหน่งในกรอบ (0,0)-(1,1) เว้น margin ขอบ — เลือกจุดที่ "ไกลจากวง active มากสุด"
+-- (best-of-N: สุ่มผู้สมัคร 12 จุด เลือกอันห่างสุด) กันวงใหม่โผล่ทับวงเดิมจนมองไม่เห็น
+-- มีที่ว่าง = ไม่ทับแน่นอน · จอเต็ม = เลือกที่ห่างสุดเท่าที่ได้ (ดีกว่า retry แล้วยอมทับ)
 function EditQTE.pickPosition(margin: number, avoid, rng): { x: number, y: number }
 	rng = rng or math.random
-	local minGap = margin * 1.6
-	local x, y
-	local tries = 0
-	repeat
-		x = margin + rng() * (1 - margin * 2)
-		y = margin + rng() * (1 - margin * 2)
-		tries += 1
-		local tooClose = false
+	local best, bestDist = nil, -1
+	for _ = 1, 12 do
+		local x = margin + rng() * (1 - margin * 2)
+		local y = margin + rng() * (1 - margin * 2)
+		local nearest = math.huge
 		if avoid then
 			for _, p in avoid do
-				if (p.x - x) ^ 2 + (p.y - y) ^ 2 < minGap ^ 2 then
-					tooClose = true
-					break
+				local d = (p.x - x) ^ 2 + (p.y - y) ^ 2
+				if d < nearest then
+					nearest = d
 				end
 			end
 		end
-		if not tooClose or tries > 10 then
-			break
+		if nearest > bestDist then
+			best, bestDist = { x = x, y = y }, nearest
 		end
-	until false
-	return { x = x, y = y }
+	end
+	return best
 end
 
 -- footage พอตัด 1 คลิปไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
@@ -167,10 +177,11 @@ local function mk(class, parent, props)
 end
 
 -- 1 วงกลม: วงเป้าหมาย (ปุ่มกดจริง label ตรงกลาง) + วงแหวนหดเข้าหา (โผล่ปุ๊บเริ่มหดเลย)
---   labelText = ตัวอักษร (PC) หรือเลขลำดับ (mobile)
+--   labelText = ตัวอักษร (PC) หรือเลขลำดับ (mobile) · approachTime = เวลาหดจนทับ (จาก preset)
 --   คืน press() = ฟังก์ชัน resolve วงนี้ (คีย์บอร์ด PC เรียกผ่านตัวนี้ · เมาส์/แตะเรียกเองผ่าน .Activated)
--- onResolve(points 0-10, tier) เรียกครั้งเดียวเสมอ ไม่ว่ากดทันหรือหมดเวลา
-local function spawnCircle(RunService, parent, posScale, labelText: string, onResolve)
+-- onResolve(points, tier) = ตอนกด/หมดเวลา (คิดคะแนน+เสียงทันที) · onCleared() = ตอนวงหายจากจอจริง
+--   แยกกันเพราะวงโชว์สี tier ค้าง 0.25 วิ ก่อนหาย — ต้องยังนับเป็น "วงบนจอ" ช่วงนั้น (cap/กันซ้อน)
+local function spawnCircle(RunService, parent, posScale, labelText: string, approachTime: number, onResolve, onCleared)
 	local SIZE_TARGET = 84
 	local SIZE_START = 190
 
@@ -213,27 +224,28 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, onRe
 		local tier = EditQTE.tierFor(points)
 		btn.BackgroundColor3 = EditQTE.colorFor(tier)
 		ring.Visible = false
-		task.delay(0.25, function()
+		onResolve(points, tier) -- คะแนน/เสียง/done ทันทีที่กด
+		task.delay(0.25, function() -- โชว์สี tier ค้างแป๊บ แล้วค่อยหาย + ปลด slot บนจอ
 			btn:Destroy()
 			ring:Destroy()
+			if onCleared then onCleared() end
 		end)
-		onResolve(points, tier)
 	end
 
 	-- กด (คีย์/เมาส์/แตะ) — คิดคะแนนจากเวลาเทียบ startAt
 	local function press()
-		finish(EditQTE.scoreFor(os.clock() - startAt, APPROACH_TIME))
+		finish(EditQTE.scoreFor(os.clock() - startAt, approachTime))
 	end
 	btn.Activated:Connect(press)
 
 	task.spawn(function()
 		while not resolved do
 			local t = os.clock() - startAt
-			if t >= APPROACH_TIME then
+			if t >= approachTime then
 				finish(0) -- หมดเวลา = พลาด (แดง)
 				break
 			end
-			local k = t / APPROACH_TIME
+			local k = t / approachTime
 			ring.Size = UDim2.fromOffset(SIZE_START - (SIZE_START - SIZE_TARGET) * k, SIZE_START - (SIZE_START - SIZE_TARGET) * k)
 			RunService.Heartbeat:Wait()
 		end
@@ -393,10 +405,13 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	gui.Parent = playerGui
 
+	local preset = EditQTE.PRESETS[EditQTE.MODE] or EditQTE.PRESETS.flow
+
 	local round
 	round = function()
 		local total = 0
 		local done = 0
+		local active = 0 -- วงที่โชว์อยู่บนจอตอนนี้ (spawn แล้วยังไม่ resolve) — ใช้ cap maxOnScreen
 		local buckets = { S = 0, A = 0, B = 0, C = 0 }
 		local activeKeys = {} -- คีย์ที่วง active ใช้อยู่ (PC — กันคีย์ซ้ำในวงที่ซ้อนเวลากัน)
 		local activePos = {} -- ตำแหน่งวง active (กันวงใหม่โผล่ทับวงเดิม)
@@ -416,8 +431,12 @@ function EditQTE.start(playerGui, fireAction, getState)
 		end
 
 		local howto = if useTouch then "แตะวงตามเลข" else "กดตัวอักษรบนวง"
-		-- chain: เด้งวงทีละอันห่างกัน SPAWN_INTERVAL (วงก่อนหน้ายังหดค้างอยู่บนจอ ~3 อันพร้อมกัน)
+		-- chain: เด้งวงทีละอัน · cap ไม่เกิน preset.maxOnScreen อันบนจอ (duo = 2) · ตำแหน่งไม่ทับวง active
 		for i = 1, TOTAL_HITS do
+			-- รอให้มีที่ว่าง (จำนวนวงบนจอไม่เกิน maxOnScreen) ก่อนเด้งอันใหม่
+			while active >= preset.maxOnScreen do
+				RunService.Heartbeat:Wait()
+			end
 			waveInfo.Text = ("อันที่ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  สะสม %d/200")
 				:format(i, TOTAL_HITS, howto, total)
 			local pos = EditQTE.pickPosition(PLAY_MARGIN, activePos)
@@ -426,26 +445,31 @@ function EditQTE.start(playerGui, fireAction, getState)
 			local key = if useTouch then nil else EditQTE.pickFreeKey(KEY_POOL, activeKeys)
 			if key then activeKeys[key] = true end
 			local label = if useTouch then tostring(i) else key
+			active += 1
 
 			local press
-			press = spawnCircle(RunService, workspaceArea, pos, label, function(points, tier)
-				total += points
-				buckets[tier] += 1
-				done += 1
-				playGradeSfx(tier)
-				if key then
-					activeKeys[key] = nil
-					if byKey[key] == press then byKey[key] = nil end
-				end
-				for idx, p in activePos do
-					if p == posKey then
-						table.remove(activePos, idx)
-						break
+			press = spawnCircle(RunService, workspaceArea, pos, label, preset.approach,
+				function(points, tier) -- onResolve: ทันทีที่กด/หมดเวลา
+					total += points
+					buckets[tier] += 1
+					done += 1
+					playGradeSfx(tier)
+				end,
+				function() -- onCleared: วงหายจากจอจริง (หลังโชว์สี 0.25 วิ) → คืน slot + ตำแหน่ง + คีย์
+					active -= 1
+					if key then
+						activeKeys[key] = nil
+						if byKey[key] == press then byKey[key] = nil end
 					end
-				end
-			end)
+					for idx, p in activePos do
+						if p == posKey then
+							table.remove(activePos, idx)
+							break
+						end
+					end
+				end)
 			if key then byKey[key] = press end
-			task.wait(SPAWN_INTERVAL)
+			task.wait(preset.spawnInterval)
 		end
 
 		-- รอวงที่ยังค้างบนจอ (spawn ครบแล้วแต่ยังหดไม่จบ) ให้ resolve หมดก่อนสรุป

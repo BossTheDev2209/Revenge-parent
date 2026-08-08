@@ -501,11 +501,27 @@ do
 	check("ไม่มี used = สุ่มได้ทั้ง pool", EditQTE.pickFreeKey({ "Q", "W" }, {}, rngQueue({ 0.99 })) == "W")
 end
 
--- ===== pickPosition (chain: สุ่ม 1 ตำแหน่ง เลี่ยงวง active ไม่ล้นขอบ) =====
+-- ===== pickPosition (best-of-12: เลือกจุดไกลจากวง active สุด กันซ้อน) =====
 do
-	local p = EditQTE.pickPosition(0.12, {}, rngQueue({ 0.5, 0.5 }))
+	-- อยู่ในกรอบเสมอ (12 ผู้สมัคร = 24 ค่า rng)
+	local q = {}
+	for _ = 1, 24 do
+		q[#q + 1] = 0.5
+	end
+	local p = EditQTE.pickPosition(0.12, {}, rngQueue(q))
 	check("อยู่ในกรอบ margin", p.x >= 0.12 and p.x <= 0.88 and p.y >= 0.12 and p.y <= 0.88)
-	check("มี field x,y", type(p.x) == "number" and type(p.y) == "number")
+
+	-- ผู้สมัคร 11 จุดใกล้ (0.2,0.2) + 1 จุดไกล (0.85,0.85) · avoid ที่ (0.2,0.2) → ต้องเลือกจุดไกล
+	-- margin 0.12: value v → 0.12 + v*0.76 · v=0.105→0.2, v=0.96→0.85
+	local q2 = {}
+	for _ = 1, 11 do
+		q2[#q2 + 1] = 0.105
+		q2[#q2 + 1] = 0.105
+	end
+	q2[#q2 + 1] = 0.96
+	q2[#q2 + 1] = 0.96
+	local far = EditQTE.pickPosition(0.12, { { x = 0.2, y = 0.2 } }, rngQueue(q2))
+	check("เลือกจุดไกลจากวง active สุด (ไม่โผล่ทับ)", far.x > 0.8 and far.y > 0.8)
 end
 
 -- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====

@@ -116,6 +116,35 @@ playerGui.DescendantAdded:Connect(bindClickSound)
 
 HUD.init(playerGui)
 
+-- ปุ่มบน HUD: Setting เปิด/ปิดแผงตั้งค่า (แผง toolbox StarterGui.SettingsGUI) · Music สลับปิด/เปิดเพลง (เก็บลงเซฟ)
+local MUTE_ICON = "rbxassetid://76621637786639" -- ไอคอนตอนปิดเพลง
+local musicNormalImg = nil -- ไอคอนปกติ (เก็บตอน wire ไว้คืนเวลาเลิก mute)
+local function refreshMuteIcon(muted)
+	local b = playerGui:FindFirstChild("Gui_HUD") and playerGui.Gui_HUD:FindFirstChild("MusicButton")
+	if b and musicNormalImg then b.Image = muted and MUTE_ICON or musicNormalImg end
+end
+local hudGui = playerGui:FindFirstChild("Gui_HUD")
+if hudGui then
+	local setBtn = hudGui:FindFirstChild("SettingButton")
+	if setBtn then
+		setBtn.Activated:Connect(function()
+			local panel = playerGui:FindFirstChild("SettingsGUI")
+			local main = panel and panel:FindFirstChild("SettingsMain")
+			if main then main.Visible = not main.Visible end
+		end)
+	end
+	local musicBtn = hudGui:FindFirstChild("MusicButton")
+	if musicBtn then
+		musicNormalImg = musicBtn.Image
+		musicBtn.Activated:Connect(function()
+			local muted = not Audio.isMusicMuted()
+			Audio.setMusicMuted(muted)
+			refreshMuteIcon(muted)
+			fireAction({ type = "SetSetting", key = "musicMuted", value = muted })
+		end)
+	end
+end
+
 -- ซ่อน backpack/hotbar เวลามีหน้าต่างเต็มจอบัง (cutscene/บทคุย/เมนู/คอม/ร้าน/ตัดคลิป/เตียง)
 -- ที่เดียวคุมรวม: เฝ้า ScreenGui ชื่อพวกนี้โผล่/หายใต้ playerGui แล้ว toggle CoreGui.Backpack
 local StarterGui = game:GetService("StarterGui")
@@ -280,6 +309,8 @@ local endingPlayed = false
 local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
 local prevStaffClips, prevFollower, prevMoney = 0, 0, 0 -- toast ทีมลงคลิป / DM ปลดล็อก (เทียบ delta)
 local appliedVolume = nil -- ระดับเสียงล่าสุดที่ apply จาก settings (กัน apply ทับตอน user ปรับ)
+local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพลง: apply จากเซฟครั้งเดียว ไม่ทับตอน user สลับเอง
+local appliedBus = {} -- ระดับเสียงแยกกลุ่ม bgm/sfx/ambient ที่ apply จากเซฟล่าสุด
 local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
@@ -289,6 +320,25 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	if state.settings and state.settings.volume and state.settings.volume ~= appliedVolume then
 		appliedVolume = state.settings.volume
 		Audio.setVolume(appliedVolume)
+	end
+	if state.settings and state.settings.shadow ~= nil and state.settings.shadow ~= appliedShadow then
+		appliedShadow = state.settings.shadow
+		game:GetService("Lighting").GlobalShadows = appliedShadow
+	end
+	if state.settings then
+		for _, kv in { { "bgmVol", "bgm" }, { "sfxVol", "sfx" }, { "ambientVol", "ambient" } } do
+			local v = state.settings[kv[1]]
+			if v and v ~= appliedBus[kv[2]] then
+				appliedBus[kv[2]] = v
+				Audio.setGroupVolume(kv[2], v)
+			end
+		end
+	end
+	-- musicMuted apply หลัง bgmVol เสมอ — setMusicMuted จะจำ PreMute เป็นระดับ bgm ที่เพิ่ง apply (ไม่ใช่ค่าเก่า)
+	if state.settings and state.settings.musicMuted ~= nil and state.settings.musicMuted ~= appliedMusicMuted then
+		appliedMusicMuted = state.settings.musicMuted
+		Audio.setMusicMuted(appliedMusicMuted)
+		refreshMuteIcon(appliedMusicMuted)
 	end
 
 	-- โหลดเซฟ: วาปไปสปอว์นของเฟสนั้นตรงๆ + prime prevPhase กันเล่น cutscene ข้ามเฟส (bug #4/#7)

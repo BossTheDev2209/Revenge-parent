@@ -50,7 +50,7 @@ function GameState.newGame()
 		lastViralDay = 0,     -- ไว้เช็ค viral 2 วันติด
 		slot = 1,
 		savedAt = 0,
-		settings = { volume = 1 }, -- ค่า preference (เซฟไปกับเกม) — ตอนนี้มีแค่ระดับเสียงรวม
+		settings = { volume = 1, bgmVol = 1, sfxVol = 1, ambientVol = 1, shadow = true, musicMuted = false }, -- preference (เซฟไปกับเกม): เสียงรวม/เพลง/เอฟเฟกต์/บรรยากาศ/เงา/ปิดเพลง
 		-- ★ ผู้เล่น commit เข้าเกมแล้วหรือยัง (กด New Game / Continue) — false ระหว่างอยู่หน้าเมนู
 		--   autosave/BindToClose เซฟเฉพาะเมื่อ started=true · กัน placeholder state (follower 0 slot 1)
 		--   ทับเซฟจริงช่อง 1 ระหว่างผู้เล่นยังนั่งดูเมนู >60 วิ (เจอจริง 6 ส.ค.)

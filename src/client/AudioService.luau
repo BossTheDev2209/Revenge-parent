@@ -65,6 +65,43 @@ function AudioService.setVolume(v: number)
 	master().Volume = math.clamp(v, 0, 1)
 end
 
+-- เสียงแยกกลุ่มย่อยใต้ Master: Music(เพลง)/SFX/Ambient — สไลเดอร์คุมแยก · Master คุมรวมทั้งหมด
+local groups = {}
+local function group(name)
+	if not groups[name] then
+		local g = master():FindFirstChild(name)
+		if not g then g = Instance.new("SoundGroup"); g.Name = name; g.Parent = master() end
+		groups[name] = g
+	end
+	return groups[name]
+end
+local function music() return group("Music") end
+local KIND = { bgm = "Music", sfx = "SFX", ambient = "Ambient" }
+
+-- stateless: อ่าน/เขียน Volume ของ SoundGroup ตรงๆ — coherent กับแผงตั้งค่าที่ยุ่ง SoundGroup ตรงเหมือนกัน (มัน sandboxed, require ไม่ได้)
+function AudioService.setGroupVolume(kind: string, v: number)
+	group(KIND[kind] or "SFX").Volume = math.clamp(v, 0, 1)
+end
+
+function AudioService.getGroupVolume(kind: string): number
+	return group(KIND[kind] or "SFX").Volume
+end
+
+-- mute เพลง: จำระดับก่อน mute ไว้ที่ attribute PreMute (คืนค่าเดิมตอนเลิก mute)
+function AudioService.setMusicMuted(on: boolean)
+	local m = music()
+	if on then
+		if m.Volume > 0 then m:SetAttribute("PreMute", m.Volume) end
+		m.Volume = 0
+	else
+		m.Volume = m:GetAttribute("PreMute") or 1
+	end
+end
+
+function AudioService.isMusicMuted(): boolean
+	return music().Volume <= 0
+end
+
 local function findSound(folderName: string, soundName: string)
 	if not soundName or soundName == "" then return nil end
 	local folder = SoundService:FindFirstChild(folderName)
@@ -89,7 +126,7 @@ function AudioService.sfx(name: string, pitchVary: number?, volumeScale: number?
 		s.PlaybackSpeed = src.PlaybackSpeed + (math.random() * 2 - 1) * pitchVary
 	end
 	if volumeScale then s.Volume = src.Volume * volumeScale end
-	s.SoundGroup = master()
+	s.SoundGroup = group("SFX")
 	s.Parent = SoundService
 	s:Play()
 	s.Ended:Once(function() s:Destroy() end)
@@ -106,7 +143,7 @@ function AudioService.voice(npcName: string?)
 	if not src then return end
 	local s = src:Clone()
 	s.PlaybackSpeed = src.PlaybackSpeed + (math.random() * 2 - 1) * Config.Audio.voicePitchVary
-	s.SoundGroup = master()
+	s.SoundGroup = group("SFX")
 	s.Parent = SoundService
 	s:Play()
 	s.Ended:Once(function() s:Destroy() end)
@@ -134,7 +171,7 @@ function AudioService.bgm(name: string?, fadeTime: number?)
 	s.Looped = true
 	bgmTargetVol = src.Volume
 	s.Volume = 0
-	s.SoundGroup = master()
+	s.SoundGroup = music()
 	s.Parent = SoundService
 	s:Play()
 	local goal = if ducked then bgmTargetVol * DUCK_LEVEL else bgmTargetVol
@@ -162,7 +199,7 @@ function AudioService.ambient(name: string?)
 	s.Looped = true
 	local target = src.Volume
 	s.Volume = 0
-	s.SoundGroup = master()
+	s.SoundGroup = group("Ambient")
 	s.Parent = SoundService
 	s:Play()
 	game:GetService("TweenService"):Create(s, TweenInfo.new(Config.Audio.bgmFade), { Volume = target }):Play()

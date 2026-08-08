@@ -230,8 +230,10 @@ end)
 -- preference (เซฟไปกับเกม) — client เปลี่ยนค่าแล้วส่งมาเก็บ → persist ในเซฟ · โหลดคืนได้ (docs settings)
 ActionRouter.register("SetSetting", function(s, a)
 	s.settings = s.settings or {}
-	if a.key == "volume" then
-		s.settings.volume = math.clamp(tonumber(a.value) or 1, 0, 1)
+	if a.key == "volume" or a.key == "bgmVol" or a.key == "sfxVol" or a.key == "ambientVol" then
+		s.settings[a.key] = math.clamp(tonumber(a.value) or 1, 0, 1)
+	elseif a.key == "shadow" or a.key == "musicMuted" then
+		s.settings[a.key] = a.value == true
 	end
 end)
 ActionRouter.register("DialogueSeen", function(s, a)

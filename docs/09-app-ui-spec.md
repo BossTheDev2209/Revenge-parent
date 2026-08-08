@@ -47,7 +47,17 @@
 | resolution ×mult | 🟡 | โชว์ 1080p แล้ว — เพิ่มตัวคูณข้างๆ. **✅ lock 26 ก.ค.: ตัวคูณนี้คือ GB/คลิกตอนอัด ไม่เกี่ยวกับคุณภาพคลิป (VidQ)** อ่านจาก `Config.Record.footagePerClickGB[ระดับกล้อง]` ที่มีอยู่แล้ว |
 | mental bar | ✅ | มีสีโซนแล้ว — เพิ่มหัวใจบน/ล่างเมื่อได้รูปจาก UIAssets |
 | hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
-| ปุ่ม setting/เสียง | 🔴 | ปุ่มเปิด panel volume (placeholder ได้) |
+| ปุ่ม setting/เสียง | ✅ 8 ส.ค. | `SettingButton` เปิดแผงตั้งค่า · `MusicButton` mute เพลง (ไอคอนสลับ) — ดู §1.1 |
+
+## 1.1 Settings panel + เสียง (8 ส.ค.)
+
+**แผง:** ยืมหน้าตาจาก Toolbox "Cafe Settings System" (by Tigo) — สแกน backdoor แล้ว ใช้แค่ GUI + กลไก drag สไลเดอร์ (ไม่ใช้ IconHandler ของมัน) · logic เขียนเองต่อกับระบบเรา
+- **ที่อยู่:** `StarterGui.SettingsGUI` (instance แต่งใน Studio ได้) · logic = `SettingsController` (LocalScript ฝังในแผง — sandboxed, require ข้ามสคริปต์ไม่ได้ → ยุ่ง SoundGroup ตรงๆ) · สำเนา git ที่ `src/studio-only/SettingsController.client.luau`
+- **เปิด/ปิด:** ปุ่ม `SettingButton` บน HUD → toggle `SettingsMain.Visible`
+- **ช่องตั้งค่า:** เสียง = ระดับเสียงรวม + เพลง/เอฟเฟกต์/บรรยากาศ (แยกกลุ่ม) · ภาพ = เงา (GlobalShadows) + คุณภาพกราฟิก (SavedQualityLevel สูง/ต่ำ)
+- **เสียงแยกกลุ่ม:** SoundGroup `Master > Music/SFX/Ambient` (AudioService route เสียงเข้ากลุ่มพวกนี้) · สไลเดอร์เซ็ต `.Volume` ของกลุ่ม
+- **Mute เพลง:** `MusicButton` บน HUD สลับปิด/เปิดเพลง — จำระดับก่อน mute ที่ attribute `PreMute` · ไอคอนสลับเป็น `rbxassetid://76621637786639` ตอนปิด
+- **เซฟ:** `SetSetting` keys `volume/bgmVol/sfxVol/ambientVol` (0-1) + `shadow/musicMuted` (bool) → persist ในเซฟ · quality ให้ platform จำเอง · apply ตอนโหลด (apply เสียงก่อน mute เสมอ)
 
 ## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ ครบ (เปลี่ยนเป็น SurfaceGui 21 ก.ค.)
 

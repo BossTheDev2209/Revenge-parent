@@ -344,7 +344,7 @@ local BINDINGS = {
 	{ field = "phaseLabel", path = { "ProgressTrack", "PhaseLabel" } },
 	{ field = "progressFill", path = { "ProgressTrack", "ProgressFill" } },
 	{ field = "clockLabel", path = { "ClockLabel" } },
-	{ field = "dayLabel", path = { "CalendarBox", "DayLabel" } },
+	{ field = "dayLabel", path = { "Calendar", "DayLabel" } },
 	{ field = "storageLabel", path = { "StorageBox", "StorageLabel" } },
 	{ field = "cameraLabel", path = { "CameraBox", "CameraLabel" } },
 	{ field = "mentalFill", path = { "MentalTrack", "MentalFill" } },
@@ -369,8 +369,10 @@ function HUD.bind(gui)
 end
 
 -- ใช้ของจริงใน StarterGui ถ้ามี (ทีมแก้หน้าตาใน Studio ได้เลย) ไม่มีค่อยสร้างจากโค้ด
+-- StarterGui → PlayerGui ก๊อปแบบ async: init อาจรันก่อนของจริงมาถึง → WaitForChild ก่อน (มีของจริงค่อย bind)
+-- timeout แล้วยังไม่มา = ไม่มี instance จริง → build() จากโค้ด (fallback)
 function HUD.init(playerGui)
-	local gui = playerGui:FindFirstChild("Gui_HUD")
+	local gui = playerGui:FindFirstChild("Gui_HUD") or playerGui:WaitForChild("Gui_HUD", 5)
 	if gui then
 		HUD.bind(gui)
 	else
@@ -451,7 +453,9 @@ function HUD.update(state)
 
 	if HUD.mentalFill then
 		local pct = math.clamp(state.mental, 0, 100) / 100
-		HUD.mentalFill.Size = UDim2.new(1, -4, pct, 0)
+		-- คุมแค่ความสูง (โซนตาม mental) — คงความกว้างที่คนแต่ง GUI ตั้งไว้ ไม่ทับ
+		local w = HUD.mentalFill.Size.X
+		HUD.mentalFill.Size = UDim2.new(w.Scale, w.Offset, pct, 0)
 		-- สีตามโซน (design doc §3): เขียว ≥70 / เหลือง 40-69 / แดง <40
 		HUD.mentalFill.BackgroundColor3 = state.mental >= 70 and Color3.fromRGB(80, 220, 120)
 			or state.mental >= 40 and Color3.fromRGB(240, 200, 80)

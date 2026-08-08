@@ -22,9 +22,14 @@ BrickColorValue) — map เป็น `.luau` ไฟล์เดียวไม�
 | `└ Pitch` (Script) | `Footsteps/Pitch.server.luau` | ขยับ pitch ขึ้นลงเล็กน้อย ให้เสียงไม่ซ้ำเป๊ะ |
 | `└ Sound ×20 + Materials + Colors` | `Footsteps/sounds.md` | manifest asset id (ไม่ใช่โค้ด สร้างใหม่จากตารางได้) |
 | `StarterCharacterScripts.SprintHandler` | `SprintHandler.client.luau` | กด Shift = WalkSpeed 50, ปล่อย = 16 · เคารพ `MoveLocked` |
+| `StarterGui.SettingsGUI.SettingsController` | `SettingsController.client.luau` | แผงตั้งค่าในเกม (แผง toolbox "Cafe Settings System") — สไลเดอร์เสียง/เงา/คุณภาพกราฟิก · เปิดจากปุ่ม Setting บน HUD |
 
 ที่มา: Footsteps = Toolbox (เครดิตในหัวไฟล์ iiMAYK / Xx_andresXx) · สแกนแล้วไม่มี backdoor
 (ไม่มี `require(assetId)`, HttpService, loadstring, getfenv)
+
+ที่มา: SettingsController = แผง toolbox "Cafe Settings System" (by Tigo, roblox user 193520242) · สแกนแล้วไม่มี backdoor
+(ไม่มี loadstring/HttpGet/getfenv/require assetId) · ใช้แค่แผง GUI + กลไก drag สไลเดอร์ · logic เขียนใหม่ต่อกับ AudioService/Lighting/SetSetting
+· ไม่ใช้ IconHandler ของ toolbox (ต้องพึ่ง TopBar+/leaderstats/CodesUI ที่เกมเราไม่มี) — เปิดแผงจากปุ่ม Setting บน HUD แทน
 
 ## `MoveLocked` — กติกาการล็อกการเดิน
 

@@ -11,7 +11,9 @@
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
-local PART_MIN = 6 -- studs — union/mesh ชิ้นที่ด้านยาวสุดถึงเท่านี้ = ปิด LOD ทุกโมเดลแม่ (ชิ้นเล็กปล่อย ประหยัดเฟรม)
+-- ★ ไม่กรองขนาดชิ้น: imposter เกิดที่ระดับ "โมเดล" ไม่เกี่ยวว่าชิ้นเล็กหรือใหญ่
+--   (แมพนี้สร้างจาก mesh ชิ้นเล็กหมด — เคยกรอง >=6 studs เลยจับได้ 0 แต่ยัง imposter · 9 ส.ค.)
+--   ปิด LOD ทุกโมเดลที่มี union/mesh = เรนเดอร์ของจริงเสมอ ไม่มี imposter หัก
 
 -- ปิด LOD ทุกโมเดลแม่ของชิ้นนี้ (imposter สร้างที่ระดับโมเดลไหนก็ได้ → ปิดทั้งสาย) · คืนจำนวนโมเดลที่เพิ่งปิด
 local function disableAncestors(part): number
@@ -31,10 +33,7 @@ local function fixAll(): number
 	local models = 0
 	for _, d in workspace:GetDescendants() do
 		if d:IsA("UnionOperation") or d:IsA("MeshPart") then
-			local s = d.Size
-			if math.max(s.X, s.Y, s.Z) >= PART_MIN then
-				models += disableAncestors(d)
-			end
+			models += disableAncestors(d)
 		end
 	end
 	return models

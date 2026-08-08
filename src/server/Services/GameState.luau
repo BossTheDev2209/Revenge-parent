@@ -70,6 +70,15 @@ function GameState.mergeDefaults(loaded, defaults)
 	return loaded
 end
 
+-- reset flags ที่ชี้ไป "โมเดลใน workspace" ซึ่งไม่ persist ข้าม session → ต้องเคลียร์ตอนโหลด
+-- notebookPlaced: โมเดล PlacedNotebook อยู่ workspace หายเมื่อออกเกม แต่ flag ถูก save
+--   → โหลดมาแล้ว desiredTools ตัด Notebook ทิ้ง + ไม่มีโมเดลวางอยู่ = โน้ตบุ๊คหายเกลี้ยง
+--   reset false = โน้ตบุ๊คกลับเข้ากระเป๋า (ผู้เล่นวางใหม่ได้) · flag world-model ใหม่ในอนาคตเพิ่มที่นี่
+function GameState.clearWorldFlags(state)
+	state.notebookPlaced = false
+	return state
+end
+
 -- ข้อมูลย่อไว้โชว์หน้า save select (Main Menu)
 function GameState.slotSummary(state)
 	return {
@@ -174,7 +183,8 @@ function GameState.loadSlot(userId: number, slot: number, which)
 	if not snap or not snap.state then return nil end
 	local data = snap.state
 	data.slot = slot
-	return GameState.mergeDefaults(data, GameState.newGame())
+	GameState.mergeDefaults(data, GameState.newGame())
+	return GameState.clearWorldFlags(data) -- โน้ตบุ๊ค/โมเดลวางในโลก ไม่ persist → กลับเข้ากระเป๋า
 end
 
 -- ลบ snapshot เดียว (ว่างหมด = ลบทั้งช่อง)

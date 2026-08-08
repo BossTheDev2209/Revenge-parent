@@ -442,6 +442,17 @@ check("ระดับก่อนถึงรถ ยังได้ Tool ตา
 check("ชื่อบน hotbar โชว์ resolution ไม่ใช่ key", ToolService.displayName("Camera_3") == "กล้อง (1080p)")
 check("ชื่อ Notebook เป็นไทย", ToolService.displayName("Notebook") == "โน้ตบุ๊ค")
 
+-- regression (8 ส.ค.): เข้าเกมครั้งที่สอง โน้ตบุ๊คหาย — โมเดล PlacedNotebook ไม่ persist
+-- แต่ flag notebookPlaced ถูก save → โหลดมา desiredTools ตัด Notebook + ไม่มีโมเดล = หายเกลี้ยง
+-- fix: clearWorldFlags ตอนโหลด reset flag → โน้ตบุ๊คกลับเข้ากระเป๋า
+do
+	local saved = GameState.newGame()
+	saved.notebookPlaced = true -- เคยวางไว้เซสชันก่อน (โมเดลหายไปแล้ว)
+	GameState.clearWorldFlags(saved)
+	check("โหลด save: reset notebookPlaced", saved.notebookPlaced == false)
+	check("โหลด save เฟส1: โน้ตบุ๊คกลับเข้ามือ", toolSet(saved).Notebook == true)
+end
+
 -- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
 local rz = GameState.newGame()
 local spots = { "FilmSpot_A", "FilmSpot_B", "FilmSpot_C" }

@@ -254,6 +254,57 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, appr
 	return press
 end
 
+-- ฉากหลังจำลอง "หน้าโปรแกรมตัดต่อ" (ใช้เมื่อยังไม่มีรูป UIAssets.edit_workspace_bg)
+-- ทุกชิ้น ZIndex 0-1 → อยู่ใต้วงกลม QTE (ZIndex 2-3) เสมอ · ใส่รูปจริงทีหลัง = ImageLabel ทับ mock นี้
+-- โครง: toolbar บน · media bin ซ้าย · preview กลาง · timeline หลายแทร็ก+clip+playhead ล่าง
+local function buildEditorMock(area)
+	local BG = Color3.fromRGB(22, 24, 33)
+	local PANEL2 = Color3.fromRGB(30, 33, 45)
+	local LINE = Color3.fromRGB(46, 50, 66)
+	area.BackgroundColor3 = BG
+
+	-- ===== toolbar บนสุด =====
+	local bar = mk("Frame", area, { Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
+	for i, c in { Color3.fromRGB(230, 90, 90), Color3.fromRGB(235, 190, 80), Color3.fromRGB(90, 200, 120) } do
+		local d = mk("Frame", bar, { Size = UDim2.fromOffset(9, 9), Position = UDim2.fromOffset(10 + (i - 1) * 14, 8), BackgroundColor3 = c, BorderSizePixel = 0, ZIndex = 1 })
+		mk("UICorner", d, { CornerRadius = UDim.new(1, 0) })
+	end
+	for i = 1, 6 do
+		local s = mk("Frame", bar, { Size = UDim2.fromOffset(16, 12), Position = UDim2.fromOffset(70 + (i - 1) * 22, 7), BackgroundColor3 = LINE, BorderSizePixel = 0, ZIndex = 1 })
+		mk("UICorner", s, { CornerRadius = UDim.new(0, 3) })
+	end
+
+	-- ===== media bin ซ้าย (คลังคลิป) =====
+	local bin = mk("Frame", area, { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(0, 120, 1, -136), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
+	for r = 0, 3 do
+		local th = mk("Frame", bin, { Position = UDim2.fromOffset(10, 10 + r * 46), Size = UDim2.fromOffset(100, 38), BackgroundColor3 = LINE, BorderSizePixel = 0, ZIndex = 1 })
+		mk("UICorner", th, { CornerRadius = UDim.new(0, 4) })
+		mk("UIGradient", th, { Color = ColorSequence.new(Color3.fromRGB(62, 68, 92), Color3.fromRGB(38, 42, 56)), Rotation = 30 })
+	end
+
+	-- ===== preview กลาง (คำจางๆ ให้รู้ว่าเป็นจอ preview) =====
+	mk("TextLabel", area, { Position = UDim2.fromOffset(120, 26), Size = UDim2.new(1, -120, 1, -136), BackgroundTransparency = 1, Text = "PREVIEW", TextColor3 = Color3.fromRGB(48, 52, 70), TextSize = 22, FontFace = Font.fromEnum(Enum.Font.GothamBold), ZIndex = 0 })
+
+	-- ===== timeline ล่าง =====
+	local tl = mk("Frame", area, { Position = UDim2.new(0, 0, 1, -110), Size = UDim2.new(1, 0, 0, 110), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
+	local ruler = mk("Frame", tl, { Size = UDim2.new(1, 0, 0, 16), BackgroundColor3 = Color3.fromRGB(26, 28, 38), BorderSizePixel = 0, ZIndex = 1 })
+	for i = 0, 20 do
+		mk("Frame", ruler, { Position = UDim2.new(i / 20, 0, 0, 8), Size = UDim2.fromOffset(1, 8), BackgroundColor3 = LINE, BorderSizePixel = 0, ZIndex = 1 })
+	end
+	local clipColors = { Color3.fromRGB(70, 120, 210), Color3.fromRGB(150, 100, 200), Color3.fromRGB(80, 170, 130) }
+	local layout = { { { 0.02, 0.28 }, { 0.34, 0.22 } }, { { 0.05, 0.4 } }, { { 0.2, 0.18 }, { 0.5, 0.35 } } }
+	for row = 1, 3 do
+		local ty = 20 + (row - 1) * 30
+		mk("Frame", tl, { Position = UDim2.fromOffset(0, ty), Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = Color3.fromRGB(24, 26, 36), BorderSizePixel = 0, ZIndex = 0 })
+		for _, b in layout[row] do
+			local blk = mk("Frame", tl, { Position = UDim2.new(b[1], 4, 0, ty + 3), Size = UDim2.new(b[2], -4, 0, 22), BackgroundColor3 = clipColors[row], BackgroundTransparency = 0.15, BorderSizePixel = 0, ZIndex = 1 })
+			mk("UICorner", blk, { CornerRadius = UDim.new(0, 3) })
+		end
+	end
+	local ph = mk("Frame", tl, { Position = UDim2.new(0.4, 0, 0, 0), Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = Color3.fromRGB(235, 90, 90), BorderSizePixel = 0, ZIndex = 1 })
+	mk("Frame", ph, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(10, 8), Position = UDim2.new(0.5, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(235, 90, 90), BorderSizePixel = 0, ZIndex = 1 })
+end
+
 -- fireAction = function(actionTable) ยิงเข้า Remotes.Action (Main.client ส่งมา)
 -- getState = function() คืน state ล่าสุด (ใช้เช็ค footage ก่อนตัดทุกรอบ)
 function EditQTE.start(playerGui, fireAction, getState)
@@ -317,7 +368,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		FontFace = Font.fromEnum(Enum.Font.GothamBold),
 	})
 
-	-- ★ พื้นหลังโปรแกรมตัดต่อ — มีรูป (UIAssets.edit_workspace_bg) ใช้เลย ไม่มี = ธีมเข้มแทนกล่องเทา
+	-- ★ พื้นหลังโปรแกรมตัดต่อ — มีรูป (UIAssets.edit_workspace_bg) ใช้เลย · ไม่มี = mock วาดด้วยโค้ด
 	local workspaceArea = mk("Frame", panel, {
 		Position = UDim2.fromOffset(20, 60),
 		Size = UDim2.new(1, -40, 0, 380),
@@ -334,10 +385,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			ZIndex = 0,
 		})
 	else
-		local grad = mk("UIGradient", workspaceArea, {
-			Color = ColorSequence.new(Color3.fromRGB(32, 36, 50), Color3.fromRGB(18, 20, 28)),
-			Rotation = 45,
-		})
+		buildEditorMock(workspaceArea) -- จำลองหน้าโปรแกรมตัดต่อด้วยโค้ด (ทับได้ด้วยรูปจริงทีหลัง)
 	end
 
 	local waveInfo = mk("TextLabel", panel, {

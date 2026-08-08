@@ -175,18 +175,23 @@ end)
 ActionRouter.register("ConsumeSpawn", function(s)
 	s.spawnTarget = nil
 end)
+-- อัป slotList แบบ authoritative เฉพาะช่องที่เปลี่ยน (ไม่ re-read ทั้ง 4 ช่องจาก DataStore หลัง write)
+-- bug 8 ส.ค.: listSlots หลัง Remove/SetAsync เจอ GetAsync cache/throttle race → ช่องอื่นเพี้ยน/หาย (cascade)
 ActionRouter.register("SaveSlot", function(s, a, player)
 	s.slot = tonumber(a.slot) or s.slot
-	GameState.saveSlot(player.UserId, s, false) -- manual = push เข้า snapshot history
-	s.slotList = GameState.listSlots(player.UserId) -- refresh รายการ snapshot ให้ SavePanel/เมนู
+	local _, sum = GameState.saveSlot(player.UserId, s, false) -- manual = push เข้า snapshot history
+	s.slotList = s.slotList or {}
+	s.slotList[s.slot] = sum -- summary ช่องนี้จาก file ในมือ (cache-proof) ช่องอื่นคงเดิม
 end)
 ActionRouter.register("DeleteSlot", function(s, a, player)
-	GameState.deleteSlot(player.UserId, tonumber(a.slot) or 0)
-	s.slotList = GameState.listSlots(player.UserId) -- refresh สมุดหน้าเมนู
+	local slot = tonumber(a.slot) or 0
+	GameState.deleteSlot(player.UserId, slot)
+	if s.slotList then s.slotList[slot] = nil end -- ลบเฉพาะช่องนี้ ช่องอื่นไม่แตะ = ไม่หายตาม
 end)
 ActionRouter.register("DeleteSnapshot", function(s, a, player)
-	GameState.deleteSnapshot(player.UserId, tonumber(a.slot) or 0, a.which)
-	s.slotList = GameState.listSlots(player.UserId)
+	local slot = tonumber(a.slot) or 0
+	local _, sum = GameState.deleteSnapshot(player.UserId, slot, a.which)
+	if s.slotList then s.slotList[slot] = sum end -- sum=nil ถ้าช่องว่างหมด → หายเฉพาะช่องนี้
 end)
 -- วาป player ไป Part ตามชื่อ — ทำที่ server เพราะ StreamingEnabled อาจ stream part ออกจาก client
 ActionRouter.register("TeleportTo", function(s, a, player)

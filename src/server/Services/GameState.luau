@@ -139,6 +139,24 @@ local function entryMeta(snap, which)
 	return { which = which, follower = sum.follower, day = sum.day, phase = sum.phase, savedAt = snap.savedAt }
 end
 
+-- สรุปช่องเซฟจาก file (in-memory) → แถวย่อ + entries · file/ว่าง = nil
+-- ใช้ทั้ง listSlots และ save/deleteSnapshot (คืน summary จาก file ในมือ = ไม่ต้อง re-read DataStore = กัน cache race)
+local function summarizeFile(file)
+	if not file then return nil end
+	local entries = {}
+	if file.auto then table.insert(entries, entryMeta(file.auto, "auto")) end
+	for idx, snap in file.snapshots do table.insert(entries, entryMeta(snap, idx)) end
+	local latest
+	for _, e in entries do
+		if not latest or (e.savedAt or 0) > (latest.savedAt or 0) then latest = e end
+	end
+	if not latest then return nil end
+	return {
+		follower = latest.follower, day = latest.day, phase = latest.phase, savedAt = latest.savedAt,
+		count = #file.snapshots, hasAuto = file.auto ~= nil, entries = entries,
+	}
+end
+
 -- อ่านไฟล์ช่อง + migrate เซฟเก่า (state ดิบ ไม่มี .snapshots) → wrap เป็น snapshot เดียว (ไม่พังของเก่า)
 local function readFile(userId: number, slot: number)
 	local ok, data = pcall(function() return store():GetAsync(userId .. "_" .. slot) end)
@@ -164,7 +182,7 @@ function GameState.saveSlot(userId: number, state, isAuto: boolean?)
 	end
 	local ok, err = pcall(function() store():SetAsync(userId .. "_" .. state.slot, file) end)
 	if ok then dirty = false else warn("[GameState] save ไม่สำเร็จ:", err) end
-	return ok
+	return ok, summarizeFile(file) -- summary จาก file ในมือ (cache-proof) — handler เอาไปอัป slotList เฉพาะช่องนี้
 end
 
 -- which: "auto" | index ใน snapshots | nil (= ล่าสุดข้าม manual+auto)
@@ -197,10 +215,11 @@ function GameState.deleteSnapshot(userId: number, slot: number, which)
 		table.remove(file.snapshots, which)
 	end
 	if not file.auto and #file.snapshots == 0 then
-		return GameState.deleteSlot(userId, slot)
+		local ok = GameState.deleteSlot(userId, slot)
+		return ok, nil -- ช่องว่างหมด = ลบทั้งช่อง → summary nil
 	end
 	local ok = pcall(function() store():SetAsync(userId .. "_" .. slot, file) end)
-	return ok
+	return ok, summarizeFile(file) -- summary จาก file ในมือ (cache-proof)
 end
 
 function GameState.deleteSlot(userId: number, slot: number)
@@ -228,22 +247,8 @@ function GameState.listSlots(userId: number)
 	local t0 = os.clock()
 	while pending > 0 and os.clock() - t0 < 10 do task.wait() end -- ช่องไหน GetAsync ค้าง = ข้ามไป ไม่ค้างทั้งเมนู
 	for slot = 1, MAX_SLOTS do
-		local file = files[slot]
-		if file then
-			local entries = {}
-			if file.auto then table.insert(entries, entryMeta(file.auto, "auto")) end
-			for idx, snap in file.snapshots do table.insert(entries, entryMeta(snap, idx)) end
-			local latest
-			for _, e in entries do
-				if not latest or (e.savedAt or 0) > (latest.savedAt or 0) then latest = e end
-			end
-			if latest then
-				out[slot] = {
-					follower = latest.follower, day = latest.day, phase = latest.phase, savedAt = latest.savedAt,
-					count = #file.snapshots, hasAuto = file.auto ~= nil, entries = entries,
-				}
-			end
-		end
+		local sum = summarizeFile(files[slot])
+		if sum then out[slot] = sum end
 	end
 	return out
 end

@@ -143,6 +143,13 @@ end)
 ActionRouter.register("FireStaff", function(s, a)
 	StaffService.fire(s, a.id)
 end)
+-- event "พนักงานตีกัน" (scripted — beat ฝั่ง client ยิงตอนถึงจังหวะ) — ครั้งเดียว
+-- hire ที่ tag leavesOnSplit ลาออก + worldNPC ผู้ภักดี auto เข้า · ผลเก็บใน s.lastStaffSplit ให้ client โชว์ DM/cutscene
+ActionRouter.register("StaffSplit", function(s)
+	if s.flags.staffSplit then return end
+	s.flags.staffSplit = true
+	s.lastStaffSplit = StaffService.splitStaff(s) -- { left = {ids}, joined = id? }
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่

@@ -211,15 +211,21 @@ function Manage.create(frame, deps)
 				if ch:IsA("Frame") then ch:Destroy() end
 			end
 		end
-		-- โชว์เฉพาะที่ปลดล็อกแล้ว (phase และ follower ครบ)
+		-- hirable: roster ที่ปลดล็อก (phase+follower+flag ครบ · ตรงกับ StaffService.availableHires) + ยังไม่จ้าง
 		for _, r in Config.Staff.roster do
-			if state.phase >= r.phase and state.follower >= r.follower then
-				local hired = false
-				for _, s in staff do
-					if s.id == r.id then hired = true end
-				end
-				makeCard(hired and activeList or hirableList, r, hired)
+			local hired = false
+			for _, s in staff do
+				if s.id == r.id then hired = true end
 			end
+			local unlocked = state.phase >= r.phase and state.follower >= r.follower
+				and (not r.flag or (state.flags and state.flags[r.flag]))
+			if unlocked and not hired then
+				makeCard(hirableList, r, false)
+			end
+		end
+		-- active: ทุกตัวใน state.staff (รวม hire_loyal ที่ auto เข้าตอน split ไม่อยู่ roster) — ใช้ stat ที่เก็บใน state
+		for _, s in staff do
+			makeCard(activeList, s, true)
 		end
 	end
 	return app

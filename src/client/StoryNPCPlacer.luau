@@ -1,8 +1,8 @@
 -- StoryNPCPlacer.luau — วาง/ย้าย StoryNPC ตาม state.npcLoc (client render · server เป็นเจ้าของ npcLoc)
 -- ที่อยู่ NPC = อนุพันธ์ของ state ไม่ใช่วางตายในแมพ — instance เดียวย้ายไปมา ไม่ duplicate/ไม่ Destroy
 -- anchor = Part ชื่อ NPCHome_<actor>_<loc> ใน workspace · "away" = วาง anchor ไว้นอกจอ/ใต้แมพเอา
--- วาง anchor แนบพื้นได้เลย (จุดศูนย์กลาง Part = ระดับพื้น) — โค้ดบวกสูงขึ้นให้เอง (เหมือน TeleportTo)
--- ไม่งั้นตัวจะจมพื้นครึ่งตัว เพราะ PivotTo ใช้ CFrame ของ Part ตรงๆ เป็นจุดกึ่งกลางลำตัว ไม่ใช่จุดยืน
+-- วาง anchor ตรงไหนก็ได้ตรงจุด X/Z ที่อยากได้ (สูง/ต่ำ/หนาแค่ไหนไม่สำคัญ) — โค้ด raycast หาพื้นจริงข้างล่างเอง
+-- แล้วยืนบนพื้นจริง (ไม่ใช่ยืนบนตัว anchor) กันทั้งจมพื้นและลอยเหนือ anchor
 -- ย้ายเฉพาะตอน loc เปลี่ยน (ไม่ restart idle ทุก push) · reuse AnimPlayer.findRig (หาใน Workspace.NPC)
 local isStudio = script ~= nil
 local AnimPlayer = if isStudio
@@ -28,7 +28,15 @@ function StoryNPCPlacer.apply(state)
 			if rig then -- rig ยังไม่ spawn/stream = ข้ามไว้ก่อน ไม่ mark → push หน้าลองใหม่
 				local anchor = workspace:FindFirstChild(StoryNPCPlacer.anchorName(actor, loc), true)
 				if anchor and anchor:IsA("BasePart") then
-					rig:PivotTo(anchor.CFrame + Vector3.new(0, 3, 0)) -- ยกขึ้น 3 studs กันจมพื้น (ตรงกับ TeleportTo)
+					-- raycast หาพื้นจริงใต้ anchor (เชื่อ X/Z + การหันของ anchor แต่ไม่เชื่อ Y — anchor อาจวางแบบก้นแนบพื้น
+					-- จุดศูนย์กลางเลยลอยสูงกว่าพื้นจริง) แล้วยืนเหนือพื้นจริง 3 studs (ตรงกับ TeleportTo — pattern เดียวกับ ToolService.summonCart)
+					local params = RaycastParams.new()
+					params.FilterType = Enum.RaycastFilterType.Exclude
+					params.FilterDescendantsInstances = { rig, anchor }
+					local hit = workspace:Raycast(anchor.Position + Vector3.new(0, 10, 0), Vector3.new(0, -50, 0), params)
+					local groundY = hit and hit.Position.Y or anchor.Position.Y -- ไม่เจอพื้น (เช่นลอยกลางอากาศจริง) = ใช้ตำแหน่ง anchor เดิม
+					local facing = anchor.CFrame - anchor.CFrame.Position -- ทิศหันอย่างเดียว ตัดตำแหน่งทิ้ง
+					rig:PivotTo(CFrame.new(anchor.Position.X, groundY + 3, anchor.Position.Z) * facing)
 					AnimPlayer.play(actor, "Idle", true) -- ยืน idle loop นอกบทคุย
 					applied[actor] = loc
 				else

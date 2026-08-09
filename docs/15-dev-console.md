@@ -1,10 +1,15 @@
-# Dev Console — `/dev` chat command (Studio เท่านั้น)
+# Dev Console — `/dev` chat command
 
 โค้ด: [`src/client/DevConsole.client.luau`](../src/client/DevConsole.client.luau) (`TextChatCommand`) →
 ยิง action `DevCmd` → [`src/server/Main.server.luau`](../src/server/Main.server.luau) handler
 
-**Guard 2 ชั้น** — `RunService:IsStudio()` ทั้งฝั่ง client (ไม่ register command เลย) และ server (handler เช็คอีกที)
-→ published game ใช้ไม่ได้ ไม่ต้องถอดออกก่อนส่ง
+**เข้าได้ 2 ทาง** (`RunService:IsStudio()` **หรือ** UserId อยู่ใน `Config.DevUserIds`):
+- **Studio** — ใช้ได้เสมอ ไม่ต้องอยู่ allowlist
+- **published game จริง** — เฉพาะ UserId ใน `Config.DevUserIds` ([Config.luau](../src/shared/Config.luau)) เท่านั้น คนอื่นพิมพ์ `/dev` ไม่มี command ให้ใช้เลย (ไม่ register)
+
+**Guard 2 ชั้น (client + server)** — client เช็คก่อน register `TextChatCommand` (กันคนนอก allowlist เห็น/ใช้ `tp`/`preview` ที่เป็น client-side ล้วนไม่ผ่าน server) · server เช็คซ้ำใน `DevCmd` handler (จุดบังคับสิทธิ์จริง กัน client แก้โค้ดฝั่งตัวเองยิง remote ตรงๆ)
+
+**เพิ่ม/ถอดคนเข้าถึง:** แก้ `Config.DevUserIds` ที่เดียว (array ของ UserId) — หา UserId จาก username ด้วย `Players:GetUserIdFromNameAsync(name)` ใน Studio command bar
 
 **หลัง sync ไฟล์ใหม่ต้อง restart playtest** — `ActionRouter.register` รันตอน server boot ครั้งเดียว
 (ดู [`CLAUDE.md` rule 10](../CLAUDE.md)) live-sync source ไม่พอ ต้องกด Stop→Play ใหม่

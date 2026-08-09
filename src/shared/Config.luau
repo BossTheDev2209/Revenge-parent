@@ -7,6 +7,11 @@
 
 local Config = {}
 
+-- ★ ไม่ใช่ balance number — allowlist คนใช้ /dev นอก Studio (docs/15-dev-console.md)
+-- Studio เปิดให้ทุกคนเสมอ (ไม่ต้องอยู่ list นี้) · list นี้คุมสิทธิ์เฉพาะตอนเข้าเล่นเกม published จริง
+-- CoolingLikeAir, mikmikrobolx, tanxddddd (resolve ด้วย Players:GetUserIdFromNameAsync 10 ส.ค. 2569)
+Config.DevUserIds = { 3010077941, 183036806, 632366901 }
+
 -- §1 Phase gate — ตัดจาก follower ปัจจุบันเท่านั้น ไม่ผูกจำนวนคลิป
 Config.PhaseGates = {
 	{ phase = 1, min = 0, max = 10_000 },

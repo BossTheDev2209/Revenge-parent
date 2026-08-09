@@ -294,8 +294,11 @@ end
 
 -- ===== dev console (Studio เท่านั้น) — /dev <cmd> จาก DevConsole.client ตั้งค่า state ตรงๆ =====
 -- guard IsStudio: published game ยิงมาก็ไม่ทำ (กันโกง) · push อัตโนมัติหลัง route
-ActionRouter.register("DevCmd", function(s, a)
-	if not game:GetService("RunService"):IsStudio() then return end
+ActionRouter.register("DevCmd", function(s, a, player)
+	-- Studio เปิดให้ทุกคนเสมอ · นอก Studio (published จริง) เปิดเฉพาะ UserId ใน Config.DevUserIds (docs/15)
+	local allowed = game:GetService("RunService"):IsStudio()
+		or (player and table.find(Config.DevUserIds, player.UserId) ~= nil)
+	if not allowed then return end
 	local c = tostring(a.cmd):lower()
 	local n = tonumber(a.value)
 	if c == "money" and n then

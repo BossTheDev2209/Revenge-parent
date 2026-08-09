@@ -1,5 +1,8 @@
--- DevConsole — พิมพ์ในแชท `/dev <cmd> <ค่า>` ตั้งค่า state ระหว่าง dev (Studio เท่านั้น ปิดใน published)
+-- DevConsole — พิมพ์ในแชท `/dev <cmd> <ค่า>` ตั้งค่า state ระหว่าง dev
 -- ยิง action DevCmd ให้ server เปลี่ยน state จริง แล้ว push (server คือเจ้าของ state)
+-- เปิดใน Studio เสมอ + นอก Studio (published จริง) เฉพาะ UserId ใน Config.DevUserIds (docs/15)
+-- ★ gate ที่นี่แค่ซ่อนปุ่มจากคนอื่น — จุดบังคับสิทธิ์จริงคือ server (Main.server DevCmd handler)
+--   ยกเว้น tp/preview ที่เป็น client-side ล้วน (ไม่ผ่าน DevCmd) เลยต้องกัน register ตั้งแต่ตรงนี้ด้วย
 --
 -- คำสั่ง (พิมพ์ /dev help ในเกมก็เห็น):
 --   /dev follower <n>    ตั้ง follower (+ อัปเฟส/เพื่อน/milestone event ตามยอด)
@@ -17,11 +20,13 @@
 --   /dev tp <1|2|3|baseplate>   วาปไป Spawn_Phase<n> หรือ Baseplate ตรงๆ (ยิง TeleportTo — ไม่แตะ follower/phase)
 --   /dev qte             force-trigger RecordQTE skill-check ทันที (ไม่ต้องรอสุ่ม 2% ตอนถ่าย)
 local RunService = game:GetService("RunService")
-if not RunService:IsStudio() then return end -- dev เท่านั้น — published ไม่โหลด
-
 local Players = game:GetService("Players")
-local TextChatService = game:GetService("TextChatService")
 local RS = game:GetService("ReplicatedStorage")
+local Config = require(RS.Shared.Config)
+local allowed = RunService:IsStudio() or table.find(Config.DevUserIds, Players.LocalPlayer.UserId) ~= nil
+if not allowed then return end -- ไม่ใช่ dev — ไม่ register command เลย
+
+local TextChatService = game:GetService("TextChatService")
 local remote = RS.Shared.Remotes.Action
 local ScreenTransition = require(script.Parent.ScreenTransition)
 

@@ -18,7 +18,7 @@
 
 ---
 
-## 2. เขียนยังไง — ลิสต์ของคำสั่ง 5 แบบ
+## 2. เขียนยังไง — ลิสต์ของคำสั่ง (step list)
 
 ```lua
 return {
@@ -42,6 +42,11 @@ return {
 | `anim` | `actor` + `name` | สั่งท่าตัวละคร · ใส่ `loop = true` = ท่าค้าง · ท่าอยู่ `ReplicatedStorage.Animations` (วิธีเตรียม → [dialogue.md §2.5](dialogue.md)) |
 | `face` | `actor` + `name` | เปลี่ยนสีหน้า · หน้าอยู่ `ReplicatedStorage.Faces` · จบฉากคืนหน้าเดิมอัตโนมัติ |
 | `focus` | `target` (ชื่อ Part) | **preload แมพไกล** (StreamingEnabled): ย้ายศูนย์ streaming ไป Part นั้น แมพรอบๆ จะโหลดทั้งที่ player ยังไม่ไป · วาง **ก่อน** cam ที่ส่องแมพนั้น ~2-3 วิ (ใส่ wait คั่นให้โหลดทัน) · focus ค้างจนกว่า `TeleportTo` (จบ intro) จะย้ายตัวเข้าโซนนั้นแล้ว **คืน focus ให้ตัวละครเอง** (ไม่ pause/reload) · **ใช้กับ cutscene ที่จบด้วยการวาปเข้าโซน focus เท่านั้น** |
+| `move` | `actor` + `to` (ชื่อ Part) | เดิน actor ไปยืนตรง Part นั้น · `t=วินาที` ไม่ใส่ = วาปทันที · **ไม่เล่นท่าเดินให้เอง** ใส่ `anim` คู่กันเอง · รายละเอียด+เมื่อไหร่ควรใช้ → [story-beat.md §3](story-beat.md) |
+| `objAnim` | `object` + `name` | เล่น animation บน prop ไม่มีชีวิต (โล่รางวัล/ประตู duplicate ฯลฯ) ผ่าน `AnimationController` · `loop=true` ค้างท่า · ต้อง rig ด้วย Motor6D ก่อน (Moon Animator "Easy Weld") → [story-beat.md §7](story-beat.md) |
+| `hold` | `actor` + `prop` | Weld prop ติดมือ actor (`limb` ไม่ใส่ = `"Right Arm"`) — แขนขยับตามท่า prop ติดตามไปเอง · auto-unhold ตอนจบฉาก (ใส่ `persist=true` ถ้าอยากให้ค้างถือต่อ) → [story-beat.md §7](story-beat.md) |
+| `unhold` | `prop` | ปลด prop ออกจากมือก่อนฉากจบ (ปกติไม่ต้องเรียกเอง ระบบ auto-unhold ให้) |
+| `visible` | `target` (ชื่อ Part/Model) + `show` (boolean) | โชว์/ซ่อน object (Transparency+CanCollide) — ใช้สลับของจริงกับ duplicate สำหรับ animate → [story-beat.md §7](story-beat.md) |
 
 **ไม่ใส่ step `camera` เลยก็ได้** — กล้องอยู่ที่เดิมที่ player ยืน แล้วขึ้นแถบดำ+ข้อความ (ใช้ได้จริงสำหรับ ending แบบย่อ)
 

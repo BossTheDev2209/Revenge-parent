@@ -1,6 +1,6 @@
 # Engine: Story Beat — cutscene ที่ trigger จาก state (ไม่ใช่ ending/opening)
 
-**ไฟล์โค้ด:** `StarterPlayerScripts.StoryBeat` (orchestrator) + `StoryNPCPlacer` + `CutscenePlayer` (step `move` ใหม่) + `ScreenTransition` (narration/dialogue แทรก)
+**ไฟล์โค้ด:** `StarterPlayerScripts.StoryBeat` (orchestrator) + `StoryNPCPlacer` + `CutscenePlayer` (step `move`/`objAnim`/`hold`/`unhold`/`visible`) + `AnimPlayer` (`playObject`/`hold`/`unhold` — object animation) + `ScreenTransition` (narration/dialogue แทรก)
 **ใช้ทำ:** ฉากที่เกิดกลางเกมตาม state (follower ถึงค่านึง, flag ติด) เช่น "ฟ้าใสเข้าร่วม", "หมวยทวงตังจบเกม"
 **ต่างจาก ending/opening ยังไง:** ending/opening ใช้ `CutscenePlayer`/`ScreenTransition` ตรงๆ ครั้งเดียวตอนจบ/เริ่มเกม — Story Beat คือ **ของกลางประกอบฉาก** ที่ใช้ซ้ำได้หลายจุดกลางเกม (ดู [README.md](README.md) เทียบ engine อื่น)
 
@@ -48,17 +48,7 @@ StoryBeat.play(playerGui, {
 **ก่อนใช้ เช็คก่อนว่าจำเป็นไหม:** ถ้าทำ animation clip เดียวยาวครอบทั้งฉาก (เคาะ→คุย→เดิน→นั่ง) ด้วย **Moon Animator** (bake root motion ได้จริง — ตัวเดินจริงในโลก ไม่ใช่เดินอยู่กับที่) **ไม่ต้องใช้ `move` เลย** ใช้ `anim` เดียว (`loop=false`) พอ ความรู้สึก cutscene มาจากกล้องตัด/แพนคลอไปกับ clip
 `move` มีไว้สำหรับกรณี **ไม่ได้ bake root motion ในclip** (เช่น anim ท่ายืน/นั่งแยกกัน อยากให้ engine เดินให้ระหว่าง 2 ท่า) — ทางเลือกสำรอง ไม่ใช่ทางหลัก
 
-เพิ่มจาก step เดิม (`camera`/`text`/`wait`/`anim`/`face`/`bgm`/`sound`/`focus`) — ดู [cutscene.md §2](cutscene.md)
-
-```lua
-{ type = "move", actor = "ฟ้าใส", to = "FaasaiBedSpot", t = 2.5 }
-```
-
-| field | ต้องใส่ | หมายเหตุ |
-|---|---|---|
-| `actor` | ✅ | ชื่อ actor เดียวกับที่ใช้ใน `anim`/`face` (ดู [dialogue.md §2.5](dialogue.md)) |
-| `to` | ✅ | ชื่อ **Part** ในแมพ — ตัวจะเดินไปยืนตรงจุดนี้ หันหน้าตามทิศที่เดินมา |
-| `t` | ไม่ใส่ = วาปทันที | วินาทีที่ใช้เดิน (lerp ตำแหน่ง) |
+field ทั้งหมด → ดูตาราง [cutscene.md §2](cutscene.md) (เป็นที่เดียวที่เก็บ field spec ของทุก step ไม่ให้ซ้ำ 2 ที่)
 
 **move แค่ย้ายตำแหน่ง ไม่เล่นท่าเดินให้เอง** — ใส่ `anim` คู่กันเองถ้าอยากเห็นท่าเดิน/นั่ง:
 
@@ -159,7 +149,61 @@ Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ�
 
 ---
 
-## 7. ทดสอบด้วย Dev Console
+## 7. Object animation + ถือ prop + สลับของจริง/duplicate
+
+3 step ใหม่ (field spec เต็ม → [cutscene.md §2](cutscene.md)) แก้ปัญหา "ต้องขยับของในแมพที่ไม่ใช่ตัวละคร" เช่น โล่รางวัล BCA หรือประตูที่ต้องเปิดเป็นส่วนหนึ่งของฉาก
+
+### 7.1 `objAnim` — animate prop ไม่มีชีวิตตรงๆ
+
+ใช้เมื่อ prop ต้องขยับ**เอง** (ฝาเปิด, บานหมุน) โดยไม่มีใครถือ — ใช้ pipeline เดียวกับ animation ตัวละครทุกอย่าง (`AnimationController` แทน `Humanoid`, Moon Animator ทำงานเหมือนกัน) ต้อง**rig prop ให้มี Motor6D ก่อน**:
+
+1. เลือกใน Studio: ปุ่ม **Easy Weld** ของ Moon Animator (แปลง Weld ธรรมดาที่ต่อกันอยู่แล้วให้เป็น Motor6D อัตโนมัติ — ไม่ต้องสร้าง Motor6D มือ) เจอ **Clean** ล้าง Weld/RigAttachment เก่าทิ้งได้หลัง rig เสร็จ ไม่กระทบระบบเรา
+2. เพิ่ม `AnimationController` เป็น**ลูกตรง**ของ prop model (`Humanoid` ก็ได้เหมือนกัน — โค้ดเช็คทั้งคู่ `AnimPlayer.animatorOf`)
+3. Animate ปกติ export เป็น `Animation` เข้า `ReplicatedStorage.Animations` เหมือนท่าตัวละคร (ตั้งชื่อ prop = "actor" ในการค้นหา เช่น `ReplicatedStorage.Animations.TrophyBCA/Open`)
+
+```lua
+{ type = "objAnim", object = "TrophyBCA", name = "Open", loop = false }
+```
+
+### 7.2 `hold` / `unhold` — ถือ prop ติดมือ (โล่รางวัล, โทรศัพท์ ฯลฯ)
+
+**ง่ายกว่า `objAnim` มาก — ใช้ทางนี้ก่อนถ้า prop แค่ต้อง "อยู่ในมือ" ไม่ต้องขยับเอง** (เช่นรับโล่ตอน BCA — แขน player ยกเอง ท่ามันก็ยกตามเอง ไม่ต้อง animate โล่เลย):
+
+```lua
+{ type = "hold", actor = "player", prop = "TrophyBCA" }   -- limb ไม่ใส่ = "Right Arm" (R6)
+-- ... anim ท่ารับโล่เล่นต่อ, prop ติดมือไปเอง ...
+{ type = "unhold", prop = "TrophyBCA" }                    -- ไม่เรียกเองก็ได้ auto-unhold ตอนจบฉาก
+```
+
+**ก่อนเรียก `hold`:** จัดตำแหน่ง prop ให้แนบมือ (ใน Studio, Edit mode) ไว้ก่อน — engine เก็บ**ตำแหน่งสัมพัทธ์ ณ ตอนเรียก** เป๊ะ ไม่มีค่า offset ให้ตั้งในโค้ด
+**หลังฉากจบ prop จะปลดออกอัตโนมัติ** (คืนอิสระ ไม่ตามมือแล้ว) เว้นแต่ใส่ `persist = true` ที่ step `hold` (อยากให้ player ถือค้างต่อหลัง cutscene จบ)
+prop เป็นได้ทั้ง **Part เดี่ยว** หรือ **Model** (มี `PrimaryPart` หรือไม่มีก็ได้ ระบบหา BasePart แรกที่เจอให้)
+
+### 7.3 `visible` — สลับของจริงกับ duplicate สำหรับ animate
+
+**ใช้เมื่อ object นั้นมี logic ของตัวเองอยู่แล้ว** (เช่นประตูที่กด E เปิด-ปิดได้ปกตินอกคัตซีน) — **ห้าม `objAnim` ตรงกับของจริง** เพราะ script เดิมมี state (`opened` ฯลฯ) ที่ไม่รู้จัก animation ของเรา จะ desync (ครั้งหน้ากด E จริงจะเปิดซ้ำ/มุมเพี้ยน)
+
+**วิธีที่ปลอดภัย = duplicate แล้วสลับโชว์:**
+
+1. Duplicate object จริง (เช่น `Door1`) → ตั้งชื่อ**ไม่ซ้ำทั้งโปรเจกต์** (`Door1` ซ้ำหลายที่ในแมพอยู่แล้ว — ห้ามซ้ำอีก) เช่น `FaasaiDoorCutscene`
+2. **ลบ script/ProximityPrompt เดิมออกจาก duplicate** — เอาไว้แค่ mesh ล้วนๆ ไม่มี logic อะไรทั้งนั้น
+3. Rig duplicate ด้วย Motor6D (Easy Weld) + `AnimationController` ตาม §7.1 แล้ว animate ปกติ
+4. ในบท คัตซีน สลับโชว์ตอนเริ่ม/จบ:
+
+```lua
+{ type = "visible", target = "Door1", show = false },              -- ซ่อนของจริง
+{ type = "visible", target = "FaasaiDoorCutscene", show = true },  -- โชว์ duplicate
+{ type = "objAnim", object = "FaasaiDoorCutscene", name = "DoorOpen" },
+{ type = "wait", t = 3 },
+{ type = "visible", target = "FaasaiDoorCutscene", show = false }, -- ซ่อน duplicate
+{ type = "visible", target = "Door1", show = true },               -- โชว์ของจริงกลับ (ปิดสนิทเหมือนเดิม — state ไม่เคยเปลี่ยน)
+```
+
+ของจริงไม่เคยถูกแตะเลยตลอด — ปลอดภัย 100% ไม่มีทาง desync ไม่ว่า script เดิมจะซับซ้อนแค่ไหน
+
+---
+
+## 8. ทดสอบด้วย Dev Console
 
 ก่อนวาง anchor/cam ในแมพครบ ทดสอบเนื้อหาได้เลยผ่าน `/dev` (ดู [15-dev-console.md](../15-dev-console.md)):
 
@@ -171,7 +215,7 @@ Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ�
 
 ---
 
-## 8. ผิดแล้วเป็นยังไง
+## 9. ผิดแล้วเป็นยังไง
 
 | ทำผิด | ผลลัพธ์ |
 |---|---|
@@ -179,3 +223,7 @@ Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ�
 | `npcLoc` ตั้งชื่อ anchor ไม่ตรง (`NPCHome_<actor>_<loc>`) | warn "ไม่เจอ anchor", NPC ไม่ขยับ |
 | `dialogue` step บทพัง (format ผิด) | `ScreenTransition.validateSteps` ฟ้อง error ชัดว่า step ไหน — ไม่เล่นทั้งฉาก |
 | `text` step ไม่มี `text`/`t` | validate ฟ้องเหมือนกัน |
+| `objAnim` หา prop ไม่เจอ/ไม่มี `AnimationController` | warn ใน Output, ไม่เล่น ไม่พัง |
+| `objAnim` หาท่าไม่เจอใน `ReplicatedStorage.Animations` | warn ใน Output, ไม่เล่น ไม่พัง |
+| `hold` หา actor/limb/prop ไม่เจอ | warn ใน Output, ไม่ผูก ไม่พัง |
+| `visible` หา target ไม่เจอ (ชื่อผิด/ซ้ำกับตัวอื่นในแมพ) | warn ใน Output, ไม่ทำอะไร — เช็คชื่อ unique ทั้งโปรเจกต์ |

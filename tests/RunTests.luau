@@ -548,6 +548,43 @@ check("cooldown ถึงวันพรุ่งนี้ + streak รีเซ
 check("ระหว่าง cooldown ใช้ไม่ได้", MentalService.doActivity(da, "Bed") == false)
 da.day += 1
 check("วันใหม่ใช้ได้อีก", MentalService.doActivity(da, "Bed") == true)
+
+-- ===== ActivityCutscene (client) ต้องตัดสินตรงกับ server เสมอ =====
+-- ★ ครอบ do...end: chunk นี้ชนเพดาน local 200 ตัวของ Luau (ดูหมายเหตุ section อื่น)
+do
+local ActivityCutscene = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ActivityCutscene)
+	else require("../src/client/ActivityCutscene")
+
+check("รู้จักชื่อ activity ครบ 3 ตัว", ActivityCutscene.isActivity("Bed")
+	and ActivityCutscene.isActivity("Kitchen") and ActivityCutscene.isActivity("Exercise"))
+check("ชื่อมั่ว = ไม่ใช่ activity", ActivityCutscene.isActivity("Xxx") == false)
+-- ชื่อที่ client รู้จัก ต้องเป็นชื่อที่ server คิดผลให้ได้จริงทุกตัว (สะกดผิดข้างเดียว = กดแล้วเงียบ)
+for name in ActivityCutscene.NAMES do
+	local s = GameState.newGame()
+	s.phase = 2
+	check(("server รับ activity '%s' ที่ client ยิงมา"):format(name),
+		MentalService.doActivity(s, name) == true)
+end
+
+-- ตารางฉากยังว่าง = ข้ามฉาก ได้ผลทันที (ทีมเติม steps ทีหลังโดยไม่ต้องแก้โค้ด)
+check("ยังไม่มีฉาก activity = stepsFor คืน nil", ActivityCutscene.stepsFor("Bed") == nil)
+
+-- canDo ต้องตอบเหมือน doActivity ทุกกรณี (แพทเทิร์นเดียวกับ EditQTE.canEdit ↔ RecordService.canEdit)
+local ac = GameState.newGame()
+ac.phase = 2
+check("ยังไม่ติด cooldown: ทั้งสองฝั่งอนุญาต",
+	ActivityCutscene.canDo(ac) == true and MentalService.doActivity(ac, "Bed") == true)
+MentalService.doActivity(ac, "Kitchen")
+MentalService.doActivity(ac, "Exercise") -- ครบ 3 → cooldown
+local cdOk, cdWhy = ActivityCutscene.canDo(ac)
+check("ติด cooldown: client ปฏิเสธ + มีเหตุผลให้โชว์", cdOk == false and type(cdWhy) == "string")
+check("ติด cooldown: server ปฏิเสธเหมือนกัน", MentalService.doActivity(ac, "Bed") == false)
+ac.day += 1
+check("ข้ามวัน: ทั้งสองฝั่งกลับมาอนุญาต",
+	ActivityCutscene.canDo(ac) == true and MentalService.doActivity(ac, "Bed") == true)
+check("ไม่มี state = ปฏิเสธ ไม่ crash", ActivityCutscene.canDo(nil) == false)
+end
 check("activity มั่วคืน false", MentalService.doActivity(da, "อาบน้ำ") == false)
 end
 

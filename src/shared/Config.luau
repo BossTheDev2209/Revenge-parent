@@ -82,6 +82,19 @@ Config.Mental = {
 	-- Activity system (PDF หน้า 6): ทำติดกันเกิน maxStreak → cooldown ข้ามวัน
 	activity = { maxStreak = 3, cooldownDays = 1 },
 
+	-- ★ ฉากสั้นตอนทำ activity (docs/02 §3 + §9 "cutscene 5–10 วิ + ฟื้น mental") — ยังว่างทุกตัว 9 ส.ค.
+	--   ว่าง = กดแล้วได้ผลใจทันทีไม่มีฉากคั่น (เกมเล่นได้ครบ ไม่ค้างรอ content)
+	--   ใส่ steps เมื่อไหร่ = เล่นฉากทันที **ไม่ต้องแก้โค้ดที่ไหนเลย** (ActivityCutscene อ่านตารางนี้ตรงๆ)
+	--   รูปแบบ step เหมือน CutscenePlayer ทุกอย่าง: camera / text / wait / anim / face / sound / bgm / move / focus
+	--   ตัวอย่างที่จะใส่ทีหลัง:
+	--     Bed = { { type = "camera", cam = "Cam_BedRest", t = 1 }, { type = "anim", actor = "player", name = "Sleep" },
+	--             { type = "text", text = "หลับตาสักครู่..." }, { type = "wait", t = 5 } }
+	activityCutscenes = {
+		Bed = {},
+		Kitchen = {},
+		Exercise = {},
+	},
+
 	-- Drain/Recovery modifiers (lock 19 ก.ค. — docs/02 §3)
 	-- kind: "drain" = คูณอัตรา drain | "recover" = คูณ delta ฝั่งบวก
 	-- อายุ: hours = หมดตามชั่วโมงเกม | untilEvent = "sleep"|"activity"|"activityOrGood"

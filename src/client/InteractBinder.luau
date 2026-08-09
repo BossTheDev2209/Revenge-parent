@@ -1,6 +1,11 @@
 -- InteractBinder.luau — หา Interact_* ทุกตัวใน Workspace แล้วแปะ ProximityPrompt (runtime ฝั่ง client)
 -- ทีมวางแค่ Part ชื่อถูกตาม docs/05 §3 — prompt กับ logic มาจากไฟล์นี้
--- deps = { fireAction = fn(actionTable), startQTE = fn() } ส่งมาจาก Main.client (ไม่ require กันเอง)
+-- deps = { fireAction, playerGui, getState, openPC, openShop, startDialogue } ส่งมาจาก Main.client
+local isStudio = script ~= nil
+local ActivityCutscene = if isStudio
+	then require(script.Parent.ActivityCutscene)
+	else require("./ActivityCutscene")
+
 local InteractBinder = {}
 
 local PROMPT_TEXT = {
@@ -67,11 +72,13 @@ function InteractBinder.pickLines(mod, state, seen)
 end
 
 -- เตียงมี 2 ทาง (docs/02 §3): พักผ่อน = activity ฟื้นใจ | นอน = ข้ามเวลา 8/12 ชม. + ล้าง NoSleep
-local function openBedMenu(playerGui, fireAction)
+-- onRest = ทางพักผ่อน วิ่งผ่าน ActivityCutscene (มีฉากคั่นเมื่อทีมใส่ steps) ไม่ยิง action ตรงๆ
+local function openBedMenu(playerGui, fireAction, onRest)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_BedMenu"
 	gui.ResetOnSpawn = false
-	local function btn(text, x, action, sfx)
+	-- onClick = ฟังก์ชันที่เรียกตอนกด (ปิดเมนูให้ก่อนเสมอ — ฉาก cutscene ต้องไม่มีปุ่มค้างบนจอ)
+	local function btn(text, x, onClick, sfx)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0, 180, 0, 48)
 		b.Position = UDim2.new(0.5, x, 0.5, -24)
@@ -82,12 +89,12 @@ local function openBedMenu(playerGui, fireAction)
 		if sfx then b:SetAttribute("Sfx", sfx) end -- เสียงเฉพาะปุ่ม (Main.client เป็นคนเล่นให้)
 		b.Parent = gui
 		b.Activated:Connect(function()
-			if action then fireAction(action) end
 			gui:Destroy()
+			if onClick then onClick() end
 		end)
 	end
-	btn("😌 พักผ่อน (+ใจ)", -280, { type = "DoActivity", activity = "Bed" })
-	btn("😴 นอน (ข้ามเวลา)", -90, { type = "Sleep" })
+	btn("😌 พักผ่อน (+ใจ)", -280, onRest)
+	btn("😴 นอน (ข้ามเวลา)", -90, function() fireAction({ type = "Sleep" }) end)
 	btn("❌ ยกเลิก", 100, nil, "ui_back")
 	gui.Parent = playerGui
 end
@@ -126,6 +133,13 @@ function InteractBinder.labelAlpha(distance: number): number
 end
 
 function InteractBinder.init(deps)
+	-- ทำ activity ฟื้นใจ: ผ่าน ActivityCutscene ที่เดียว (เล่นฉากถ้ามี → ยิง DoActivity)
+	-- ทำไม่ได้ (cooldown) = โชว์เหตุผลกลางจอ ไม่ใช่กดแล้วเงียบให้เดาเอง
+	local function doActivity(activityName: string)
+		local ok, why = ActivityCutscene.play(activityName, deps)
+		if not ok and why then toast(deps.playerGui, why) end
+	end
+
 	local function onTriggered(name, part)
 		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
 			-- part = จอจริง: UI แปะบนหน้า part นี้ (SurfaceGui) + กล้อง zoom เข้าหา
@@ -135,9 +149,9 @@ function InteractBinder.init(deps)
 		elseif name == "Interact_Shop" then
 			deps.openShop()
 		elseif name == "Interact_Bed" then
-			openBedMenu(deps.playerGui, deps.fireAction)
+			openBedMenu(deps.playerGui, deps.fireAction, function() doActivity("Bed") end)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then
-			deps.fireAction({ type = "DoActivity", activity = name:gsub("Interact_", "") })
+			doActivity(name:gsub("Interact_", ""))
 		elseif name == "Interact_Door" then
 			-- teleport ฝั่ง client พอ (singleplayer) — ปลายทางกับเงื่อนไขอ่านจาก Attribute ของบานประตู
 			local state = deps.getState and deps.getState() or nil

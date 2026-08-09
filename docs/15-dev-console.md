@@ -35,7 +35,7 @@
 | `npcloc`     | `<actor> <loc>`        | ตั้ง `state.npcLoc[actor] = loc`                                                               | `StoryNPCPlacer` ย้าย/idle ตัวจริงตาม push ถัดไป — ต้องมี anchor Part `NPCHome_<actor>_<loc>` ในแมพ |
 | `staffsplit` | —                      | ยิง `StaffService.splitStaff` ตรงๆ (bypass flag guard เพื่อยิงซ้ำได้ตอน dev)                   | tag `leavesOnSplit` ออก + `hire_loyal` เข้า                                                         |
 | `preview`    | `<key>`                | เล่น `Content.Cutscenes.PhaseTransitions[key]` ตรงๆ ฝั่ง client (`ScreenTransition.play`)      | **client-only ไม่ผ่าน server/phase จริง** — ทดสอบ `[3]`/`[4]` ได้ทันทีไม่ต้องไล่ follower · `[date]` แทนด้วย day ล่าสุดที่ push มา |
-| `tp`         | `<1-3>`                | ยิง `TeleportTo` ไป Part `Spawn_Phase<n>` ตรงๆ                                                 | **ไม่แตะ `follower`/`phase`** — วาปดูแมพเฉยๆ ไม่ผ่าน `DevCmd` (reuse action ที่มีอยู่แล้ว) · ต้องมี Part `Spawn_Phase<n>` ในแมพนั้น |
+| `tp`         | `<1-3\|baseplate>`     | ยิง `TeleportTo` ไป Part `Spawn_Phase<n>` หรือ `Baseplate` ตรงๆ                                | **ไม่แตะ `follower`/`phase`** — วาปดูแมพเฉยๆ ไม่ผ่าน `DevCmd` (reuse action ที่มีอยู่แล้ว) · `baseplate` มีประโยชน์ตอนอยาก teleport หนีออกจากแมพจริง (เทส physics/prop เดี่ยวๆ ไม่ปนฉาก) |
 | `qte`        | —                      | ตั้ง `state.pendingRecordQTE` ตรงๆ → force-trigger RecordQTE skill-check ทันที                | ไม่ต้องรอสุ่ม 2% ตอนถ่ายคลิปจริง — ทดสอบ UI/เกรด perfect-good-miss ได้ทันที |
 
 ---
@@ -75,6 +75,7 @@
 /dev preview 3               -- เล่น PhaseTransitions[3] ตรงๆ ไม่ต้องเก็บ follower ถึง 100,000 จริง
 /dev preview 4               -- เล่น PhaseTransitions[4] (BCA→พ่อแม่) — ไม่มีทาง auto-trigger เพราะ phase สูงสุด = 3
 /dev tp 2                    -- วาปไปแมพเฟส 2 ดูฉาก/NPC โดยไม่ต้องไล่ follower จริง
+/dev tp baseplate            -- วาปออกมา Baseplate เปล่าๆ (เทส prop/animation เดี่ยวๆ ไม่ปนแมพจริง)
 /dev qte                     -- force-trigger RecordQTE ทันที ไม่ต้องกดถ่ายวนรอสุ่ม 2%
 ```
 

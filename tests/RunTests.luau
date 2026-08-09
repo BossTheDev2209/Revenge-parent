@@ -1020,7 +1020,11 @@ check("newGame มี npcLoc ว่าง", type(GameState.newGame().npcLoc) == 
 -- ScreenTransition.validateSteps: narration บนจอดำ (text/wait)
 check("steps text+wait ผ่าน", ScreenTransition.validateSteps({ { type = "text", text = "x" }, { type = "wait", t = 2 } }) == true)
 check("steps wait ไม่มี t = ไม่ผ่าน", ScreenTransition.validateSteps({ { type = "wait" } }) == false)
-check("steps type มั่ว = ไม่ผ่าน", ScreenTransition.validateSteps({ { type = "camera" } }) == false)
+check("steps type มั่ว = ไม่ผ่าน", ScreenTransition.validateSteps({ { foo = 1 } }) == false)
+check("steps dialogue แทรก (reuse DialogueUI) ผ่าน",
+	ScreenTransition.validateSteps({ { text = "เล่า..." }, { dialogue = { { speaker = "เจียเจีย", text = "ลุกขึ้น!" } } }, { t = 1 } }) == true)
+check("steps dialogue พัง = ไม่ผ่าน",
+	ScreenTransition.validateSteps({ { dialogue = { { speaker = "x" } } } }) == false)
 -- content จริง PhaseTransitions [2]/[3]/[4] ต้อง validate ผ่าน
 local PhaseText = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.Cutscenes.PhaseTransitions)

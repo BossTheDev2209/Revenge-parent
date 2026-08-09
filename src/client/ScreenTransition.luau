@@ -6,8 +6,11 @@
 --   onBlack = fn?,    -- ทำตอนจอดำสนิท (หลังเล่าเรื่องจบ) — teleport/สลับแมพ
 --   fadeTime = 0.6?, onDone = fn?,
 -- }
--- step: { type="text", text="...", t=วินาที? } | { type="wait", t=วินาที }
---   text ไม่ใส่ t = ค้างจนกว่าจะมี wait/text ถัดไป · [date] ฯลฯ ต้อง substitute ก่อนส่งเข้ามา (ที่นี่ไม่รู้ state)
+-- step (ยึด field ไม่ใช่ type):
+--   { text="...", t=วินาที? }   narration ขึ้นกลางจอ (ไม่ใส่ t = ค้างจนมี step ถัดไป)
+--   { dialogue={..lines..}, voice=? }  กล่องข้อความ DialogueUI แทรก (reuse — คลิกต่อ) เช่น เจียเจียพูดกลางฉากดำ
+--   { t=วินาที }                หน่วงเวลาเปล่า
+--   [date] ฯลฯ ต้อง substitute ก่อนส่งเข้ามา (ที่นี่ไม่รู้ state)
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local DialogueUI = require(script.Parent.UI.DialogueUI)
@@ -16,15 +19,19 @@ local ScreenTransition = {}
 ScreenTransition.running = false
 
 -- เช็ค steps ก่อนเล่น (คล้าย engine อื่น) — คืน (ผ่านไหม, error)
--- ยึด field ไม่ใช่ type: มี text(string) = ขึ้นข้อความ · มีแค่ t(number) = หน่วงเวลา · field type ใส่หรือไม่ก็ได้
+-- ยึด field ไม่ใช่ type:
+--   text(string) = narration ขึ้นกลางจอ · dialogue(table) = กล่องข้อความ DialogueUI แทรก (reuse engine) · t(number) = หน่วงเวลา
 function ScreenTransition.validateSteps(steps)
 	if type(steps) ~= "table" then return false, "ไม่ใช่ตาราง" end
 	for i, s in steps do
 		if type(s) ~= "table" then return false, ("step %d: ต้องเป็นตาราง"):format(i) end
 		if type(s.text) == "string" then
 			if s.t ~= nil and type(s.t) ~= "number" then return false, ("step %d: t ต้องเป็นตัวเลข"):format(i) end
+		elseif type(s.dialogue) == "table" then
+			local ok, err = DialogueUI.validate(s.dialogue)
+			if not ok then return false, ("step %d dialogue > %s"):format(i, err) end
 		elseif type(s.t) ~= "number" then
-			return false, ("step %d: ต้องมี text (ข้อความ) หรือ t (เวลา)"):format(i)
+			return false, ("step %d: ต้องมี text / dialogue / t"):format(i)
 		end
 	end
 	return true
@@ -78,7 +85,16 @@ function ScreenTransition.play(opts)
 				stroke.Transparency = 0.4
 				stroke.Parent = label
 				for _, s in opts.steps do
-					if type(s.text) == "string" then
+					if type(s.dialogue) == "table" then
+						-- กล่องข้อความแทรก (reuse DialogueUI) — ซ่อน narration, คุยจบ (คลิกต่อ) แล้วเล่าต่อ
+						label.Visible = false
+						local done = false
+						DialogueUI.show(playerGui, s.dialogue, function() done = true end, s.voice)
+						local dg = playerGui:FindFirstChild("Gui_Dialogue")
+						if dg then dg.DisplayOrder = 101 end
+						while not done do task.wait() end
+						label.Visible = true
+					elseif type(s.text) == "string" then
 						label.Text = s.text
 						if s.t then task.wait(s.t) end
 					elseif s.t then

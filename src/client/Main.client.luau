@@ -154,7 +154,7 @@ local StarterGui = game:GetService("StarterGui")
 local MODAL_GUIS = {
 	Gui_Cutscene = true, Gui_Dialogue = true, Gui_MainMenu = true,
 	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PC = true,
-	Gui_SavePanel = true,
+	Gui_SavePanel = true, Gui_Transition = true, -- ScreenTransition (narration/[date] จอดำ) — เดิมตกหล่น hotbar โผล่ทะลุช่วง narration ล้วน (ไม่มี dialogue box)
 }
 local function refreshBackpack()
 	local anyOpen = false

@@ -150,6 +150,12 @@ ActionRouter.register("StaffSplit", function(s)
 	s.flags.staffSplit = true
 	s.lastStaffSplit = StaffService.splitStaff(s) -- { left = {ids}, joined = id? }
 end)
+-- ตั้งที่อยู่ StoryNPC (beat เรียกใต้จอดำ) — StoryNPCPlacer ฝั่ง client ย้ายตัวตามหลัง push
+ActionRouter.register("SetNpcLoc", function(s, a)
+	if type(a.actor) == "string" and type(a.loc) == "string" then
+		s.npcLoc[a.actor] = a.loc
+	end
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่

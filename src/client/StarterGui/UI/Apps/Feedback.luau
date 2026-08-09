@@ -5,7 +5,7 @@
 local isStudio = script ~= nil
 local Comments = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.Comments)
-	else require("../../../shared/Content/Comments")
+	else require("../../../../shared/Content/Comments")
 
 local Feedback = {}
 

@@ -5,11 +5,16 @@
 -- ★ instance จริง: StarterGui.Gui_PC (แต่งได้) — ไม่มีก็ build() สร้างจากโค้ด (fallback + mirror git · แพทเทิร์นเดียวกับ HUD)
 -- ชื่อที่โค้ดอ้าง ห้ามเปลี่ยน (ที่เหลือย้าย/แต่ง/ลบได้):
 --   Screen · Screen.{Wallpaper, DeviceLabel, ExitButton, AppFrame} · Screen.IconBar.IconTemplate (มีลูก Name)
+-- ★ ตัวไฟล์นี้ย้ายมาอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอมรวมที่เดียว)
 local isStudio = script ~= nil
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
-	else require("../../shared/UIAssets")
-local InteractLock = if isStudio then require(script.Parent.Parent.InteractLock) else nil
+	else require("../../../shared/UIAssets")
+-- InteractLock ยังอยู่ StarterPlayerScripts เดิม — ต้อง absolute path ผ่าน PlayerScripts
+-- (ความลึกเดิม script.Parent.Parent ใช้ไม่ได้แล้วหลังย้าย PCScreen ไป StarterGui)
+local InteractLock = if isStudio
+	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("InteractLock"))
+	else nil
 
 local PCScreen = {}
 PCScreen.running = false

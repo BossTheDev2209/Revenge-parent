@@ -8,13 +8,13 @@
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
-	else require("../../shared/Config")
+	else require("../../../shared/Config")
 local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
-	else require("../../shared/Formulas")
+	else require("../../../shared/Formulas")
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
-	else require("../../shared/UIAssets")
+	else require("../../../shared/UIAssets")
 
 local HUD = {}
 
@@ -255,7 +255,9 @@ function HUD.build(parent): ScreenGui
 	-- แผงเสียง (ตัวเต็มอยู่หน้า Setting ของ Main Menu — นี่คือทางลัดระหว่างเล่น)
 	local vpanel = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H * 2 + 66), UDim2.new(0, 230, 0, 88))
 	vpanel.Visible = false
-	local Audio = require(script.Parent.Parent.AudioService)
+	-- HUD ย้ายไปอยู่ StarterGui.UI (9 ส.ค.) — AudioService ยังอยู่ StarterPlayerScripts เดิม
+	-- ใช้ absolute path ผ่าน PlayerScripts แทน script.Parent.Parent (ความลึกเดิมใช้ไม่ได้แล้ว)
+	local Audio = require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
 	local volLabel = Instance.new("TextLabel")
 	volLabel.Size = UDim2.new(1, -12, 0, 34)
 	volLabel.Position = UDim2.new(0, 6, 0, 2)

@@ -6,7 +6,7 @@
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
-	else require("../../../shared/Config")
+	else require("../../../../shared/Config")
 
 local Manage = {}
 

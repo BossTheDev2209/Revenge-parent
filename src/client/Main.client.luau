@@ -1,17 +1,23 @@
 -- Main.client.luau — จุดเริ่มเดียวของ client: Remote + HUD + PC Screen + Interact + Dialogue + Ending
 local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local HUD = require(script.Parent.UI.HUD)
-local PCScreen = require(script.Parent.UI.PCScreen)
-local EditQTE = require(script.Parent.UI.Apps.EditQTE)
-local Upload = require(script.Parent.UI.Apps.Upload)
-local Feedback = require(script.Parent.UI.Apps.Feedback)
-local Bank = require(script.Parent.UI.Apps.Bank)
+
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+-- ★ HUD/PCScreen/Apps ย้ายไปอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอมรวมที่เดียว)
+--   ต้องรอ PlayerGui clone จาก StarterGui มาก่อนถึง require ได้ (WaitForChild กันจังหวะ join ยังไม่ทัน)
+--   DialogueUI/MenuUI/SavePanel/CutscenePlayer ยังอยู่ StarterPlayerScripts.UI เดิม (script.Parent.UI)
+local StarterGuiUI = playerGui:WaitForChild("UI")
+local HUD = require(StarterGuiUI.HUD)
+local PCScreen = require(StarterGuiUI.PCScreen)
+local EditQTE = require(StarterGuiUI.Apps.EditQTE)
+local Upload = require(StarterGuiUI.Apps.Upload)
+local Feedback = require(StarterGuiUI.Apps.Feedback)
+local Bank = require(StarterGuiUI.Apps.Bank)
 -- ★ CalendarApp ถูกพับไว้ 9 ส.ค. (user) — sponsor ย้ายไปเป็น toast กดรับ (Notify.sponsor + SponsorService)
 --   ไฟล์ CalendarApp.luau ยังอยู่ครบ · จะรื้อกลับ = require ตรงนี้ + ใส่ entry คืนใน PC_APPS
-local ShopKiosk = require(script.Parent.UI.Apps.ShopKiosk)
-local Message = require(script.Parent.UI.Apps.Message)
-local Manage = require(script.Parent.UI.Apps.Manage)
+local ShopKiosk = require(StarterGuiUI.Apps.ShopKiosk)
+local Message = require(StarterGuiUI.Apps.Message)
+local Manage = require(StarterGuiUI.Apps.Manage)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
@@ -26,7 +32,6 @@ local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
 local Notify = require(script.Parent.Notify)
 local Config = require(RS.Shared.Config) -- ตัวคูณ buff sponsor ที่โชว์บน toast (ตัวเลขมาจาก Config ที่เดียว)
 
-local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
 local Content = RS.Shared.Content
 

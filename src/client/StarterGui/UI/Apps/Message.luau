@@ -5,7 +5,7 @@
 local isStudio = script ~= nil
 local DMs = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
-	else require("../../../shared/Content/DMs")
+	else require("../../../../shared/Content/DMs")
 
 local Message = {}
 

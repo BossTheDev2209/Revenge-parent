@@ -14,16 +14,18 @@
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
-	else require("../../../shared/Config")
+	else require("../../../../shared/Config")
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
-	else require("../../../shared/UIAssets")
+	else require("../../../../shared/UIAssets")
 local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
-	else require("../../../shared/Formulas")
+	else require("../../../../shared/Formulas")
 -- ยืมแค่ HUD.comma (pure) — เลขเงินต้องคั่นหลักแบบเดียวกับ HUD ทั้งเกม
+-- HUD ย้ายไปอยู่ StarterGui.UI แล้ว (9 ส.ค.) — ดึงจาก template StarterGui ตรงๆ ก็พอ
+-- (ยืมแค่ฟังก์ชัน pure ไม่สนว่าจะได้ instance เดียวกับที่ Main.client ใช้จริงหรือเปล่า)
 local HUD = if isStudio
-	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.HUD)
+	then require(game:GetService("StarterGui").UI.HUD)
 	else require("../HUD")
 
 local ShopKiosk = {}

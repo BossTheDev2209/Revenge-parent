@@ -31,13 +31,15 @@ local MoneyService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.MoneyService)
 	else require("../src/server/Services/MoneyService")
 
+-- EditQTE/ShopKiosk ย้ายไปอยู่ StarterGui.UI.Apps แล้ว (9 ส.ค.) — เทสรันตอน Edit mode (ไม่มี player)
+-- อ่านจาก StarterGui ตรงๆ (template) แทน PlayerGui ที่ยังไม่ถูก populate
 local EditQTE = if isStudio
-	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.EditQTE)
-	else require("../src/client/UI/Apps/EditQTE")
+	then require(game:GetService("StarterGui").UI.Apps.EditQTE)
+	else require("../src/client/StarterGui/UI/Apps/EditQTE")
 
 local ShopKiosk = if isStudio
-	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.Apps.ShopKiosk)
-	else require("../src/client/UI/Apps/ShopKiosk")
+	then require(game:GetService("StarterGui").UI.Apps.ShopKiosk)
+	else require("../src/client/StarterGui/UI/Apps/ShopKiosk")
 
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -1229,9 +1231,10 @@ check("pool ต้องมีครบทั้ง 3 sentiment (ไม่งั
 	poolCount.neg >= 1 and poolCount.neu >= 1 and poolCount.pos >= 1)
 
 -- ===== HUD storage = GB ไม่ใช่จำนวนคลิป (docs/09 §0 ข้อ 4) =====
+-- HUD ย้ายไปอยู่ StarterGui.UI แล้ว (9 ส.ค.)
 local HUD = if isStudio
-	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.HUD)
-	else require("../src/client/UI/HUD")
+	then require(game:GetService("StarterGui").UI.HUD)
+	else require("../src/client/StarterGui/UI/HUD")
 local hudS = GameState.newGame()
 -- ⚠️ 28 ก.ค.: ไอคอนย้ายออกจากข้อความไปเป็นรูป/emoji แยกช่อง (HUD ใหม่ตามภาพร่าง) → ไม่มี "💾 " นำหน้าแล้ว
 check("storage เริ่มต้น = 0 GB / 128 GB", HUD.storageText(hudS) == "0 GB / 128 GB")

@@ -4,10 +4,10 @@
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
-	else require("../../../shared/Config")
+	else require("../../../../shared/Config")
 local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
-	else require("../../../shared/Formulas")
+	else require("../../../../shared/Formulas")
 
 local EditQTE = {}
 EditQTE.running = false
@@ -166,9 +166,10 @@ end
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else nil
--- AudioService อยู่ที่ SPS.AudioService (EditQTE = SPS.UI.Apps.EditQTE → ขึ้น 3 ชั้น)
+-- EditQTE (ใน Apps) ย้ายไปอยู่ StarterGui.UI.Apps (9 ส.ค.) — AudioService ยังอยู่ StarterPlayerScripts เดิม
+-- ต้อง absolute path ผ่าน PlayerScripts (ความลึกเดิม script.Parent.Parent.Parent ใช้ไม่ได้แล้ว)
 local AudioService = if isStudio
-	then require(script.Parent.Parent.Parent.AudioService)
+	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
 	else nil
 
 -- เล่นเสียงตามเกรด — ผ่านระบบกลาง AudioService.sfx (คุม master volume ให้เอง)

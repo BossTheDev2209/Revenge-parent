@@ -190,8 +190,10 @@ playerGui.ChildRemoved:Connect(refreshBackpack)
 refreshBackpack() -- ตั้ง hotbar ให้ตรงสถานะตั้งแต่เริ่ม
 
 -- เกมเริ่มที่เมนู (freeze จนกดเล่น) · onNewGame = เล่น intro หลังเริ่มเกมใหม่
-MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening,
-	getState = function() return latestState end }) -- seed slotList ที่ server prefetch มาแล้ว (ไม่ต้องรอ)
+-- เก็บ deps ไว้ reuse ตอนกลับเมนูหลัง ending (game over → main menu)
+local menuDeps = { fireAction = fireAction, onNewGame = playOpening,
+	getState = function() return latestState end }
+MenuUI.open(playerGui, menuDeps) -- seed slotList ที่ server prefetch มาแล้ว (ไม่ต้องรอ)
 
 -- ปุ่มเซฟเล็กมุมซ้ายล่าง + หน้าต่างเลือกช่อง — baked เป็น Gui_SaveButton/Gui_SavePanel จริงแล้ว (9 ส.ค.)
 -- SavePanel.init ผูก event ให้ทั้งสอง gui ครั้งเดียว (ปุ่มกดแล้วเปิด panel เอง ไม่ต้อง wire ที่นี่)
@@ -483,13 +485,24 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		})
 	end
 
-	-- จบเกม → เล่น cutscene ending (ครั้งเดียว) — รอ canon event ค้างให้จบก่อน (เช่น BCA หลัง 1M)
+	-- จบเกม → เล่น cutscene ending (ครั้งเดียว) → fade ดำ → กลับ main menu (game over)
+	-- หมวยทวงตัง/bad end เกิดตอนนอน (rent cycle) แล้ว EndingService ตั้ง flags.ending — client เล่นตรงนี้
+	-- รอ canon event ค้างให้จบก่อน (เช่น BCA หลัง 1M)
 	if state.flags.ending and not endingPlayed
 		and #state.pendingEvents == 0 and not DialogueUI.running then
 		endingPlayed = true
-		local steps = require(Content.Endings[state.flags.ending])
+		local endId = state.flags.ending
+		local steps = require(Content.Endings[endId])
 		CutscenePlayer.play(playerGui, steps, function()
-			DialogueUI.show(playerGui, { "[slow]— จบ — [normal](" .. state.flags.ending .. ")" })
+			-- cutscene จบ → fade ดำ + "— จบ —" → เปิด main menu (save snapshot ก่อน cutscene ยังอยู่ กดเข้าเล่นซ้ำได้)
+			ScreenTransition.play({
+				lines = { "[slow]— จบ — [normal](" .. endId .. ")" },
+				onDone = function()
+					-- คง endingPlayed=true กัน ending เล่นซ้ำวนขณะเมนูเปิด (flags.ending ยังตั้งอยู่)
+					-- ⏳ replay-on-reload + save snapshot ก่อน cutscene = follow-up (Boss อยากได้ ยังไม่ทำ)
+					MenuUI.open(playerGui, menuDeps)
+				end,
+			})
 		end)
 	end
 end)

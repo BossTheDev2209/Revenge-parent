@@ -51,7 +51,9 @@ function ScreenTransition.play(opts)
 	gui.DisplayOrder = 100
 	gui.ResetOnSpawn = false
 	local black = Instance.new("Frame")
-	black.Size = UDim2.new(1, 0, 1, 0)
+	-- overshoot 40px บน-ล่าง กัน topbar/gui inset โผล่ (IgnoreGuiInset บางทีไม่พอ)
+	black.Position = UDim2.new(0, 0, 0, -40)
+	black.Size = UDim2.new(1, 0, 1, 80)
 	black.BackgroundColor3 = Color3.new(0, 0, 0)
 	black.BackgroundTransparency = 1
 	black.Parent = gui
@@ -82,29 +84,46 @@ function ScreenTransition.play(opts)
 				label.TextWrapped = true
 				label.TextXAlignment = Enum.TextXAlignment.Center
 				label.Text = ""
+				label.TextTransparency = 1 -- เริ่มซ่อน ค่อย fade เข้า
 				label.Parent = black
 				local stroke = Instance.new("UIStroke")
 				stroke.Thickness = 2
 				stroke.Color = Color3.new(0, 0, 0)
-				stroke.Transparency = 0.4
+				stroke.Transparency = 1
 				stroke.Parent = label
+
+				-- fade ตัวอักษร (to=0 โผล่ / to=1 หาย) — รอจบก่อนไปต่อ ให้แต่ละข้อความสลับกันนุ่มๆ
+				local TEXT_FADE = 0.35
+				local function fadeText(to: number)
+					local strokeTo = to < 0.5 and 0.4 or 1
+					local a = TweenService:Create(label, TweenInfo.new(TEXT_FADE), { TextTransparency = to })
+					local b = TweenService:Create(stroke, TweenInfo.new(TEXT_FADE), { Transparency = strokeTo })
+					a:Play()
+					b:Play()
+					a.Completed:Wait()
+				end
+
+				local hasText = false
 				for _, s in opts.steps do
 					if type(s.dialogue) == "table" then
-						-- กล่องข้อความแทรก (reuse DialogueUI) — ซ่อน narration, คุยจบ (คลิกต่อ) แล้วเล่าต่อ
-						label.Visible = false
+						-- กล่องข้อความแทรก (reuse DialogueUI) — ซ่อน narration ก่อน, คุยจบ (คลิกต่อ) แล้วเล่าต่อ
+						if hasText then fadeText(1) hasText = false end
 						local done = false
 						DialogueUI.show(playerGui, s.dialogue, function() done = true end, s.voice)
 						local dg = playerGui:FindFirstChild("Gui_Dialogue")
 						if dg then dg.DisplayOrder = 101 end
 						while not done do task.wait() end
-						label.Visible = true
 					elseif type(s.text) == "string" then
+						if hasText then fadeText(1) end -- อันเก่า fade หายก่อน
 						label.Text = s.text
+						fadeText(0)                     -- อันใหม่ fade เข้า
+						hasText = true
 						if s.t then task.wait(s.t) end
 					elseif s.t then
 						task.wait(s.t)
 					end
 				end
+				if hasText then fadeText(1) end -- ข้อความสุดท้าย fade หายก่อน bg fade (กันเห็นแมพทั้งที่ text ยังอยู่)
 			end
 		-- (เดิม) DialogueUI คลิกต่อ — ใช้เมื่อไม่ใส่ steps
 		elseif opts.lines and #opts.lines > 0 and not DialogueUI.running then

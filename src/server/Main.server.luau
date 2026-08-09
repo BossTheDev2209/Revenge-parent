@@ -328,6 +328,8 @@ ActionRouter.register("DevCmd", function(s, a)
 		s.flags.staffSplit = false -- อนุญาตยิงซ้ำระหว่าง dev
 		s.lastStaffSplit = StaffService.splitStaff(s)
 		s.flags.staffSplit = true
+	elseif c == "qte" then
+		s.pendingRecordQTE = os.clock() -- force-trigger RecordQTE (client watch → เปิด skill-check ทันที ไม่ต้องรอสุ่ม 2%)
 	else
 		warn("[DevCmd] ไม่รู้จัก:", c)
 	end

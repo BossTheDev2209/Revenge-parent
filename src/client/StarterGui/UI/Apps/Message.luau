@@ -2,6 +2,11 @@
 -- format DMs (ทีมเขียนบท — docs/10):
 --   แบบเก่า: { from="ชื่อ", lines={"...", "..."} }                          → bubble ฝั่ง NPC อย่างเดียว
 --   แบบช้อย: { from="ชื่อ", exchanges={ {npc="...", choices={"ก","ข","ค"}, reply="..."} } }
+--
+-- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ (container ว่างทั้งหมด) bake เป็น template
+--   เนื้อหาข้างในทุกส่วนยาวไม่แน่นอนจริง (รายชื่อ/บับเบิลแชท/ปุ่มช้อย) ยังสร้างจาก data เหมือนเดิม
+--   template จริงอยู่ Gui_PC.Screen.AppTemplates.Message (แต่งใน Studio ได้)
+--   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: People, Chat, ChoiceBar (ScrollingFrame/Frame ว่างทั้งหมด)
 local isStudio = script ~= nil
 local DMs = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
@@ -28,42 +33,19 @@ local function bubble(parent, text, mine)
 end
 
 function Message.create(frame, deps)
-	-- ซ้าย: รายชื่อคน | ขวา: แชท + แถวช้อยล่าง
-	local people = Instance.new("ScrollingFrame")
-	people.Size = UDim2.new(0.28, -8, 1, -8)
-	people.Position = UDim2.new(0, 4, 0, 4)
-	people.BackgroundColor3 = Color3.fromRGB(235, 235, 240)
-	people.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	people.CanvasSize = UDim2.new(0, 0, 0, 0)
-	people.Parent = frame
-	local pl = Instance.new("UIListLayout")
-	pl.Padding = UDim.new(0, 4)
-	pl.Parent = people
+	local guiPC = frame:FindFirstAncestorOfClass("ScreenGui")
+	local template = guiPC and guiPC:FindFirstChild("Screen") and guiPC.Screen.AppTemplates:FindFirstChild("Message")
+	if not template then
+		warn("[Message] ไม่มี template Gui_PC.Screen.AppTemplates.Message — แต่งใน Studio ให้ครบก่อน")
+		return {}
+	end
+	local content = template:Clone()
+	content.Name = "MessageContent"
+	content.Parent = frame
 
-	local chat = Instance.new("ScrollingFrame")
-	chat.Size = UDim2.new(0.72, -12, 1, -140) -- เว้นที่ให้ช้อย 3 แถวเรียงลง (ภาพร่าง PC-DM ui.png)
-	chat.Position = UDim2.new(0.28, 4, 0, 4)
-	chat.BackgroundColor3 = Color3.fromRGB(250, 250, 252)
-	chat.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	chat.CanvasSize = UDim2.new(0, 0, 0, 0)
-	chat.Parent = frame
-	local cl = Instance.new("UIListLayout")
-	cl.Padding = UDim.new(0, 6)
-	cl.Parent = chat
-
-	-- เส้นคั่นเหนือแถวช้อย (ภาพร่างมีเส้นแบ่งแชท/ช้อย)
-	local rule = Instance.new("Frame")
-	rule.Size = UDim2.new(0.72, -12, 0, 2)
-	rule.Position = UDim2.new(0.28, 4, 1, -132)
-	rule.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-	rule.BorderSizePixel = 0
-	rule.Parent = frame
-
-	local choiceBar = Instance.new("Frame")
-	choiceBar.Size = UDim2.new(0.72, -12, 0, 124)
-	choiceBar.Position = UDim2.new(0.28, 4, 1, -126)
-	choiceBar.BackgroundTransparency = 1
-	choiceBar.Parent = frame
+	local people = content:FindFirstChild("People")
+	local chat = content:FindFirstChild("Chat")
+	local choiceBar = content:FindFirstChild("ChoiceBar")
 
 	local progress = {} -- [dm] = จำนวน exchange ที่คุยจบแล้ว (reset ทุกครั้งที่เปิดแอป — cosmetic)
 	local picked = {}   -- [dm] = { [i] = ช้อยที่เลือก }

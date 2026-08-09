@@ -3,6 +3,12 @@
 --   ขวา  : การ์ดพนักงาน 2 คอลัมน์ — ส่วนบน Hirable (แดง) / เส้นคั่นหนา / ส่วนล่าง Active (เขียว)
 --   การ์ด: ชื่อ + กรอบรูป (★ เว้นว่างรอรูปวาด) + ปุ่ม hire/fire ซ้าย · speed/Quality/Salary ขวา
 -- server ตัดสินเงื่อนไขทั้งหมด — client แค่ยิง action
+--
+-- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ (แผงซ้าย/แถบ/container ขวา) bake เป็น template
+--   การ์ดพนักงานยังสร้างจาก data ตอน refresh (จำนวนเปลี่ยนตาม roster/hire state — ยาวไม่แน่นอนจริง)
+--   template จริงอยู่ Gui_PC.Screen.AppTemplates.Manage (แต่งใน Studio ได้)
+--   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: Left.PerDayLabel · Left.{Speed,Quality,Salary}{Val,Track.Fill}
+--   Right.{HirableList, ActiveList} (ScrollingFrame ว่าง มี UIGridLayout ติดมาแล้ว)
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -21,106 +27,35 @@ local function stroke(inst, color, thick)
 end
 
 function Manage.create(frame, deps)
-	frame.BackgroundColor3 = Color3.fromRGB(238, 240, 245)
+	local guiPC = frame:FindFirstAncestorOfClass("ScreenGui")
+	local template = guiPC and guiPC:FindFirstChild("Screen") and guiPC.Screen.AppTemplates:FindFirstChild("Manage")
+	if not template then
+		warn("[Manage] ไม่มี template Gui_PC.Screen.AppTemplates.Manage — แต่งใน Studio ให้ครบก่อน")
+		return {}
+	end
+	local content = template:Clone()
+	content.Name = "ManageContent"
+	content.Parent = frame
 
-	-- ===== ซ้าย: สรุปทีม =====
-	local left = Instance.new("Frame")
-	left.Position = UDim2.new(0, 8, 0, 8)
-	left.Size = UDim2.new(0.36, -12, 1, -16)
-	left.BackgroundColor3 = Color3.new(1, 1, 1)
-	left.Parent = frame
-	stroke(left)
-
-	local perDayLabel = Instance.new("TextLabel")
-	perDayLabel.Position = UDim2.new(0, 10, 0.08, 0)
-	perDayLabel.Size = UDim2.new(1, -20, 0, 26)
-	perDayLabel.BackgroundTransparency = 1
-	perDayLabel.TextColor3 = BLUE
-	perDayLabel.TextScaled = true
-	perDayLabel.TextXAlignment = Enum.TextXAlignment.Left
-	perDayLabel.Text = "Video per day : 0/0"
-	perDayLabel.Parent = left
-
-	local sep = Instance.new("Frame")
-	sep.Position = UDim2.new(0.06, 0, 0.26, 0)
-	sep.Size = UDim2.new(0.88, 0, 0, 2)
-	sep.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	sep.BorderSizePixel = 0
-	sep.Parent = left
-
-	-- 3 แถบ: ชื่อซ้าย ค่าขวา แถบใต้
+	local left = content:FindFirstChild("Left")
+	local perDayLabel = left and left:FindFirstChild("PerDayLabel")
 	local bars = {}
-	for i, def in { { "speed", "⏱️" }, { "Quality", "🎬" }, { "Salary", "💵" } } do
-		local y = 0.34 + (i - 1) * 0.2
-		local cap = Instance.new("TextLabel")
-		cap.Position = UDim2.new(0.06, 0, y, 0)
-		cap.Size = UDim2.new(0.5, 0, 0, 22)
-		cap.BackgroundTransparency = 1
-		cap.TextColor3 = BLUE
-		cap.TextScaled = true
-		cap.TextXAlignment = Enum.TextXAlignment.Left
-		cap.Text = ("%s %s"):format(def[1], def[2])
-		cap.Parent = left
-
-		local val = Instance.new("TextLabel")
-		val.Position = UDim2.new(0.5, 0, y, 0)
-		val.Size = UDim2.new(0.44, 0, 0, 22)
-		val.BackgroundTransparency = 1
-		val.TextColor3 = BLUE
-		val.TextScaled = true
-		val.TextXAlignment = Enum.TextXAlignment.Right
-		val.Text = ": -"
-		val.Parent = left
-
-		local track = Instance.new("Frame")
-		track.Position = UDim2.new(0.06, 0, y + 0.07, 0)
-		track.Size = UDim2.new(0.88, 0, 0, 20)
-		track.BackgroundColor3 = Color3.new(1, 1, 1)
-		track.Parent = left
-		stroke(track)
-		local fill = Instance.new("Frame")
-		fill.Size = UDim2.new(0, 0, 1, -4)
-		fill.Position = UDim2.new(0, 2, 0, 2)
-		fill.BackgroundColor3 = BLUE
-		fill.BorderSizePixel = 0
-		fill.Parent = track
-
-		bars[def[1]] = { val = val, fill = fill }
+	if left then
+		for _, key in { "Speed", "Quality", "Salary" } do
+			local track = left:FindFirstChild(key .. "Track")
+			bars[key] = {
+				val = left:FindFirstChild(key .. "Val"),
+				fill = track and track:FindFirstChild("Fill"),
+			}
+		end
 	end
+	local right = content:FindFirstChild("Right")
+	local hirableList = right and right:FindFirstChild("HirableList")
+	local activeList = right and right:FindFirstChild("ActiveList")
 
-	-- ===== ขวา: การ์ดพนักงาน 2 ส่วน =====
-	local right = Instance.new("Frame")
-	right.Position = UDim2.new(0.36, 4, 0, 8)
-	right.Size = UDim2.new(0.64, -12, 1, -16)
-	right.BackgroundTransparency = 1
-	right.Parent = frame
-
-	local function section(yScale, hScale)
-		local sc = Instance.new("ScrollingFrame")
-		sc.Position = UDim2.new(0, 0, yScale, 0)
-		sc.Size = UDim2.new(1, 0, hScale, 0)
-		sc.BackgroundTransparency = 1
-		sc.ScrollBarThickness = 4
-		sc.CanvasSize = UDim2.new(0, 0, 0, 0)
-		sc.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		sc.Parent = right
-		local grid = Instance.new("UIGridLayout")
-		grid.CellSize = UDim2.new(0.5, -6, 0, 104)
-		grid.CellPadding = UDim2.new(0, 6, 0, 6)
-		grid.Parent = sc
-		return sc
-	end
-	local hirableList = section(0, 0.56)
-	local divider = Instance.new("Frame")
-	divider.Position = UDim2.new(0, 0, 0.58, 0)
-	divider.Size = UDim2.new(1, 0, 0, 3)
-	divider.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	divider.BorderSizePixel = 0
-	divider.Parent = right
-	local activeList = section(0.61, 0.39)
-
-	-- การ์ด 1 ใบตามภาพร่าง
+	-- การ์ด 1 ใบตามภาพร่าง — ยาวไม่แน่นอน (จำนวนเปลี่ยนตาม roster/hire state) ยังสร้างจาก data
 	local function makeCard(parent, r, hired)
+		if not parent then return end
 		local card = Instance.new("Frame")
 		card.BackgroundColor3 = Color3.new(1, 1, 1)
 		card.Parent = parent
@@ -197,18 +132,22 @@ function Manage.create(frame, deps)
 		end
 		local perDay = speed / Config.Staff.clipsPerDayPerSpeed
 		local capSpeed = Config.Staff.hireCap * 40 -- สเกลแถบเฉยๆ ไม่ใช่ค่า balance
-		perDayLabel.Text = ("Video per day : %.1f/%d"):format(perDay, Config.Staff.hireCap)
-		bars.speed.val.Text = (": %d/%d"):format(speed, capSpeed)
-		bars.speed.fill.Size = UDim2.new(math.clamp(speed / capSpeed, 0, 1), -4, 1, -4)
+		if perDayLabel then
+			perDayLabel.Text = ("Video per day : %.1f/%d"):format(perDay, Config.Staff.hireCap)
+		end
+		if bars.Speed.val then bars.Speed.val.Text = (": %d/%d"):format(speed, capSpeed) end
+		if bars.Speed.fill then bars.Speed.fill.Size = UDim2.new(math.clamp(speed / capSpeed, 0, 1), -4, 1, -4) end
 		local avgQ = n > 0 and math.floor(quality / n) or 0
-		bars.Quality.val.Text = (": %d/100"):format(avgQ)
-		bars.Quality.fill.Size = UDim2.new(math.clamp(avgQ / 100, 0, 1), -4, 1, -4)
-		bars.Salary.val.Text = (": ฿%d"):format(salary)
-		bars.Salary.fill.Size = UDim2.new(math.clamp(salary / 100000, 0, 1), -4, 1, -4)
+		if bars.Quality.val then bars.Quality.val.Text = (": %d/100"):format(avgQ) end
+		if bars.Quality.fill then bars.Quality.fill.Size = UDim2.new(math.clamp(avgQ / 100, 0, 1), -4, 1, -4) end
+		if bars.Salary.val then bars.Salary.val.Text = (": ฿%d"):format(salary) end
+		if bars.Salary.fill then bars.Salary.fill.Size = UDim2.new(math.clamp(salary / 100000, 0, 1), -4, 1, -4) end
 
 		for _, list in { hirableList, activeList } do
-			for _, ch in list:GetChildren() do
-				if ch:IsA("Frame") then ch:Destroy() end
+			if list then
+				for _, ch in list:GetChildren() do
+					if ch:IsA("Frame") then ch:Destroy() end
+				end
 			end
 		end
 		-- hirable: roster ที่ปลดล็อก (phase+follower+flag ครบ · ตรงกับ StaffService.availableHires) + ยังไม่จ้าง

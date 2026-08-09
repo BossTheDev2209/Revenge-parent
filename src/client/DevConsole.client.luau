@@ -14,6 +14,7 @@
 --   /dev staffsplit      ยิง event พนักงานตีกัน
 --   /dev preview <2|3|4|...>   เล่น Content.Cutscenes.PhaseTransitions[key] ตรงๆ ฝั่ง client
 --                              (ไม่ผ่าน server/phase จริง — ทดสอบ [3]/[4] ได้ทันทีไม่ต้องไล่ follower)
+--   /dev tp <1|2|3>      วาปไป Spawn_Phase<n> ตรงๆ (ยิง TeleportTo — ไม่แตะ follower/phase)
 local RunService = game:GetService("RunService")
 if not RunService:IsStudio() then return end -- dev เท่านั้น — published ไม่โหลด
 
@@ -26,7 +27,8 @@ local ScreenTransition = require(script.Parent.ScreenTransition)
 local HELP = [[[DevConsole] /dev <cmd> <ค่า>
   follower <n> · phase <1-3> · money <n> · time <0-23> · mental <0-100> · day <n>
   flag <ชื่อ> [true|false] · ending <id> · npcloc <actor> <loc> · staffsplit
-  preview <key>  -- เล่น PhaseTransitions[key] ตรงๆ (client-only ไม่แตะ state)]]
+  preview <key>  -- เล่น PhaseTransitions[key] ตรงๆ (client-only ไม่แตะ state)
+  tp <1-3>       -- วาปไป Spawn_Phase<n> ตรงๆ (ไม่แตะ follower/phase)]]
 
 -- เก็บ day ล่าสุดไว้แทน [date] ตอน preview (ไม่พึ่ง Main.client) — เบาสุด ฟังรีโมทเดียวกัน
 local lastDay = 1
@@ -70,6 +72,10 @@ cmd.Triggered:Connect(function(_, text)
 	end
 	if sub:lower() == "preview" then
 		preview(parts[3])
+		return
+	end
+	if sub:lower() == "tp" then
+		remote:FireServer({ type = "TeleportTo", target = "Spawn_Phase" .. tostring(parts[3]) })
 		return
 	end
 	remote:FireServer({ type = "DevCmd", cmd = sub, value = parts[3], value2 = parts[4] })

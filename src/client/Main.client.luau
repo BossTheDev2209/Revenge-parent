@@ -29,6 +29,7 @@ local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
 local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
+local StoryBeat = require(script.Parent.StoryBeat)
 local Notify = require(script.Parent.Notify)
 local Config = require(RS.Shared.Config) -- ตัวคูณ buff sponsor ที่โชว์บน toast (ตัวเลขมาจาก Config ที่เดียว)
 
@@ -463,6 +464,22 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			onDone = function()
 				fireAction({ type = "FreezeTime", on = false })
 			end,
+		})
+	end
+
+	-- faasai เข้าร่วม: follower ถึง threshold ในเฟส 2 → StoryBeat (เคาะประตู→นั่งเตียง) ครั้งเดียว
+	if state.phase == 2 and state.follower >= Config.FaasaiJoinFollower
+		and not state.flags.faasai_joined and not state.flags.ending
+		and #state.pendingEvents == 0
+		and not DialogueUI.running and not CutscenePlayer.running
+		and not ScreenTransition.running and not StoryBeat.running then
+		fireAction({ type = "SetFlag", name = "faasai_joined" }) -- mark กันยิงซ้ำ (StoryBeat.running กันระหว่างเล่นด้วย)
+		local FaasaiJoin = require(Content.Cutscenes.FaasaiJoin)
+		local Faasai = require(Content.Dialogue["ฟ้าใส"])
+		StoryBeat.play(playerGui, {
+			cutscene = FaasaiJoin,
+			dialogue = Faasai.p2 or Faasai.p1, -- บทเฟส 2 (มาขอฝึกงาน)
+			settle = function() fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" }) end,
 		})
 	end
 

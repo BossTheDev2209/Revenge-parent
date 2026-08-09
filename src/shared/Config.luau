@@ -26,6 +26,8 @@ Config.StoryMilestones = {
 }
 Config.BetrayalMilestone = 500_000
 Config.BetrayalMentalPenalty = -25
+-- faasai เข้าร่วม (StoryBeat เคาะประตู→นั่งเตียง) — ยิงตอน follower ถึงค่านี้ในเฟส 2 (ปรับได้)
+Config.FaasaiJoinFollower = 30_000
 -- BCA (Bangkok Creator Award) — คิวต่อท้ายทันทีหลัง milestone 1M ก่อน ending cutscene
 -- ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี follower ไม่มีทางเกิน
 Config.BCAEventId = "bca"

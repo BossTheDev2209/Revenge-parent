@@ -155,6 +155,13 @@ ActionRouter.register("SetNpcLoc", function(s, a)
 		s.npcLoc[a.actor] = a.loc
 	end
 end)
+-- ตั้ง story flag ให้ persist (beat เล่นจบแล้ว mark ไม่ให้ยิงซ้ำ เช่น faasai_joined) — เฉพาะ flag ขึ้นต้น story_ หรือ *_joined กันตั้งมั่ว
+-- singleplayer story: client เป็นคนคุมจังหวะ beat อยู่แล้ว — server แค่เก็บ/push ให้เซฟติดไปด้วย
+ActionRouter.register("SetFlag", function(s, a)
+	if type(a.name) == "string" then
+		s.flags[a.name] = a.value ~= false
+	end
+end)
 ActionRouter.register("Sleep", function(s)
 	TimeService.sleep(s) -- ข้ามเวลา 8/12 ชม.ตามช่วงที่นอน
 	MentalService.onSleep(s) -- ล้าง NoSleep + นับตื่นใหม่

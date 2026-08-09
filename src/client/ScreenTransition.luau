@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local Audio = require(script.Parent.AudioService)
+local InteractLock = require(script.Parent.InteractLock)
 
 local ScreenTransition = {}
 ScreenTransition.running = false
@@ -60,6 +61,7 @@ function ScreenTransition.play(opts)
 	gui.Parent = playerGui
 
 	task.spawn(function()
+		InteractLock.lock() -- ล็อกเดิน + ปิด prompt ตลอด transition (เหมือน cutscene อื่น) · ref-count ซ้อน DialogueUI ได้
 		Audio.lockBGM(true) -- ห้ามโซนสั่งเพลงระหว่าง transition (วาปเข้าโซนใหม่ = เพลงจะเด้งกลางฉาก)
 		Audio.bgm(nil)      -- ดับเพลงที่ค้างมาก่อนหน้า
 
@@ -139,6 +141,7 @@ function ScreenTransition.play(opts)
 		tout.Completed:Wait()
 		gui:Destroy()
 		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ (โซนใหม่จะเริ่มเพลงหลังฉากจบ)
+		InteractLock.unlock() -- ปลดล็อกเดิน (SprintHandler คืน WalkSpeed ตามปุ่ม)
 		ScreenTransition.running = false
 		if opts.onDone then opts.onDone() end
 	end)

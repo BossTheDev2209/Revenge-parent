@@ -176,7 +176,9 @@ ActionRouter.register("FreezeTime", function(s, a)
 end)
 -- Main Menu (PDF หน้า 1): slot list ส่งกลับทาง state.slotList — ไม่เพิ่ม Remote
 ActionRouter.register("RequestSlots", function(s, a, player)
-	s.slotList = GameState.listSlots(player.UserId)
+	local slots, failed = GameState.listSlots(player.UserId)
+	s.slotList = slots
+	s.slotsFailed = next(failed) and failed or nil -- ช่องที่ DataStore อ่านไม่สำเร็จ → client โชว์ "ลองใหม่" ไม่ใช่ "ว่าง"
 end)
 ActionRouter.register("LoadSlot", function(s, a, player)
 	-- a.which = "auto" | เลข index snapshot | ไม่ส่ง (= ล่าสุดในช่อง)
@@ -340,7 +342,9 @@ Players.PlayerAdded:Connect(function(player)
 	-- prefetch slotList ระหว่างผู้เล่นยังโหลดเข้าเกม (listSlots yield ~1.6s) → พร้อมก่อนเมนูเปิด
 	-- เมนูเปิดมา seed จาก state.slotList ที่ push นี้ส่งไปแล้ว = ไม่ต้องรอ RequestSlots อีกรอบ
 	task.spawn(function()
-		state.slotList = GameState.listSlots(player.UserId)
+		local slots, failed = GameState.listSlots(player.UserId)
+		state.slotList = slots
+		state.slotsFailed = next(failed) and failed or nil -- prefetch พลาดบางช่อง → client auto-retry เอง (ไม่ต้อง rejoin)
 		GameState.push(state)
 	end)
 end)

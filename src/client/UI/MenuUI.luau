@@ -708,7 +708,8 @@ function MenuUI.open(playerGui, deps)
 
 	-- ===== ปุ่มหน้า home =====
 	local latest = nil
-	local slotsReady = false   -- true เมื่อ slotList รอบแรกมาถึง (updateSlots ทำงาน)
+	local slotsReady = false   -- true เมื่อ slotList รอบแรก (ครบทุกช่อง) มาถึง (updateSlots ทำงาน)
+	local slotRetries = 0      -- auto-retry RequestSlots เมื่อ DataStore อ่านบางช่องไม่สำเร็จ (กันเมนูค้างโชว์ "ไม่มีเซฟ" จนต้อง rejoin)
 	local pendingContinue = false -- กด "เล่นต่อ" ตอน slot ยังไม่โหลด → ค้างไว้ตัดสินหลังโหลด
 	local continueBtn = textButton(homePanel, "เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
 		nil, -1.4)
@@ -822,6 +823,12 @@ function MenuUI.open(playerGui, deps)
 		local b = slotBtns[i]
 		if b then
 			b.Activated:Connect(function()
+				-- ช่องนี้ DataStore อ่านไม่สำเร็จ (ไม่ใช่ว่าง) → ลองอ่านใหม่ อย่าเดา NewGame ทับเซฟที่อาจมีอยู่
+				if b:GetAttribute("ReadFailed") then
+					slotRetries = 0 -- ผู้เล่นสั่งเอง → รีเซ็ตโควตา auto-retry
+					deps.fireAction({ type = "RequestSlots" })
+					return
+				end
 				-- slot ยังไม่โหลด = ยังไม่รู้ว่าช่องนี้มีเซฟไหม อย่าเดา NewGame ทับ (ปกติโหลดเสร็จก่อนกางสมุดอยู่แล้ว)
 				if not slotsReady then return end
 				if not b:GetAttribute("HasSave") then
@@ -843,22 +850,43 @@ function MenuUI.open(playerGui, deps)
 		if not MenuUI.running then return end
 		local slots = state.slotList
 		if not slots then return end
+		local failed = state.slotsFailed -- {[slot]=true} ที่ DataStore อ่านไม่สำเร็จ (≠ ว่าง)
 		currentSlots = slots -- ให้ snapshot picker อ่าน entries
 		latest = MenuUI.latestSlot(slots)
 		-- ความคืบหน้า = เฟสของเซฟล่าสุด (ไม่มีเซฟ = เฟส 1) → เพลงเมนู + รายละเอียดห้องเปลี่ยนตาม
 		local menuPhase = (latest and slots[latest] and slots[latest].phase) or 1
 		applyMenuVariant(root, menuPhase)
 		Audio.bgm(resolveMenuBGM(menuPhase))
-		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		for i = 1, 4 do
 			local b = slotBtns[i]
 			if b then
-				b.Text = MenuUI.slotLine(i, slots[i])
-				b:SetAttribute("HasSave", slots[i] ~= nil)
+				if failed and failed[i] then
+					b.Text = ("ช่อง %d — โหลดไม่สำเร็จ · แตะลองใหม่"):format(i)
+					b:SetAttribute("HasSave", false)
+					b:SetAttribute("ReadFailed", true)
+				else
+					b.Text = MenuUI.slotLine(i, slots[i])
+					b:SetAttribute("HasSave", slots[i] ~= nil)
+					b:SetAttribute("ReadFailed", false)
+				end
 			end
-			if delBtns[i] then delBtns[i].Visible = slots[i] ~= nil end
+			if delBtns[i] then delBtns[i].Visible = (not (failed and failed[i])) and slots[i] ~= nil end
 		end
-		-- ข้อมูลจริงมาถึงแล้ว → ปุ่มตัดสินใจได้ · ถ้าผู้เล่นกด "เล่นต่อ" ค้างไว้ตอนยังโหลด ทำต่อตอนนี้
+		-- บางช่องอ่าน DataStore ไม่สำเร็จ = ข้อมูลยังพร่อง → อย่า lock slotsReady จากของพร่อง (ไม่งั้นเมนูค้างโชว์ "ไม่มีเซฟ" จนต้อง rejoin)
+		--   auto-retry เอง + คง pendingContinue ไว้ให้ Continue รอจนอ่านครบ (กัน NewGame ทับเซฟ)
+		if failed and next(failed) then
+			continueBtn.Text = "กำลังโหลดเซฟ…"
+			if slotRetries < 6 then
+				slotRetries += 1
+				task.delay(1.2, function()
+					if MenuUI.running and not slotsReady then deps.fireAction({ type = "RequestSlots" }) end
+				end)
+			end
+			return
+		end
+		-- อ่านครบทุกช่องแล้ว → ปุ่มตัดสินใจได้ · ถ้าผู้เล่นกด "เล่นต่อ" ค้างไว้ตอนยังโหลด ทำต่อตอนนี้
+		slotRetries = 0
+		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		slotsReady = true
 		if pendingContinue then
 			pendingContinue = false
@@ -892,6 +920,7 @@ function MenuUI.openFallback(playerGui, deps)
 
 	local btns, latest = {}, nil
 	local slotsReady, pendingContinue = false, false
+	local slotRetries = 0 -- auto-retry เมื่อ DataStore อ่านบางช่องไม่สำเร็จ (กันเมนูค้างโชว์ "ไม่มีเซฟ")
 	local function startGame(action)
 		local isNewGame = action ~= nil and action.type == "NewGame"
 		if action then deps.fireAction(action) end
@@ -921,6 +950,11 @@ function MenuUI.openFallback(playerGui, deps)
 		local b = textButton(bg, MenuUI.slotLine(i, nil), UDim2.new(0.5, -160, 0, 130 + i * 56),
 			UDim2.new(0, 320, 0, 48))
 		b.Activated:Connect(function()
+			if b:GetAttribute("ReadFailed") then -- DataStore อ่านช่องนี้ไม่สำเร็จ (ไม่ใช่ว่าง) → ลองใหม่ อย่าเดา NewGame ทับ
+				slotRetries = 0
+				deps.fireAction({ type = "RequestSlots" })
+				return
+			end
 			if not slotsReady then return end -- ยังไม่รู้ว่าช่องนี้มีเซฟไหม อย่าเดา
 			startGame(b:GetAttribute("HasSave") and { type = "LoadSlot", slot = i } or { type = "NewGame", slot = i })
 		end)
@@ -939,12 +973,32 @@ function MenuUI.openFallback(playerGui, deps)
 	function MenuUI.updateSlots(state)
 		local slots = state.slotList
 		if not slots or not gui.Parent then return end
+		local failed = state.slotsFailed -- {[slot]=true} DataStore อ่านไม่สำเร็จ (≠ ว่าง)
 		latest = MenuUI.latestSlot(slots)
-		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		for i = 1, 4 do
-			btns[i].Text = MenuUI.slotLine(i, slots[i])
-			btns[i]:SetAttribute("HasSave", slots[i] ~= nil)
+			if failed and failed[i] then
+				btns[i].Text = ("ช่อง %d — โหลดไม่สำเร็จ · แตะลองใหม่"):format(i)
+				btns[i]:SetAttribute("HasSave", false)
+				btns[i]:SetAttribute("ReadFailed", true)
+			else
+				btns[i].Text = MenuUI.slotLine(i, slots[i])
+				btns[i]:SetAttribute("HasSave", slots[i] ~= nil)
+				btns[i]:SetAttribute("ReadFailed", false)
+			end
 		end
+		-- บางช่องอ่านไม่สำเร็จ = ข้อมูลพร่อง → อย่า lock slotsReady, auto-retry เอง (กัน NewGame ทับเซฟ)
+		if failed and next(failed) then
+			continueBtn.Text = "กำลังโหลดเซฟ…"
+			if slotRetries < 6 then
+				slotRetries += 1
+				task.delay(1.2, function()
+					if gui.Parent and not slotsReady then deps.fireAction({ type = "RequestSlots" }) end
+				end)
+			end
+			return
+		end
+		slotRetries = 0
+		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
 		slotsReady = true
 		if pendingContinue then
 			pendingContinue = false

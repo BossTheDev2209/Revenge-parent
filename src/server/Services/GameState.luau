@@ -159,15 +159,32 @@ local function summarizeFile(file)
 	}
 end
 
+-- GetAsync + retry — DataStore fail แบบ throttle/timeout เป็นครั้งคราว = ปกติ (ไม่ใช่ "ไม่มีเซฟ")
+-- คืน (ok, data): ok=false = อ่านไม่สำเร็จหลัง retry ครบ · ok=true,data=nil = ช่องว่างจริง
+local function getAsyncRetry(key: string)
+	local lastErr
+	for attempt = 1, 3 do
+		local ok, data = pcall(function() return store():GetAsync(key) end)
+		if ok then return true, data end
+		lastErr = data
+		if attempt < 3 then task.wait(0.5 * attempt) end -- backoff 0.5s, 1.0s
+	end
+	warn("[GameState] GetAsync ล้มเหลวหลัง retry:", key, lastErr)
+	return false, nil
+end
+
 -- อ่านไฟล์ช่อง + migrate เซฟเก่า (state ดิบ ไม่มี .snapshots) → wrap เป็น snapshot เดียว (ไม่พังของเก่า)
+-- คืน (file, readOk): readOk=false = DataStore อ่านไม่สำเร็จ (ช่องนี้ "ไม่รู้" ไม่ใช่ "ว่าง") — caller ต้องแยกให้ออก
+--   ไม่งั้น fail ชั่วคราว = เซฟหายหน้าเมนู แล้ว Continue เดา NewGame ทับ (เจอจริง — replay/รอ ถึงกลับมา)
 local function readFile(userId: number, slot: number)
-	local ok, data = pcall(function() return store():GetAsync(userId .. "_" .. slot) end)
-	if not ok or data == nil then return nil end
+	local ok, data = getAsyncRetry(userId .. "_" .. slot)
+	if not ok then return nil, false end -- อ่านล้มเหลว: อย่าแปลว่าช่องว่าง
+	if data == nil then return nil, true end -- ช่องว่างจริง
 	if data.snapshots == nil and data.auto == nil then
-		return { snapshots = { { state = data, savedAt = data.savedAt or 0, summary = GameState.slotSummary(data) } } }
+		return { snapshots = { { state = data, savedAt = data.savedAt or 0, summary = GameState.slotSummary(data) } } }, true
 	end
 	data.snapshots = data.snapshots or {}
-	return data
+	return data, true
 end
 
 -- ทุกจุดแตะ DataStore ห่อ pcall — fail = warn + เล่นต่อ (Edit mode fail เป็นเรื่องปกติ)
@@ -234,25 +251,32 @@ end
 
 -- คืน {[slot] = summary} เฉพาะ slot ที่มี save — Main Menu/SavePanel ใช้
 -- summary = ข้อมูล snapshot ล่าสุด (แถวย่อ) + count + entries (รายการ snapshot ให้กางเลือก restore)
+-- คืน (out, failed): out={[slot]=summary} ช่องที่มีเซฟ · failed={[slot]=true} ช่องที่อ่าน DataStore ไม่สำเร็จ
+--   client แยก failed ออกจาก "ว่าง" → โชว์ "ลองใหม่" + ไม่ให้ Continue เดา NewGame ทับเซฟ
 function GameState.listSlots(userId: number)
 	local out = {}
 	-- อ่าน 4 ช่องพร้อมกัน (GetAsync แต่ละตัว yield รอ network — spawn ให้ยิงซ้อนกัน)
 	-- เดิมไล่ทีละช่อง = 4 round-trip ต่อกัน (~1.5 วิ) หน้าต่างที่ผู้เล่นเผลอกด "เล่นต่อ" ก่อนโหลดเสร็จ
-	-- แล้วกลายเป็น NewGame ทับเซฟ · ยิงพร้อมกันเหลือ ~1 round-trip ลดหน้าต่างนั้นลง (readFile ห่อ pcall แล้ว)
-	local files, pending = {}, MAX_SLOTS
+	-- แล้วกลายเป็น NewGame ทับเซฟ · ยิงพร้อมกันเหลือ ~1 round-trip ลดหน้าต่างนั้นลง (readFile ห่อ pcall+retry แล้ว)
+	local files, oks, pending = {}, {}, MAX_SLOTS
 	for slot = 1, MAX_SLOTS do
 		task.spawn(function()
-			files[slot] = readFile(userId, slot)
+			files[slot], oks[slot] = readFile(userId, slot)
 			pending -= 1
 		end)
 	end
 	local t0 = os.clock()
-	while pending > 0 and os.clock() - t0 < 10 do task.wait() end -- ช่องไหน GetAsync ค้าง = ข้ามไป ไม่ค้างทั้งเมนู
+	while pending > 0 and os.clock() - t0 < 12 do task.wait() end -- retry เพิ่มเวลา → เผื่อ 12s · ช่องที่ค้างนับเป็น failed
+	local failed = {}
 	for slot = 1, MAX_SLOTS do
 		local sum = summarizeFile(files[slot])
-		if sum then out[slot] = sum end
+		if sum then
+			out[slot] = sum
+		elseif oks[slot] ~= true then
+			failed[slot] = true -- อ่านไม่สำเร็จ (error) หรือ timeout (ยัง pending) — ไม่ใช่ "ว่างจริง"
+		end
 	end
-	return out
+	return out, failed
 end
 
 return GameState

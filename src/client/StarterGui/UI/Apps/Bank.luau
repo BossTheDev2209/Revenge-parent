@@ -31,6 +31,7 @@ function Bank.create(frame, deps)
 	end
 	local content = template:Clone()
 	content.Name = "BankContent"
+	content.Visible = true -- template ซ่อนไว้ (Visible=false) กัน render ทับกันตอนพักเป็นแม่แบบ — clone ต้องเปิดเอง
 	content.Parent = frame
 
 	local heads = {}

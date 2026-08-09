@@ -163,8 +163,22 @@ local function refreshBackpack()
 	end
 	pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, not anyOpen)
 end
-playerGui.ChildAdded:Connect(refreshBackpack)
+-- modal บางตัว (Gui_PC, Gui_MainMenu) เป็น ScreenGui ถาวรใน StarterGui เปิด/ปิดด้วย .Enabled
+-- ไม่ใช่ add/remove → ChildAdded/ChildRemoved ไม่ยิง → refreshBackpack ไม่ถูกเรียกตอนปิด
+-- อาการ: ปิด PC แล้ว hotbar ไม่กลับมา = มือถือ "หาย" จาก inventory จนไปเปิด/ปิดแอปอื่น (สร้าง/ลบ ScreenGui)
+-- → ต้องฟัง .Enabled ของ modal ScreenGui ทุกตัวเพิ่ม
+local function watchModal(g)
+	if g:IsA("ScreenGui") and MODAL_GUIS[g.Name] then
+		g:GetPropertyChangedSignal("Enabled"):Connect(refreshBackpack)
+	end
+end
+for _, g in playerGui:GetChildren() do watchModal(g) end
+playerGui.ChildAdded:Connect(function(g)
+	watchModal(g) -- modal ที่เพิ่ง add เข้ามา ก็ผูกฟัง Enabled ต่อไปด้วย
+	refreshBackpack()
+end)
 playerGui.ChildRemoved:Connect(refreshBackpack)
+refreshBackpack() -- ตั้ง hotbar ให้ตรงสถานะตั้งแต่เริ่ม
 
 -- เกมเริ่มที่เมนู (freeze จนกดเล่น) · onNewGame = เล่น intro หลังเริ่มเกมใหม่
 MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening,

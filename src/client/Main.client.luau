@@ -21,6 +21,7 @@ local RecordTool = require(script.Parent.RecordTool)
 local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
+local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
 local Notify = require(script.Parent.Notify)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -402,6 +403,7 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	prevClips, primed = uploaded, true
 	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end
 	if ShopKiosk.running and ShopKiosk.refresh then ShopKiosk.refresh(state) end -- ซื้อแล้วราคา/ระดับอัปทันที
+	StoryNPCPlacer.apply(state) -- ย้าย StoryNPC ตาม npcLoc (ทำจริงเฉพาะตัวที่ loc เปลี่ยน)
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
 
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว

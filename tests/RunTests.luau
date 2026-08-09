@@ -58,6 +58,9 @@ local DialogueUI = if isStudio
 local CutscenePlayer = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.UI.CutscenePlayer)
 	else require("../src/client/UI/CutscenePlayer")
+local StoryNPCPlacer = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.StoryNPCPlacer)
+	else require("../src/client/StoryNPCPlacer")
 
 local pass, fail = 0, 0
 local failures = {}
@@ -928,6 +931,9 @@ check("moveGoal ยืนตรงเป้า", (mg.Position - Vector3.new(0, 0
 check("moveGoal หันไปทาง -Z", (mg.LookVector - Vector3.new(0, 0, -1)).Magnitude < 0.01)
 local mgSame = CutscenePlayer.moveGoal(CFrame.lookAt(Vector3.new(5, 0, 5), Vector3.new(9, 0, 5)), Vector3.new(5, 0, 5))
 check("moveGoal เป้าเดิม = คงมุมหัน", (mgSame.LookVector - Vector3.new(1, 0, 0)).Magnitude < 0.01)
+-- StoryNPCPlacer: ชื่อ anchor + npcLoc default
+check("anchorName ฟ้าใส/room", StoryNPCPlacer.anchorName("ฟ้าใส", "room") == "NPCHome_ฟ้าใส_room")
+check("newGame มี npcLoc ว่าง", type(GameState.newGame().npcLoc) == "table")
 -- content จริงทั้ง 6 ending ต้อง validate ผ่าน
 local Endings = if isStudio
 	then game:GetService("ReplicatedStorage").Shared.Content.Endings

@@ -37,6 +37,7 @@ function GameState.newGame()
 		-- ระบบพนักงาน (docs/02 §9.8)
 		staff = {},          -- พนักงานจ้าง {id=, speed=, quality=, salary=}
 		companions = {},     -- เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง ไม่มี salary)
+		npcLoc = {},         -- [ชื่อ actor] = ที่อยู่ปัจจุบัน ("room"/"park"/"away") — StoryNPCPlacer วางตาม (client render)
 		staffClips = {},     -- คลิปที่ทีมผลิต {tier=, by=} — นับ VidQ% ครึ่งเดียว
 		staffClipCarry = {}, -- [id] = เศษคลิปสะสมข้ามวัน
 		flags = {},    -- canon event ที่ผ่านแล้ว

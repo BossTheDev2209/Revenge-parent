@@ -728,17 +728,27 @@ check("เฟสไม่ถึงแม้ follower พอ = ไม่ปลด
 
 -- จ้าง/ไล่
 st.phase = 2
-check("จ้าง hire_1 ได้", StaffService.hire(st, "hire_1") == true and #st.staff == 1)
-check("จ้างซ้ำไม่ได้", StaffService.hire(st, "hire_1") == false)
-check("จ้างตัวที่ยังไม่ปลดไม่ได้", StaffService.hire(st, "hire_4") == false)
-check("ไล่ออกได้", StaffService.fire(st, "hire_1") == true and #st.staff == 0)
-check("ไล่คนที่ไม่มีไม่ได้", StaffService.fire(st, "hire_1") == false)
+check("จ้าง hire_editor ได้", StaffService.hire(st, "hire_editor") == true and #st.staff == 1)
+check("จ้างซ้ำไม่ได้", StaffService.hire(st, "hire_editor") == false)
+check("จ้างตัวที่ยังไม่ปลดไม่ได้", StaffService.hire(st, "hire_pro") == false)
+check("ไล่ออกได้", StaffService.fire(st, "hire_editor") == true and #st.staff == 0)
+check("ไล่คนที่ไม่มีไม่ได้", StaffService.fire(st, "hire_editor") == false)
 -- cap 4
 local stCap = GameState.newGame()
 stCap.phase = 3
 stCap.follower = 500_000
 for _, r in Config.Staff.roster do StaffService.hire(stCap, r.id) end
 check("จ้างครบ 4 ตาม cap", #stCap.staff == Config.Staff.hireCap)
+
+-- flag gate: ทีมล้างแค้นปลดเมื่อ flags.betrayed ติดเท่านั้น (พร้อม faasai ออกที่ 500K)
+local stFlag = GameState.newGame()
+stFlag.phase = 3
+stFlag.follower = 500_000
+check("ยังไม่ทรยศ = fierce ไม่ปลด", #StaffService.availableHires(stFlag) == 6)
+check("ยังไม่ทรยศ = จ้าง fierce ไม่ได้", StaffService.hire(stFlag, "hire_fierce1") == false)
+stFlag.flags.betrayed = true
+check("ทรยศแล้ว = fierce โผล่ครบ 8", #StaffService.availableHires(stFlag) == 8)
+check("ทรยศแล้ว = จ้าง fierce ได้", StaffService.hire(stFlag, "hire_fierce1") == true)
 
 -- companion: เข้าเอง โตตามเฟส หายตอนทรยศ
 local co = GameState.newGame()
@@ -761,7 +771,7 @@ check("ทรยศ: companion_1 หาย เหลือ companion_2", #co.com
 local pr = GameState.newGame()
 pr.phase = 2
 pr.follower = 15_000
-StaffService.hire(pr, "hire_1") -- speed 20 = 1 คลิป/วัน
+StaffService.hire(pr, "hire_editor") -- speed 32 = 1.6 → 1 คลิป/วัน (เศษ 0.6 สะสม)
 local f0, m0 = pr.follower, pr.money
 local out = StaffService.produceDaily(pr, rngQueue({ 0.5 }))
 check("1 คลิป/วัน ได้ follower+เงิน", #out == 1 and pr.follower > f0 and pr.money > m0

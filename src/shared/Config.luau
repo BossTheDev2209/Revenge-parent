@@ -127,11 +127,22 @@ Config.Staff = {
 	},
 
 	-- roster จ้าง: ปลดต้องครบทั้ง phase และ follower | pool คงที่ ไม่สุ่ม stat
+	-- 2 แกน trade-off: speed = ปริมาณคลิป (โต follower) · quality = เกรด tier (ปกป้อง VidQ%/ending)
+	--   speed สูง/quality ต่ำ = follower พุ่งแต่ลาก VidQ% ลง (คลิปทีมนับ VidQ ครึ่งเดียว) = เสี่ยง ending แย่
+	--   salary กินเพดานเงิน 1.47M = แย่งงบกับ upgrade · hireCap 4 บังคับเลือกสาย
+	-- flag (optional) = ปลดต่อเมื่อ state.flags[flag] ติด (ทีมล้างแค้นหลัง faasai ทรยศ)
 	roster = {
-		{ id = "hire_1", phase = 2, follower = 15_000, speed = 20, quality = 35, salary = 8_000 },
-		{ id = "hire_2", phase = 2, follower = 40_000, speed = 35, quality = 45, salary = 15_000 },
-		{ id = "hire_3", phase = 3, follower = 150_000, speed = 50, quality = 60, salary = 30_000 },
-		{ id = "hire_4", phase = 3, follower = 450_000, speed = 70, quality = 80, salary = 60_000 },
+		-- เฟส 2: trade-off ชัด เลือกได้สายเดียว
+		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000 },  -- สายเร็ว ปั๊ม volume
+		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000 }, -- สายคุณภาพ ปกป้องเกรด
+		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000 }, -- all-rounder ปลอดภัย
+		-- เฟส 3: เก่งหลายด้าน (multi-skill) salary แพง
+		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000 }, -- มือโปรเอเจนซี่
+		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000 }, -- ปริมาณมหาศาล
+		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000 }, -- เครื่องปั๊ม S
+		-- ทีมล้างแค้น: ปลดเมื่อ faasai ทรยศ (flags.betrayed ตั้งที่ BetrayalMilestone 500K พร้อม companion_1 ออก)
+		{ id = "hire_fierce1",   phase = 3, follower = 500_000, speed = 60, quality = 78, salary = 55_000, flag = "betrayed" },
+		{ id = "hire_fierce2",   phase = 3, follower = 500_000, speed = 55, quality = 85, salary = 58_000, flag = "betrayed" },
 	},
 
 	-- เพื่อนร่วมทาง: auto มาตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap

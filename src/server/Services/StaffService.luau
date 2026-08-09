@@ -42,7 +42,8 @@ end
 function StaffService.availableHires(state)
 	local out = {}
 	for _, r in Config.Staff.roster do
-		if state.phase >= r.phase and state.follower >= r.follower then
+		if state.phase >= r.phase and state.follower >= r.follower
+			and (not r.flag or state.flags[r.flag]) then
 			table.insert(out, r)
 		end
 	end
@@ -70,6 +71,7 @@ function StaffService.hire(state, id: string): boolean
 	local r = findRoster(id)
 	if not r then return false end
 	if state.phase < r.phase or state.follower < r.follower then return false end
+	if r.flag and not state.flags[r.flag] then return false end
 	if StaffService.isHired(state, id) then return false end
 	if #state.staff >= Config.Staff.hireCap then return false end
 	table.insert(state.staff, { id = r.id, speed = r.speed, quality = r.quality, salary = r.salary })

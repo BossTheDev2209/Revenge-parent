@@ -2,10 +2,9 @@
 -- หน้าที่: ผูก Tool 3 ชิ้นใน Backpack → ยิง action RecordFootage + วาดวงโซนถ่าย + นับเวลาโซน
 -- server คุมสูตร/cooldown/cap ทั้งหมด ไฟล์นี้แค่บอกว่า "อยู่ในโซนไหม" กับวาดภาพ
 --
--- ⚠️ KNOWN BUG (9 ส.ค. — **Boss จะแก้เอง อย่าแตะไฟล์นี้ + RecordService + ToolService + record path**):
---   กดกล้อง/มือถือแล้ว footage ไม่เพิ่ม + ไม่มี floatGain (text ม่วง) รอบตัว
---   diagnose แล้ว: bindTool ผูกสำเร็จ + Tool.Activated ยิงจริง (debug ยืนยัน) · ยิง RecordFootage remote ตรงๆ footage ขึ้นปกติ (server/HUD ไม่พัง)
---   → จุดพลาดอยู่ระหว่าง Activated → server ไม่ apply (เดา: root check / cooldown / inZone / state.started) — Boss ตามต่อ
+-- ✅ VERIFIED WORKING 9 ส.ค. (synced build): คลิกจริงในเกม → Tool.Activated ยิง → RecordFootage ถึง server →
+--   footage เพิ่ม (HUD 0→3GB) + floatGain "+2.4 Bonus!" ม่วงขึ้นจริง. รายงานก่อนหน้าว่าพังคือ stale Rojo sync
+--   (plugin หลุดหลัง restart Studio → เทสโค้ดเก่า, CLAUDE.md rule 10). กดไม่ติด = เช็ค Rojo Connect ก่อน ไม่ใช่ logic
 --
 -- ทีมแมพต้องทำ: วาง Part ชื่อ `FilmSpot_<อะไรก็ได้>` กระจายในแมพหลายจุด (docs/05)
 -- ไม่มีสักจุด = ไม่มีโซน อัดได้ที่ base rate ปกติ (ไม่พัง)

@@ -74,9 +74,10 @@ Config.Mental = {
 		commentSarcasm = -5, -- ประชด (⊖/◎)
 		commentInsult = -10, -- ด่า (⊖ เท่านั้น)
 		viralClip = 25,
-		activityExercise = 20,
-		activityRest = 25,
-		activityEat = 15,
+		-- ★ แก้ 9 ส.ค. (user): ตัดหน่วยเวลาที่เคยผูกไว้ทิ้ง เอาแค่ค่าใจที่เพิ่มจริงในหลอด (เดิม 20/25/15)
+		activityExercise = 30,
+		activityRest = 40,
+		activityEat = 20,
 	},
 	-- Activity system (PDF หน้า 6): ทำติดกันเกิน maxStreak → cooldown ข้ามวัน
 	activity = { maxStreak = 3, cooldownDays = 1 },

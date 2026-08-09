@@ -538,11 +538,11 @@ end)())
 local da = GameState.newGame()
 da.phase = 2
 da.mental = 50
-check("Bed +25 (activityRest)", MentalService.doActivity(da, "Bed") == true and da.mental == 75)
+check("Bed +40 (activityRest, แก้ 9 ส.ค.)", MentalService.doActivity(da, "Bed") == true and da.mental == 90)
 da.mental = 50
-MentalService.doActivity(da, "Kitchen") -- ครั้ง 2 (+15 → 65)
-MentalService.doActivity(da, "Exercise") -- ครั้ง 3 (+20 → 85) → เข้า cooldown
-check("ครั้ง 3 ยังได้ผล", da.mental == 85)
+MentalService.doActivity(da, "Kitchen") -- ครั้ง 2 (+20 → 70)
+MentalService.doActivity(da, "Exercise") -- ครั้ง 3 (+30 → 100) → เข้า cooldown
+check("ครั้ง 3 ยังได้ผล", da.mental == 100)
 check("cooldown ถึงวันพรุ่งนี้ + streak รีเซ็ต",
 	da.activity.cooldownUntilDay == da.day + 1 and da.activity.streak == 0)
 check("ระหว่าง cooldown ใช้ไม่ได้", MentalService.doActivity(da, "Bed") == false)

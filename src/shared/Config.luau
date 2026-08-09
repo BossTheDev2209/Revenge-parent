@@ -292,20 +292,26 @@ Config.Record = {
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 🎯 RecordQTE — DBD-style skill check ตอนถ่ายคลิป (ฟีเจอร์ใหม่ 10 ส.ค. user)
---   คลิกถ่ายสำเร็จ → สุ่ม chance เจอ QTE → แถบเส้นล่างจอ เข็มกวาด กด Space (PC)/แตะ (มือถือ) ให้ตรงโซน
---   Perfect = footage bonus ×rewardMultPerfect · Good = ×rewardMultGood · Miss = 0 (ไม่ลงโทษ คลิกได้ base ไปแล้ว)
+-- 🎯 RecordQTE — DBD-style skill check ตอนถ่ายคลิป แบบหลายรอบ (v2 10 ส.ค. user — แก้จาก single-press)
+--   คลิกถ่ายสำเร็จ → สุ่ม chance เจอ QTE → เข็มวิ่งกลับไปมา (ping-pong) บนแถบเส้นล่างจอ N รอบ (สุ่ม roundsMin-roundsMax)
+--   แต่ละรอบ = ชนขอบ หรือ กด Space (PC)/แตะ (มือถือ) ตัดรอบทันที (ไม่กระโดด ต่อเนื่องจากจุดที่หยุด สลับทิศ)
+--   เล่นครบทุกรอบเสมอ (ไม่ fail-fast) — รอบที่พลาดได้ 0 ไม่ตัดจบ QTE
+--   reward สะสมทีละรอบ เพดานรวม rewardMultMax (×10) ไม่ว่า N เท่าไหร่: ต่อรอบ Perfect = max/N, Good = ×goodRewardRatio ของนั้น
+--   ยิ่ง N เยอะ ยิ่งเร่งไว (sweepSecondsFor) — ยากขึ้นเพราะรอบสั้นลง ไม่ใช่เพราะโซนแคบลง
 --   reward เป็น footage เพิ่ม (additive, cap ด้วย storage) → ไม่กระทบเพดานเงิน 1.47M โดยตรง (footage cap อยู่แล้ว)
 --   ระหว่าง QTE: InteractLock.lock() ปิด E + freeze เดิน/กระโดด · geometry (0..1 ตามความยาวแถบ) tune อิสระ ไม่มีใน PDF
 -- ═══════════════════════════════════════════════════════════════════════════
 Config.RecordQTE = {
-	chance = 0.02,            -- โอกาสเจอ QTE ต่อคลิกถ่ายสำเร็จ 1 ครั้ง (2%)
-	rewardMultPerfect = 10,   -- Perfect: footage bonus = footagePerClickGB[กล้อง] × 10
-	rewardMultGood = 5,       -- Good: × 5
-	sweepSeconds = 1.2,       -- เข็มกวาดแถบครบ 1 เที่ยว (ซ้าย→ขวา) กี่วิ — สั้น = ยาก
-	centerMin = 0.30, centerMax = 0.80, -- กึ่งกลางโซนสำเร็จสุ่มในช่วงนี้ (สัดส่วนความยาวแถบ)
-	goodHalfWidth = 0.11,     -- โซน Good (กว้าง): |pos-center| ≤ นี่ = อย่างน้อย Good
-	perfectHalfWidth = 0.035, -- โซน Perfect (แคบ กลางโซน Good): ≤ นี่ = Perfect
+	chance = 0.02,             -- โอกาสเจอ QTE ต่อคลิกถ่ายสำเร็จ 1 ครั้ง (2%)
+	roundsMin = 1, roundsMax = 5, -- จำนวนรอบ (bounce) สุ่มต่อ QTE หนึ่งครั้ง
+	rewardMultMax = 10,        -- เพดานรวมทั้ง QTE (Perfect ครบทุกรอบ = ได้เท่านี้ ไม่ว่า N เท่าไหร่)
+	goodRewardRatio = 0.5,     -- Good ต่อรอบ = สัดส่วนนี้ของ Perfect ต่อรอบ (เท่าเดิม: Good ครึ่งนึงของ Perfect)
+	sweepSecondsStart = 1.2,   -- ความเร็วรอบแรก (ช้าสุด วิ/เที่ยว)
+	sweepSecondsMin = 0.5,     -- พื้นความเร็ว (เร่งไม่เกินนี้)
+	sweepSpeedupPerRound = 0.15, -- ลด sweepSeconds กี่วิ ต่อรอบที่ผ่านไปแล้ว 1 รอบ
+	centerMin = 0.30, centerMax = 0.80, -- กึ่งกลางโซนสำเร็จสุ่มครั้งเดียวตอนเริ่ม (คงที่ตลอดทุกรอบ — เข็มวิ่งผ่านเป้าเดิมซ้ำๆ)
+	goodHalfWidth = 0.11,      -- โซน Good (กว้าง): |pos-center| ≤ นี่ = อย่างน้อย Good
+	perfectHalfWidth = 0.035,  -- โซน Perfect (แคบ กลางโซน Good): ≤ นี่ = Perfect
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════

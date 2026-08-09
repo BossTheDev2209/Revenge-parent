@@ -18,7 +18,7 @@
 --   /dev preview <2|3|4|...>   เล่น Content.Cutscenes.PhaseTransitions[key] ตรงๆ ฝั่ง client
 --                              (ไม่ผ่าน server/phase จริง — ทดสอบ [3]/[4] ได้ทันทีไม่ต้องไล่ follower)
 --   /dev tp <1|2|3|baseplate>   วาปไป Spawn_Phase<n> หรือ Baseplate ตรงๆ (ยิง TeleportTo — ไม่แตะ follower/phase)
---   /dev qte             force-trigger RecordQTE skill-check ทันที (ไม่ต้องรอสุ่ม 2% ตอนถ่าย)
+--   /dev qte [n]          force-trigger RecordQTE ทันที · n = บังคับจำนวนรอบ (ไม่ใส่ = สุ่ม 1-5 เหมือน proc จริง)
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -35,7 +35,7 @@ local HELP = [[[DevConsole] /dev <cmd> <ค่า>
   flag <ชื่อ> [true|false] · ending <id> · npcloc <actor> <loc> · staffsplit
   preview <key>  -- เล่น PhaseTransitions[key] ตรงๆ (client-only ไม่แตะ state)
   tp <1-3|baseplate>  -- วาปไป Spawn_Phase<n> หรือ Baseplate ตรงๆ (ไม่แตะ follower/phase)
-  qte            -- force-trigger RecordQTE skill-check ทันที (ไม่ต้องรอสุ่ม 2%)]]
+  qte [n]        -- force-trigger RecordQTE · n = บังคับจำนวนรอบ (ไม่ใส่ = สุ่ม 1-5)]]
 
 -- เก็บ day ล่าสุดไว้แทน [date] ตอน preview (ไม่พึ่ง Main.client) — เบาสุด ฟังรีโมทเดียวกัน
 local lastDay = 1

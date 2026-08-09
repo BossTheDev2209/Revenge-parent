@@ -375,32 +375,50 @@ check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == tru
 check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
 end
 
--- ===== RecordQTE — skill-check ตอนถ่ายคลิป (docs/02 §9.5, Config.RecordQTE) =====
+-- ===== RecordQTE v2 — skill-check หลายรอบตอนถ่ายคลิป (docs/02 §9.5, Config.RecordQTE) =====
 do
 	local RecordQTE = if isStudio
 		then require(game:GetService("StarterPlayer").StarterPlayerScripts.RecordQTE)
 		else require("../src/client/RecordQTE")
 
-	-- reward = footagePerClickGB[กล้อง] × mult ตามเกรด · miss = 0 (ไม่ลงโทษ)
-	check("qteReward perfect กล้อง1 = 1×10 = 10", RecordService.qteReward(1, "perfect") == 10)
-	check("qteReward good กล้อง1 = 1×5 = 5", RecordService.qteReward(1, "good") == 5)
-	check("qteReward miss = 0", RecordService.qteReward(1, "miss") == 0)
-	check("qteReward perfect กล้อง6 = 32×10 = 320", RecordService.qteReward(6, "perfect") == 320)
-	check("qteReward good กล้อง3 = 4×5 = 20", RecordService.qteReward(3, "good") == 20)
-	check("qteReward เกรดมั่ว = 0 (validate)", RecordService.qteReward(1, "zzz") == 0)
+	-- qteReward(cam, grades[]) — เพดานรวม rewardMultMax(10) ไม่ว่า N เท่าไหร่ (ต่อรอบ Perfect = 10/N, Good = ×0.5 ของนั้น)
+	check("qteReward 1 รอบ perfect กล้อง1 = 1×10 = 10", RecordService.qteReward(1, { "perfect" }) == 10)
+	check("qteReward 1 รอบ good กล้อง1 = 1×5 = 5", RecordService.qteReward(1, { "good" }) == 5)
+	check("qteReward 1 รอบ miss = 0", RecordService.qteReward(1, { "miss" }) == 0)
+	check("qteReward กล้อง6 1 รอบ perfect = 32×10 = 320", RecordService.qteReward(6, { "perfect" }) == 320)
+	check("qteReward ว่าง (0 รอบ) = 0", RecordService.qteReward(1, {}) == 0)
+	check("qteReward เกรดมั่วในชุด = นับเป็น 0 (validate ที่ handler ไม่ใช่ที่นี่ — RecordService ไม่รู้จัก key อื่นก็ไม่บวก)",
+		RecordService.qteReward(1, { "zzz" }) == 0)
+	-- 2 รอบ perfect ครบ = ยังได้เพดานเท่าเดิม (10) ไม่ว่า N เปลี่ยน
+	check("qteReward 2 รอบ perfect ครบ = 10 (เพดานคงที่)", RecordService.qteReward(1, { "perfect", "perfect" }) == 10)
+	-- 3 รอบผสม: perfect+miss+good → per=10/3, good=per×0.5 → รวม = per×1.5 = 5
+	check("qteReward 3 รอบ (perfect,miss,good) กล้อง1 = 5",
+		math.abs(RecordService.qteReward(1, { "perfect", "miss", "good" }) - 5) < 1e-9)
+	-- 5 รอบ perfect ครบ กล้อง3 (base=4) = 4×10 = 40 (เพดานเดียวกับ 1 รอบ)
+	check("qteReward 5 รอบ perfect ครบ กล้อง3 = 40", RecordService.qteReward(3, { "perfect", "perfect", "perfect", "perfect", "perfect" }) == 40)
 
 	-- grantQTE เพิ่ม footage จริง + cap ด้วย storage
 	local gq = GameState.newGame() -- storage 1 = cap 128, กล้อง 1
-	local g1 = RecordService.grantQTE(gq, "perfect")
-	check("grantQTE perfect +10 footage", g1.gained == 10 and gq.footageGB == 10)
+	local g1 = RecordService.grantQTE(gq, { "perfect" })
+	check("grantQTE 1 รอบ perfect +10 footage", g1.gained == 10 and gq.footageGB == 10)
 	gq.footageGB = 125
-	local g2 = RecordService.grantQTE(gq, "perfect")
+	local g2 = RecordService.grantQTE(gq, { "perfect" })
 	check("grantQTE ชน cap ตัดให้พอดี (125+3=128)", g2.gained == 3 and gq.footageGB == 128)
 	local gqMiss = GameState.newGame()
-	local g3 = RecordService.grantQTE(gqMiss, "miss")
-	check("grantQTE miss ไม่เพิ่ม footage", g3.gained == 0 and gqMiss.footageGB == 0)
+	local g3 = RecordService.grantQTE(gqMiss, { "miss", "miss" })
+	check("grantQTE ทุกรอบ miss ไม่เพิ่ม footage", g3.gained == 0 and gqMiss.footageGB == 0)
+	local gqEmpty = GameState.newGame()
+	local g4 = RecordService.grantQTE(gqEmpty, {})
+	check("grantQTE grades ว่าง ไม่พัง ไม่เพิ่ม footage", g4.gained == 0 and gqEmpty.footageGB == 0)
 
-	-- record() roll QTE: rng ตัวแรก = bonus, ตัวที่สอง = qte (2%)
+	-- pickRounds: uniform min..max (pure, เทสได้)
+	local function fixedRng(v) return function() return v end end
+	check("pickRounds rng=0 = min", RecordService.pickRounds(1, 5, fixedRng(0)) == 1)
+	check("pickRounds rng→1 (0.9999) = max", RecordService.pickRounds(1, 5, fixedRng(0.9999)) == 5)
+	check("pickRounds rng=0.5 ช่วง 1-5 = 3", RecordService.pickRounds(1, 5, fixedRng(0.5)) == 3)
+	check("pickRounds min=max=1 เสมอได้ 1", RecordService.pickRounds(1, 1, fixedRng(0.7)) == 1)
+
+	-- record() roll QTE: rng ตัวแรก = bonus, ตัวที่สอง = qte (2%) — rounds สุ่มแยกที่ Main.server ไม่ใช่ record()
 	local function seqRng(vals)
 		local i = 0
 		return function() i += 1; return vals[i] or 0.99 end
@@ -416,13 +434,20 @@ do
 	local rqf = RecordService.record(qfull, { now = 1, rng = seqRng({ 0.99, 0.01 }) })
 	check("record: คลิกที่เต็ม cap พอดี ไม่ proc QTE", rqf.ok and rqf.qte ~= true)
 
-	-- gradeFor: โซน (perfectHW 0.035, goodHW 0.11)
-	-- ใช้ค่าในโซนชัดๆ เลี่ยง float edge (0.035/0.11 พอดีไม่เสถียรใน double)
+	-- gradeFor: โซน (perfectHW 0.035, goodHW 0.11) — ใช้ค่าในโซนชัดๆ เลี่ยง float edge
 	check("gradeFor ตรงกลาง = perfect", RecordQTE.gradeFor(0.5, 0.5, 0.035, 0.11) == "perfect")
 	check("gradeFor ในโซน perfect (d=0.02) = perfect", RecordQTE.gradeFor(0.52, 0.5, 0.035, 0.11) == "perfect")
 	check("gradeFor ในโซน good (d=0.08) = good", RecordQTE.gradeFor(0.58, 0.5, 0.035, 0.11) == "good")
 	check("gradeFor ใกล้ขอบ good (d=0.10) = good", RecordQTE.gradeFor(0.60, 0.5, 0.035, 0.11) == "good")
 	check("gradeFor นอกโซน (d=0.2) = miss", RecordQTE.gradeFor(0.7, 0.5, 0.035, 0.11) == "miss")
+
+	-- sweepSecondsFor: เร่งทีละรอบจนถึงพื้น sweepSecondsMin
+	local cfg = { sweepSecondsStart = 1.2, sweepSecondsMin = 0.5, sweepSpeedupPerRound = 0.15 }
+	check("sweepSecondsFor รอบ1 = 1.2 (เริ่มต้น)", RecordQTE.sweepSecondsFor(1, cfg) == 1.2)
+	check("sweepSecondsFor รอบ2 = 1.05", math.abs(RecordQTE.sweepSecondsFor(2, cfg) - 1.05) < 1e-9)
+	check("sweepSecondsFor รอบ3 = 0.9", math.abs(RecordQTE.sweepSecondsFor(3, cfg) - 0.9) < 1e-9)
+	check("sweepSecondsFor รอบ5 = 0.6", math.abs(RecordQTE.sweepSecondsFor(5, cfg) - 0.6) < 1e-9)
+	check("sweepSecondsFor รอบไกลมาก clamp ที่พื้น 0.5", RecordQTE.sweepSecondsFor(20, cfg) == 0.5)
 end
 
 -- ===== เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค. — docs/02 §9.5) =====

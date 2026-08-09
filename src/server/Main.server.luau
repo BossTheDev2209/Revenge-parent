@@ -87,16 +87,24 @@ ActionRouter.register("RecordFootage", function(s, a)
 	-- inZone มาจาก client (singleplayer เชื่อ client เหมือนคะแนน QTE) — server คุมสูตร/cooldown/cap เอง
 	if s.pendingRecordQTE then return end -- มี QTE ค้างรอเล่นอยู่ = ไม่รับคลิกใหม่ (กันซ้อน QTE)
 	local r = RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
-	if r.qte then s.pendingRecordQTE = os.clock() end -- ค่า = id ให้ client dedupe (ไม่ retrigger จาก push ซ้ำ)
+	if r.qte then
+		-- id ให้ client dedupe (ไม่ retrigger จาก push ซ้ำ) + rounds = จำนวน bounce สุ่มตอน proc (docs/02 §9.5 v2)
+		local rounds = RecordService.pickRounds(Config.RecordQTE.roundsMin, Config.RecordQTE.roundsMax)
+		s.pendingRecordQTE = { id = os.clock(), rounds = rounds }
+	end
 end)
--- client เล่น QTE เสร็จ → ส่งเกรด (perfect/good/miss) — server ให้ footage bonus (docs/02 §9.5)
+-- client เล่น QTE ครบทุกรอบแล้ว → ส่งเกรดทั้งชุด (1 ค่าต่อรอบ) — server ให้ footage bonus สะสม (docs/02 §9.5 v2)
 --   เชื่อเกรด client (singleplayer เหมือน inZone/คะแนน) · server คุมสูตร reward + cap + เคลียร์ pending เอง
 ActionRouter.register("RecordQTEResult", function(s, a)
 	if not s.pendingRecordQTE then return end -- ไม่มี QTE ค้าง = ทิ้ง (กัน client ยิงมั่วเอา reward)
 	s.pendingRecordQTE = nil
-	local grade = a.grade
-	if grade ~= "perfect" and grade ~= "good" then grade = "miss" end -- validate → miss
-	RecordService.grantQTE(s, grade)
+	local grades = {}
+	if type(a.grades) == "table" then
+		for _, g in a.grades do
+			table.insert(grades, (g == "perfect" or g == "good") and g or "miss") -- validate ทีละค่า → miss
+		end
+	end
+	RecordService.grantQTE(s, grades)
 end)
 ActionRouter.register("FinishEdit", function(s, a)
 	-- footage ไม่พอ = ไม่ได้คลิป ไม่เสียใจ (client กันไว้แล้วชั้นนึง นี่คือชั้นตัดสิน)
@@ -332,7 +340,10 @@ ActionRouter.register("DevCmd", function(s, a, player)
 		s.lastStaffSplit = StaffService.splitStaff(s)
 		s.flags.staffSplit = true
 	elseif c == "qte" then
-		s.pendingRecordQTE = os.clock() -- force-trigger RecordQTE (client watch → เปิด skill-check ทันที ไม่ต้องรอสุ่ม 2%)
+		-- force-trigger RecordQTE (client watch → เปิด skill-check ทันที ไม่ต้องรอสุ่ม 2%)
+		-- /dev qte <n>  = บังคับจำนวนรอบ (เทสยาก/ง่าย) · ไม่ใส่ = สุ่มปกติเหมือน proc จริง
+		local rounds = n or RecordService.pickRounds(Config.RecordQTE.roundsMin, Config.RecordQTE.roundsMax)
+		s.pendingRecordQTE = { id = os.clock(), rounds = math.clamp(rounds, 1, 20) }
 	else
 		warn("[DevCmd] ไม่รู้จัก:", c)
 	end

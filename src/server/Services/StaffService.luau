@@ -78,6 +78,27 @@ function StaffService.hire(state, id: string): boolean
 	return true
 end
 
+-- event "พนักงานตีกัน" (flags.staffSplit) — hire ที่ tag leavesOnSplit ลาออก + worldNPC ผู้ภักดี auto เข้าแทน
+-- ต่างจาก resign (ไล่คนแพงตอนจ่ายไม่ไหว) — อันนี้ scripted ตามเนื้อเรื่อง ไม่สน salary
+-- คืน { left = {ids ที่ออก}, joined = id ผู้ภักดี or nil } ให้ Main เอาไปโชว์ DM/cutscene · เรียกซ้ำปลอดภัย
+function StaffService.splitStaff(state)
+	local left = {}
+	for i = #state.staff, 1, -1 do
+		local r = findRoster(state.staff[i].id)
+		if r and r.leavesOnSplit then
+			table.insert(left, state.staff[i].id)
+			table.remove(state.staff, i)
+		end
+	end
+	local loyal = Config.Staff.loyalAfterSplit
+	local joined = nil
+	if loyal and not StaffService.isHired(state, loyal.id) then
+		table.insert(state.staff, { id = loyal.id, speed = loyal.speed, quality = loyal.quality, salary = loyal.salary })
+		joined = loyal.id
+	end
+	return { left = left, joined = joined }
+end
+
 function StaffService.fire(state, id: string): boolean
 	for i, s in state.staff do
 		if s.id == id then

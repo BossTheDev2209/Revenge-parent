@@ -443,6 +443,12 @@ Good ① = เพื่อนคนแรกกลับมาขอโทษส
 - **hire_fierce1/2** ปลดต่อเมื่อ `flags.betrayed` ติด (= faasai ทรยศที่ 500K พร้อม companion_1 ออก) — ทีมไฟแรงเติมส่วนที่หาย
 - ⚠️ ตัวเลข **ปรับได้หลัง playtest** ถ้าบริหารรายจ่ายยากเกิน (user, 9 ส.ค.) — ไม่ใช่ lock แข็ง
 
+**event "พนักงานตีกัน" (scripted — `flags.staffSplit`, `StaffService.splitStaff`):**
+- hire ที่ `leavesOnSplit=true` **ลาออก** (default: hire_editor / hire_pro / hire_volume) · ที่ไม่ tag **อยู่ต่อ** (artisan / allround2 / master)
+- **worldNPC ผู้ภักดี auto เข้าแทน** = `hire_loyal` (speed 30 / quality 60 / ฿18,000) — ไม่อยู่ใน roster (player จ้างเองไม่ได้) การันตีมีคนเหลือเสมอ · Boss เอา model worldNPC มาใส่ ตั้งชื่อโมเดลตาม id
+- ต่างจาก `resign` (ไล่คนแพงตอนจ่ายไม่ไหว) — อันนี้ตามเนื้อเรื่อง ไม่สน salary · เรียกซ้ำปลอดภัย
+- ⏳ **ยังไม่ wire trigger** — จุดที่ตั้ง `flags.staffSplit` (follower/event ไหนในเฟส 3) รอตอนสร้าง beat ตีกัน
+
 **เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap):**
 
 | ตัว | มาตอน | speed | quality | หมายเหตุ |

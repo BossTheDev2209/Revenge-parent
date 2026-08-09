@@ -131,19 +131,25 @@ Config.Staff = {
 	--   speed สูง/quality ต่ำ = follower พุ่งแต่ลาก VidQ% ลง (คลิปทีมนับ VidQ ครึ่งเดียว) = เสี่ยง ending แย่
 	--   salary กินเพดานเงิน 1.47M = แย่งงบกับ upgrade · hireCap 4 บังคับเลือกสาย
 	-- flag (optional) = ปลดต่อเมื่อ state.flags[flag] ติด (ทีมล้างแค้นหลัง faasai ทรยศ)
+	-- leavesOnSplit = true → ลาออกตอน event ตีกัน (StaffService.splitStaff · flags.staffSplit)
+	-- ตัว believer ไม่ tag = อยู่ต่อ · default นี้ปรับได้หลัง playtest
 	roster = {
 		-- เฟส 2: trade-off ชัด เลือกได้สายเดียว
-		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000 },  -- สายเร็ว ปั๊ม volume
-		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000 }, -- สายคุณภาพ ปกป้องเกรด
-		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000 }, -- all-rounder ปลอดภัย
+		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000,  leavesOnSplit = true }, -- สายเร็ว transactional
+		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000 }, -- สายคุณภาพ (อยู่ต่อ)
+		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000 }, -- all-rounder (อยู่ต่อ)
 		-- เฟส 3: เก่งหลายด้าน (multi-skill) salary แพง
-		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000 }, -- มือโปรเอเจนซี่
-		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000 }, -- ปริมาณมหาศาล
-		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000 }, -- เครื่องปั๊ม S
+		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000, leavesOnSplit = true }, -- โปรตามเงิน
+		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000, leavesOnSplit = true }, -- mercenary ตามยอด
+		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000 }, -- สายคราฟต์ (อยู่ต่อ)
 		-- ทีมล้างแค้น: ปลดเมื่อ faasai ทรยศ (flags.betrayed ตั้งที่ BetrayalMilestone 500K พร้อม companion_1 ออก)
 		{ id = "hire_fierce1",   phase = 3, follower = 500_000, speed = 60, quality = 78, salary = 55_000, flag = "betrayed" },
 		{ id = "hire_fierce2",   phase = 3, follower = 500_000, speed = 55, quality = 85, salary = 58_000, flag = "betrayed" },
 	},
+
+	-- worldNPC ผู้ภักดี: auto-hire ตอน split (ไม่อยู่ใน roster = player จ้างเองไม่ได้) การันตีมีคนเหลือเสมอ
+	-- มี salary ปกติ · ไม่นับ hireCap ตอน force-add · Boss เอา model worldNPC มาใส่ (ตั้งชื่อโมเดลตาม id)
+	loyalAfterSplit = { id = "hire_loyal", speed = 30, quality = 60, salary = 18_000 },
 
 	-- เพื่อนร่วมทาง: auto มาตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap
 	-- companion_1 โต exponential ตอนเข้าเฟส 3 แล้วหายที่ 500K (ทรยศ)

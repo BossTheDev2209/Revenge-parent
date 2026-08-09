@@ -750,6 +750,21 @@ stFlag.flags.betrayed = true
 check("ทรยศแล้ว = fierce โผล่ครบ 8", #StaffService.availableHires(stFlag) == 8)
 check("ทรยศแล้ว = จ้าง fierce ได้", StaffService.hire(stFlag, "hire_fierce1") == true)
 
+-- staff split (ตีกัน): tag leavesOnSplit ออก + loyal เข้าแทน · เรียกซ้ำปลอดภัย
+local stSplit = GameState.newGame()
+stSplit.phase = 3
+stSplit.follower = 500_000
+StaffService.hire(stSplit, "hire_editor")  -- leavesOnSplit
+StaffService.hire(stSplit, "hire_artisan") -- อยู่ต่อ
+local rSplit = StaffService.splitStaff(stSplit)
+check("split: editor ออก / artisan อยู่ / loyal เข้า",
+	StaffService.isHired(stSplit, "hire_editor") == false
+	and StaffService.isHired(stSplit, "hire_artisan") == true
+	and StaffService.isHired(stSplit, "hire_loyal") == true
+	and #rSplit.left == 1 and rSplit.left[1] == "hire_editor" and rSplit.joined == "hire_loyal")
+local rSplit2 = StaffService.splitStaff(stSplit)
+check("split ซ้ำ = ไม่ซ้ำ loyal ไม่มีใครออกเพิ่ม", #rSplit2.left == 0 and rSplit2.joined == nil)
+
 -- companion: เข้าเอง โตตามเฟส หายตอนทรยศ
 local co = GameState.newGame()
 co.follower = 10_000

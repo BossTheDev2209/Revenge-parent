@@ -919,6 +919,15 @@ check("camera cam=ชื่อPart ผ่าน", CutscenePlayer.validate({ { ty
 check("camera ไม่มีทั้ง cam/pos = ไม่ผ่าน", CutscenePlayer.validate({ { type = "camera" } }) == false)
 check("camera ใส่ t (เลื่อนกล้อง) ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "Cam_Good1_01", t = 2 } }) == true)
 check("camera t ไม่ใช่ตัวเลข = ไม่ผ่าน", CutscenePlayer.validate({ { type = "camera", cam = "A", t = "ช้า" } }) == false)
+-- move step: actor เดินไป Part
+check("move actor+to ผ่าน", CutscenePlayer.validate({ { type = "move", actor = "ฟ้าใส", to = "Pose_Bed", t = 2 } }) == true)
+check("move ไม่มี to = ไม่ผ่าน", CutscenePlayer.validate({ { type = "move", actor = "ฟ้าใส" } }) == false)
+-- moveGoal (pure): ยืนที่เป้า หันหน้าไปทางที่เดินมา
+local mg = CutscenePlayer.moveGoal(CFrame.new(0, 0, 0), Vector3.new(0, 0, -10))
+check("moveGoal ยืนตรงเป้า", (mg.Position - Vector3.new(0, 0, -10)).Magnitude < 0.01)
+check("moveGoal หันไปทาง -Z", (mg.LookVector - Vector3.new(0, 0, -1)).Magnitude < 0.01)
+local mgSame = CutscenePlayer.moveGoal(CFrame.lookAt(Vector3.new(5, 0, 5), Vector3.new(9, 0, 5)), Vector3.new(5, 0, 5))
+check("moveGoal เป้าเดิม = คงมุมหัน", (mgSame.LookVector - Vector3.new(1, 0, 0)).Magnitude < 0.01)
 -- content จริงทั้ง 6 ending ต้อง validate ผ่าน
 local Endings = if isStudio
 	then game:GetService("ReplicatedStorage").Shared.Content.Endings

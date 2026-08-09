@@ -29,6 +29,16 @@ local EASE = {
 	Linear = { Enum.EasingStyle.Linear, Enum.EasingDirection.InOut },
 }
 
+-- ปลายทางของ step move: ยืนที่ targetPos หันหน้าไปทางที่เดินมา (ถ้าเกือบไม่ขยับ = คงหันเดิม)
+-- pure — เทสได้ ไม่แตะ Roblox instance
+function CutscenePlayer.moveGoal(startCf: CFrame, targetPos: Vector3): CFrame
+	local flat = (targetPos - startCf.Position) * Vector3.new(1, 0, 1)
+	if flat.Magnitude < 0.1 then
+		return CFrame.new(targetPos) * (startCf - startCf.Position) -- คงมุมหันเดิม
+	end
+	return CFrame.lookAt(targetPos, targetPos + flat)
+end
+
 local VALID = {
 	-- t = ค้าง text กี่วิ ก่อนไป step ถัดไป (ไม่ใส่ = ไม่รอ ค้างจนสั่ง text ใหม่/wait เอง)
 	text = function(s) return type(s.text) == "string" and (s.t == nil or type(s.t) == "number") end,
@@ -51,6 +61,12 @@ local VALID = {
 	-- preload แมพไกล: target = ชื่อ Part ที่อยากให้ stream โหลด (ย้ายศูนย์ streaming ไปที่นั่นชั่วคราว)
 	-- วางก่อน cam ที่ส่องแมพนั้น ~2-3 วิ ให้แมพโหลดทัน · จบฉากคืน focus ให้ตัวละครอัตโนมัติ
 	focus = function(s) return type(s.target) == "string" end,
+	-- เดินตัวละคร: actor ไป Part ชื่อ to ใน t วิ (ไม่ใส่ t/0 = วาปทันที) — หยุดรอจนถึง
+	-- ใส่ anim "Walk" ก่อน + Idle/SitDown หลังเองในบท (move แค่ย้ายตำแหน่ง) · PivotTo lerp กัน physics
+	move = function(s)
+		return type(s.actor) == "string" and type(s.to) == "string"
+			and (s.t == nil or type(s.t) == "number")
+	end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -196,6 +212,28 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 			if step.type == "anim" then
 				AnimPlayer.play(step.actor, step.name, step.loop)
 				movedActors[step.actor] = true
+			elseif step.type == "move" then
+				local rig = AnimPlayer.findRig(step.actor)
+				local target = workspace:FindFirstChild(step.to, true)
+				if rig and target and target:IsA("BasePart") then
+					local hrp = rig:FindFirstChild("HumanoidRootPart")
+					local startCf = rig:GetPivot()
+					local goalCf = CutscenePlayer.moveGoal(startCf, target.Position)
+					local wasAnchored = hrp and hrp.Anchored
+					if hrp then hrp.Anchored = true end -- กัน physics ดึงระหว่าง PivotTo
+					local t = step.t or 0
+					if t > 0 then
+						local t0 = os.clock()
+						while os.clock() - t0 < t and not skipped do
+							rig:PivotTo(startCf:Lerp(goalCf, (os.clock() - t0) / t))
+							task.wait()
+						end
+					end
+					rig:PivotTo(goalCf) -- snap ให้ถึงเป๊ะ (รวมกรณีโดนข้าม)
+					if hrp then hrp.Anchored = wasAnchored end
+				else
+					warn("[CutscenePlayer] move: หาไม่เจอ actor/target", step.actor, step.to)
+				end
 			elseif step.type == "focus" then
 				actionRemote:FireServer({ type = "SetFocus", target = step.target }) -- preload แมพจุดนั้น
 			elseif step.type == "face" then

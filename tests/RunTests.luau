@@ -63,6 +63,9 @@ local CutscenePlayer = if isStudio
 local StoryNPCPlacer = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.StoryNPCPlacer)
 	else require("../src/client/StoryNPCPlacer")
+local ScreenTransition = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ScreenTransition)
+	else require("../src/client/ScreenTransition")
 
 local pass, fail = 0, 0
 local failures = {}
@@ -1014,6 +1017,17 @@ check("moveGoal เป้าเดิม = คงมุมหัน", (mgSame.Lo
 -- StoryNPCPlacer: ชื่อ anchor + npcLoc default
 check("anchorName ฟ้าใส/room", StoryNPCPlacer.anchorName("ฟ้าใส", "room") == "NPCHome_ฟ้าใส_room")
 check("newGame มี npcLoc ว่าง", type(GameState.newGame().npcLoc) == "table")
+-- ScreenTransition.validateSteps: narration บนจอดำ (text/wait)
+check("steps text+wait ผ่าน", ScreenTransition.validateSteps({ { type = "text", text = "x" }, { type = "wait", t = 2 } }) == true)
+check("steps wait ไม่มี t = ไม่ผ่าน", ScreenTransition.validateSteps({ { type = "wait" } }) == false)
+check("steps type มั่ว = ไม่ผ่าน", ScreenTransition.validateSteps({ { type = "camera" } }) == false)
+-- content จริง PhaseTransitions [2]/[3]/[4] ต้อง validate ผ่าน
+local PhaseText = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.Cutscenes.PhaseTransitions)
+	else require("../src/shared/Content/Cutscenes/PhaseTransitions")
+for _, k in { 2, 3, 4 } do
+	check("PhaseTransitions[" .. k .. "] validate ผ่าน", (ScreenTransition.validateSteps(PhaseText[k])) == true)
+end
 -- content จริงทั้ง 6 ending ต้อง validate ผ่าน
 local Endings = if isStudio
 	then game:GetService("ReplicatedStorage").Shared.Content.Endings

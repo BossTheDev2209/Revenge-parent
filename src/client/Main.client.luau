@@ -447,9 +447,24 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		if ShopKiosk.running and ShopKiosk.close then ShopKiosk.close() end
 		local PhaseText = require(Content.Cutscenes.PhaseTransitions)
 		local target = "Spawn_Phase" .. state.phase
+		-- แทน [date] ด้วยจำนวนวันในเกม ณ ตอนข้ามเฟส (clone กันแก้โมดูล content ที่ require ร่วม)
+		local steps = PhaseText[state.phase]
+		if steps then
+			local subbed = {}
+			for _, st in steps do
+				if st.type == "text" and st.text and st.text:find("%[date%]") then
+					local c = table.clone(st)
+					c.text = st.text:gsub("%[date%]", tostring(state.day))
+					table.insert(subbed, c)
+				else
+					table.insert(subbed, st)
+				end
+			end
+			steps = subbed
+		end
 		fireAction({ type = "FreezeTime", on = true })
 		ScreenTransition.play({
-			lines = PhaseText[state.phase],
+			steps = steps,
 			onBlack = function()
 				fireAction({ type = "TeleportTo", target = target })
 				waitStreamedAround(6) -- รอแมพเฟสใหม่โหลดก่อน fade กลับ

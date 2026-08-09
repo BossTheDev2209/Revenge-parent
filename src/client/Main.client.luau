@@ -3,12 +3,13 @@ local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
--- ★ HUD/PCScreen/Apps ย้ายไปอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอมรวมที่เดียว)
+-- ★ HUD/PCScreen/Apps/SavePanel ย้ายไปอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอม/เซฟรวมที่เดียว)
 --   ต้องรอ PlayerGui clone จาก StarterGui มาก่อนถึง require ได้ (WaitForChild กันจังหวะ join ยังไม่ทัน)
---   DialogueUI/MenuUI/SavePanel/CutscenePlayer ยังอยู่ StarterPlayerScripts.UI เดิม (script.Parent.UI)
+--   DialogueUI/MenuUI/CutscenePlayer ยังอยู่ StarterPlayerScripts.UI เดิม (script.Parent.UI)
 local StarterGuiUI = playerGui:WaitForChild("UI")
 local HUD = require(StarterGuiUI.HUD)
 local PCScreen = require(StarterGuiUI.PCScreen)
+local SavePanel = require(StarterGuiUI.SavePanel)
 local EditQTE = require(StarterGuiUI.Apps.EditQTE)
 local Upload = require(StarterGuiUI.Apps.Upload)
 local Feedback = require(StarterGuiUI.Apps.Feedback)
@@ -21,7 +22,6 @@ local Manage = require(StarterGuiUI.Apps.Manage)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local CutscenePlayer = require(script.Parent.UI.CutscenePlayer)
 local MenuUI = require(script.Parent.UI.MenuUI)
-local SavePanel = require(script.Parent.UI.SavePanel)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
@@ -192,23 +192,9 @@ refreshBackpack() -- ตั้ง hotbar ให้ตรงสถานะตั
 MenuUI.open(playerGui, { fireAction = fireAction, onNewGame = playOpening,
 	getState = function() return latestState end }) -- seed slotList ที่ server prefetch มาแล้ว (ไม่ต้องรอ)
 
--- ปุ่มเซฟเล็กมุมซ้ายล่างระหว่างเล่น
-local saveGui = Instance.new("ScreenGui")
-saveGui.Name = "Gui_SaveButton"
-saveGui.ResetOnSpawn = false
-local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.new(0, 100, 0, 36)
-saveBtn.Position = UDim2.new(0, 8, 1, -44)
-saveBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-saveBtn.TextColor3 = Color3.new(1, 1, 1)
-saveBtn.TextScaled = true
-saveBtn.Text = "💾 เซฟ"
-saveBtn:SetAttribute("Sfx", "save")
-saveBtn.Parent = saveGui
-saveGui.Parent = playerGui
-saveBtn.Activated:Connect(function()
-	SavePanel.open(playerGui, { fireAction = fireAction, getState = function() return latestState end })
-end)
+-- ปุ่มเซฟเล็กมุมซ้ายล่าง + หน้าต่างเลือกช่อง — baked เป็น Gui_SaveButton/Gui_SavePanel จริงแล้ว (9 ส.ค.)
+-- SavePanel.init ผูก event ให้ทั้งสอง gui ครั้งเดียว (ปุ่มกดแล้วเปิด panel เอง ไม่ต้อง wire ที่นี่)
+SavePanel.init(playerGui, { fireAction = fireAction, getState = function() return latestState end })
 
 local pcDeps = {
 	fireAction = fireAction,

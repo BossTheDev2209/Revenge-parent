@@ -76,7 +76,11 @@ StoryBeat.play(playerGui, {
 
 **ปัญหาที่แก้:** NPC ที่ "ย้ายที่อยู่" ตามเนื้อเรื่อง (ฟ้าใสอยู่ห้องเรา, เจียเจียไปสยาม ฯลฯ) ต้องเป็น **instance เดียว** ย้ายไปมา ไม่ Destroy/สร้างใหม่
 
-**ทีมเตรียม:** วาง Part เปล่าชื่อ `NPCHome_<actor>_<loc>` ตรงจุดที่อยากให้ NPC ยืน เช่น:
+**`loc` คืออะไร:** เป็น**ป้ายข้อความที่เราตั้งเอง** ไม่ใช่คำสงวนของ Roblox/engine — แค่ label บอกว่า "ตอนนี้ตัวนี้อยู่ที่ไหนในเนื้อเรื่อง" (`"room"`/`"door"`/`"park"`/`"away"` ฯลฯ เลือกคำเองได้หมด) `anchorName(actor, loc)` แค่เอา 2 ค่านี้มาต่อเป็นชื่อ Part (`"NPCHome_" .. actor .. "_" .. loc`) — **ไม่มี list ชื่อคงที่ให้เลือก** มีแค่คู่ที่โค้ดจริงเรียก `SetNpcLoc` ไว้เท่านั้นที่ต้องมี Part จริงรองรับ (เพิ่มคู่ใหม่ = เพิ่มทั้ง `fireAction SetNpcLoc` ที่ไหนสักจุด + สร้าง Part ชื่อตรงกัน)
+
+**ไม่ต้องห่วงเรื่อง scope การค้นหา (`FindFirstChild(name, true)` ค้นทั้ง workspace ไม่จำกัดโฟลเดอร์)** — เรียกเฉพาะตอน `loc` **เปลี่ยน** เท่านั้น (มี guard กันเรียกซ้ำทุก state push) ทั้งเกมเรียกรวมหลักสิบครั้งตลอดรอบเล่น ไม่ใช่ทุก frame — จำกัด folder จะเร็วขึ้นจริงแต่วัดผลไม่ออก ไม่คุ้มเพิ่มกฎที่ทีมต้องจำ (ต้องวางถูกโฟลเดอร์ไม่งั้นหาไม่เจอ)
+
+**ทีมเตรียม:** วาง Part เปล่าชื่อ `NPCHome_<actor>_<loc>` ตรงจุดที่อยากให้ NPC ยืน (วางไว้ตรงไหนในแมพก็ได้ ไม่ต้องอยู่โฟลเดอร์เฉพาะ) เช่น:
 
 ```
 NPCHome_ฟ้าใส_room     -- ข้างเตียงในห้องเรา
@@ -129,7 +133,33 @@ ScreenTransition.play({
 
 ---
 
-## 6. ทดสอบด้วย Dev Console
+## 6. เตรียมโมเดล NPC ใหม่ + player ในฉาก (FAQ)
+
+**วาง NPC ตัวละครหลัก (เนื้อเรื่อง) ไว้ตรงไหน:**
+
+```
+Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ้าใส/เจียเจีย/พี่เปิ้ล
+```
+
+ชื่อ model ต้องตรงกับ `AnimPlayer.ACTOR_MODEL` เป๊ะ (ดู [05-build-conventions.md §NPC roster](../05-build-conventions.md)) — `findRig` หาจากชื่อนี้ตรงๆ ผิดชื่อ = warn เงียบ ไม่มี error แต่ท่า/portrait ไม่ขึ้น
+
+**ในตัว model ต้องมี:** `Animator` ใต้ Humanoid (ไม่มี = ท่าไม่เล่นเลย) · `Head.face` (Decal, ใช้กับ step `face`) · anchor **เฉพาะ** `HumanoidRootPart` (anchor ทั้งตัว = ท่าไม่ขยับ) · Part `Interact_NPC_<ชื่อ>` **เป็นลูกของ model เอง** (ไม่ใช่โฟลเดอร์แยก) ถ้าอยากให้คุยได้แบบ NPC ปกตินอกเหนือจาก cutscene
+
+**player ในฉาก — ไม่มีโมเดลแยกให้ดึง:** step `{ actor = "player" }` (ไม่ว่า `anim`/`face`/`move`) เล่นบน **ตัว player จริงในเกมตรงๆ** (`AnimPlayer.findRig("player")` คืน `Players.LocalPlayer.Character` ตรงๆ) ไม่ต้องเตรียม model player แยกไว้ในแมพ
+
+**แต่ตอน authoring ใน Moon Animator ต้องมี rig ให้คีย์เฟรม** (ไม่มี player จริงให้แก้ตอนอยู่ใน Edit mode) — วิธีทำ:
+1. ก๊อป `Workspace.NPC.R6` (rig ต้นแบบ — **ห้ามแก้ตัวจริง**) มาวางเป็น scratch rig ชั่วคราว
+2. วางคู่กับ `NPC_special_<ชื่อ>` ตรงตำแหน่งฉาก คีย์เฟรมทั้งคู่ให้อินเทอร์แอคกัน
+3. Export เป็น **2 Animation object แยกกัน** (clip NPC / clip player) เข้า `ReplicatedStorage.Animations` — เพราะรันจริงเรียกคนละ step (`actor="ฟ้าใส"` / `actor="player"`) แยกกัน
+4. **ลบ scratch rig ทิ้งหลัง export** — ห้ามทิ้งไว้ใต้ `Workspace.NPC` เด็ดขาด (`findRig` ค้นเจาะจงแค่โฟลเดอร์นี้ ตัวปลอมชื่อชนจะไปแย่งของจริงตอนรัน — คอมเมนต์เตือนไว้ในโค้ดเอง [AnimPlayer.luau:112-113](../../src/client/AnimPlayer.luau#L112))
+
+**ตำแหน่ง/ทิศตอนคีย์เฟรม:** root motion ที่ bake เป็นการเคลื่อนที่**สัมพัทธ์**จากจุดเริ่ม ไม่ใช่พิกัดโลกตายตัว — สิ่งที่สำคัญคือ**ทิศที่หัน** ณ เฟรมแรกให้ตรงกับตอนเล่นจริง (เช่น player หันเข้าประตู) ไม่ใช่พิกัด XY เป๊ะ — เล่นจริงจะสัมพัทธ์กับตำแหน่ง/ทิศของตัวจริง ณ ตอนนั้นเอง
+
+**`StoryNPCPlacer` ไม่เกี่ยวกับตอน authoring** — เป็นระบบ runtime อย่างเดียว ขับด้วย `state.npcLoc` (server push) ไม่ทำงานตอนแก้ใน Edit mode และไม่รู้จัก `"player"` เป็น actor เลย (ระบบนี้คุมแค่ StoryNPC)
+
+---
+
+## 7. ทดสอบด้วย Dev Console
 
 ก่อนวาง anchor/cam ในแมพครบ ทดสอบเนื้อหาได้เลยผ่าน `/dev` (ดู [15-dev-console.md](../15-dev-console.md)):
 
@@ -141,7 +171,7 @@ ScreenTransition.play({
 
 ---
 
-## 7. ผิดแล้วเป็นยังไง
+## 8. ผิดแล้วเป็นยังไง
 
 | ทำผิด | ผลลัพธ์ |
 |---|---|

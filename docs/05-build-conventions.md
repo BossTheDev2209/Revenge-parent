@@ -56,20 +56,22 @@ Interact_Exercise    ออกกำลังกาย → mental +20
 Interact_NPC_<ชื่อ>  คุย NPC — ชื่อ Part = ชื่อโมเดลตัด prefix (ดู §4 ล่าง)
 ```
 
-### NPC roster (อัป 30 ก.ค. 2569 — 17 ตัว)
+### NPC roster (อัป 10 ส.ค. 2569 — 17 ตัว, ตั้งชื่อจริงแล้วตั้งแต่ 5 ส.ค.)
 
-ชื่อ Part interact ในแต่ละโมเดล = `Interact_NPC_<ชื่อ>` (สคริปต์ `tools/rename_npc_interacts.luau` ตั้งให้)
-บทผูกจากชื่อนี้ในตาราง `NPC_DIALOGUE` (InteractBinder) → ไฟล์ใน `Content/Dialogue`
+ชื่อ Part interact ใน**แต่ละโมเดล** (เป็น Part ลูกของ model นั้นตรงๆ ไม่ใช่โฟลเดอร์แยก) = `Interact_NPC_<ชื่อ>`
+บทผูกจากชื่อนี้ในตาราง `NPC_DIALOGUE` (`InteractBinder.luau:37`) → ไฟล์ใน `Content/Dialogue` **ชื่อไฟล์ = ชื่อ NPC ตรงๆ** (ไม่มี key กลาง Mom/Friend1/CC1 แล้ว — เลิกใช้ตั้งแต่ 5 ส.ค. 2569)
 
 **5 พิเศษ (เนื้อเรื่อง) — `Workspace.NPC.StoryNPC`** เจอได้หลายเฟส บทเปลี่ยนตามเฟส (p1/p2/p3/after):
 
-| โมเดล | บท | ใคร |
+| โมเดล | ไฟล์บท | ใคร |
 |---|---|---|
-| `NPC_special_แม่` | `Mom` | แม่ |
-| `NPC_special_พ่อ` | `Dad` | พ่อ |
-| `NPC_special_เพื่อนร่วมทาง1` | `Friend1` | เพื่อนคนแรก (ทรยศ 500K) |
-| `NPC_special_เพื่อนร่วมทาง2` | `Friend2` | เพื่อนคนสอง (อยู่จนจบ) |
-| `NPC_special_CC` | `CC1` | Content Creator คู่แข่ง |
+| `NPC_special_แม่` | `Content/Dialogue/แม่.luau` | แม่ |
+| `NPC_special_พ่อ` | `Content/Dialogue/พ่อ.luau` | พ่อ |
+| `NPC_special_ฟ้าใส` | `Content/Dialogue/ฟ้าใส.luau` | เพื่อนร่วมทางคนแรก (ทรยศ 500K) |
+| `NPC_special_เจียเจีย` | `Content/Dialogue/เจียเจีย.luau` | เพื่อนร่วมทางคนสอง (อยู่จนจบ) |
+| `NPC_special_พี่เปิ้ล` | `Content/Dialogue/พี่เปิ้ล.luau` | Content Creator คู่แข่ง/ตัวร้ายเบื้องหลัง |
+
+ชื่อพวกนี้ตรงกับ `AnimPlayer.ACTOR_MODEL` ด้วย ([AnimPlayer.luau:33-51](../src/client/AnimPlayer.luau#L33)) — step `anim`/`face`/`move` ใน cutscene ใช้ actor string เดียวกันนี้ (เช่น `{type="anim", actor="ฟ้าใส", ...}`) หา rig จากชื่อนี้ตรงๆ
 
 **12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — `Workspace.NPC.WorldNPC`** บทเดี่ยว บางตัวมีช้อย:
 

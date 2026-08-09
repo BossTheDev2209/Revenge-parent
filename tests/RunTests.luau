@@ -1092,17 +1092,14 @@ end
 local f1 = if isStudio then require(DialogueFolder["ฟ้าใส"]) else require("../src/shared/Content/Dialogue/ฟ้าใส")
 check("ฟ้าใส มีครบ p1/p2/after (arc ทรยศ)", f1.p1 ~= nil and f1.p2 ~= nil and f1.after ~= nil)
 
--- Canon event ทรยศต้องมีบทตรง milestone ที่ Config ชี้
+-- milestone popup ถอดออกแล้ว (9 ส.ค.) — CanonEvents ว่างได้ (drain ยิง EventSeen เงียบ) เช็คแค่ Config
 local Events = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.CanonEvents)
 	else require("../src/shared/Content/CanonEvents")
-for _, m in Config.StoryMilestones do
-	check(("CanonEvents มี milestone_%d"):format(m), Events["milestone_" .. m] ~= nil)
-end
 check("milestone ทรยศอยู่ใน StoryMilestones",
 	table.find(Config.StoryMilestones, Config.BetrayalMilestone) ~= nil)
-check("BCA มีบท + ผูกหลัง 1M (docs/02 §9.4)", Events[Config.BCAEventId] ~= nil
-	and table.find(Config.StoryMilestones, Config.BCAAfterMilestone) ~= nil)
+check("BCA ผูกหลัง 1M (docs/02 §9.4)",
+	table.find(Config.StoryMilestones, Config.BCAAfterMilestone) ~= nil)
 check("milestone เรียงจากน้อยไปมาก (event ยิงตามลำดับเรื่อง)", (function()
 	for i = 2, #Config.StoryMilestones do
 		if Config.StoryMilestones[i] <= Config.StoryMilestones[i - 1] then return false end

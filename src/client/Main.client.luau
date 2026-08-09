@@ -7,7 +7,8 @@ local EditQTE = require(script.Parent.UI.Apps.EditQTE)
 local Upload = require(script.Parent.UI.Apps.Upload)
 local Feedback = require(script.Parent.UI.Apps.Feedback)
 local Bank = require(script.Parent.UI.Apps.Bank)
-local CalendarApp = require(script.Parent.UI.Apps.CalendarApp)
+-- ★ CalendarApp ถูกพับไว้ 9 ส.ค. (user) — sponsor ย้ายไปเป็น toast กดรับ (Notify.sponsor + SponsorService)
+--   ไฟล์ CalendarApp.luau ยังอยู่ครบ · จะรื้อกลับ = require ตรงนี้ + ใส่ entry คืนใน PC_APPS
 local ShopKiosk = require(script.Parent.UI.Apps.ShopKiosk)
 local Message = require(script.Parent.UI.Apps.Message)
 local Manage = require(script.Parent.UI.Apps.Manage)
@@ -23,6 +24,7 @@ local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
 local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
 local Notify = require(script.Parent.Notify)
+local Config = require(RS.Shared.Config) -- ตัวคูณ buff sponsor ที่โชว์บน toast (ตัวเลขมาจาก Config ที่เดียว)
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local actionRemote = RS.Shared.Remotes.Action
@@ -222,7 +224,7 @@ local PC_APPS = {
 	{ id = "upload", name = "upload", label = "⬆️ อัปโหลด", create = Upload.create },
 	{ id = "feedback", name = "feedback", label = "📊 Feedback", create = Feedback.create },
 	{ id = "bank", name = "bank", label = "🏦 Bank", create = Bank.create },
-	{ id = "calendar", name = "calendar", label = "📅 ปฏิทิน", create = CalendarApp.create },
+	-- 📅 ปฏิทิน ถูกถอดออก 9 ส.ค. (user) — sponsor ไม่ต้องเลือกวางวันแล้ว ใส่คืนได้ถ้ารื้อปฏิทินกลับ
 	{ id = "message", name = "message", label = "✉️ Message", create = Message.create },
 	-- hidden = ไม่มี icon บน desktop (PDF มี 7 icon) — เข้าผ่านปุ่มในแอป Bank เท่านั้น
 	{ id = "manage", name = "พนักงาน", label = "👥 Manage", create = Manage.create, hidden = true },
@@ -324,6 +326,7 @@ end
 local endingPlayed = false
 local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
 local prevStaffClips, prevFollower, prevMoney = 0, 0, 0 -- toast ทีมลงคลิป / DM ปลดล็อก (เทียบ delta)
+local prevSponsorOffer = false -- toast งาน sponsor: เด้งตอน false→true เท่านั้น (ไม่เด้งซ้ำทุก push)
 local appliedVolume = nil -- ระดับเสียงล่าสุดที่ apply จาก settings (กัน apply ทับตอน user ปรับ)
 local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพลง: apply จากเซฟครั้งเดียว ไม่ทับตอน user สลับเอง
 local appliedBus = {} -- ระดับเสียงแยกกลุ่ม bgm/sfx/ambient ที่ apply จากเซฟล่าสุด
@@ -399,6 +402,15 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			end
 		end
 	end
+	-- งาน sponsor เข้า (server สุ่มตอนขึ้นวันใหม่) → toast กดรับได้เลย ไม่ต้องเปิดปฏิทินแล้ว
+	-- เด้งเฉพาะขอบขาขึ้น false→true · ไม่เช็ค primed: โหลดเซฟที่มี offer ค้างก็ควรเห็นว่ามีงานรอ
+	if state.sponsorOffer and not prevSponsorOffer then
+		Notify.sponsor(("×%d"):format(Config.SponsorBuffMult), function()
+			fireAction({ type = "AcceptSponsor" })
+		end)
+	end
+	prevSponsorOffer = state.sponsorOffer == true
+
 	prevStaffClips, prevFollower, prevMoney = staffCount, state.follower, state.money
 	prevClips, primed = uploaded, true
 	if PCScreen.running and PCScreen.refresh then PCScreen.refresh(state) end

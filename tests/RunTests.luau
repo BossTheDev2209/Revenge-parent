@@ -46,9 +46,11 @@ local Config = if isStudio
 local CommentService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.CommentService)
 	else require("../src/server/Services/CommentService")
+-- ⚠️ CalendarService ถูกพับไว้ 9 ส.ค. (ไม่ wire เข้าเกมแล้ว) — เทสยังอยู่ครบ กันโค้ดเน่าถ้ารื้อกลับ
 local CalendarService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.CalendarService)
 	else require("../src/server/Services/CalendarService")
+-- (SponsorService require อยู่ใน do-block ของเทสมันเอง — top-level ชนเพดาน local 200 ตัวของ Luau)
 local EndingService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.EndingService)
 	else require("../src/server/Services/EndingService")
@@ -312,6 +314,9 @@ local RecordService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.RecordService)
 	else require("../src/server/Services/RecordService")
 
+-- ★ ครอบ do...end: chunk นี้ชนเพดาน local 200 ตัวของ Luau (ทั้งไฟล์คอมไพล์ไม่ผ่าน)
+--   จบ block = register ถูกคืนให้เทสถัดไป · จัดขอบเขตล้วนๆ ไม่แตะ assertion สักตัว
+do
 local noBonus = function() return 0.99 end -- >= bonusChance 0.1
 local yesBonus = function() return 0.01 end
 
@@ -363,6 +368,7 @@ check("EditQTE.canEdit ตรงกับ server", EditQTE.canEdit(rce) == Recor
 rce.footageGB = 32
 check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == true)
 check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
+end
 
 -- ===== เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค. — docs/02 §9.5) =====
 do
@@ -457,6 +463,8 @@ do
 end
 
 -- โซนถ่าย: สุ่มจุด + ย้ายทุก 120 วิ
+-- ★ ครอบ do...end ด้วยเหตุผลเดียวกับข้างบน (เพดาน local 200 ตัว)
+do
 local rz = GameState.newGame()
 local spots = { "FilmSpot_A", "FilmSpot_B", "FilmSpot_C" }
 check("ไม่มีจุดในแมพ = ไม่ตั้งโซน", RecordService.tickZone(rz, 0, {}, rngQueue({ 0 })) == false)
@@ -538,6 +546,7 @@ check("ระหว่าง cooldown ใช้ไม่ได้", MentalServic
 da.day += 1
 check("วันใหม่ใช้ได้อีก", MentalService.doActivity(da, "Bed") == true)
 check("activity มั่วคืน false", MentalService.doActivity(da, "อาบน้ำ") == false)
+end
 
 -- ===== EditQTE scoring ใหม่ (redesign 8 ส.ค. — พีคตอนวงแหวนปิดพอดี ไม่ใช่กลาง window) =====
 check("วงแหวนปิดพอดี (t=window) = 10 เต็ม", EditQTE.scoreFor(1.5, 1.5) == 10)
@@ -648,7 +657,10 @@ local hSkip, tagSkip = CommentService.answer(cs2, { response = "skip" })
 check("ปล่อยผ่าน = pop แต่ไม่นับ", hSkip == true and tagSkip == nil and #cs2.pendingComments == 0
 	and cs2.choices.pos == before.pos and cs2.choices.neu == before.neu and cs2.choices.neg == before.neg)
 
--- ===== CalendarService =====
+-- ===== CalendarService (พับไว้ 9 ส.ค. — ยังเทสอยู่ กันโค้ดเน่าถ้ารื้อกลับ) =====
+-- ★ ครอบ do...end: chunk นี้ชนเพดาน local 200 ตัวของ Luau แล้ว (ทั้งไฟล์คอมไพล์ไม่ผ่าน)
+--   จบ block = register ถูกคืนให้เทสถัดๆ ไป · เป็นการจัดขอบเขตล้วนๆ ไม่แตะ assertion สักตัว
+do
 local cal = GameState.newGame()
 cal.day = 5
 check("วางวันอนาคตได้", CalendarService.place(cal, 7, { type = "Schedule", id = "Marathon" }) == true)
@@ -704,6 +716,74 @@ cal3.day = 4
 local doneBlk = CalendarService.onDay(cal3, rng0)
 check("วันจบงาน: จ่ายเงิน + เคลียร์",
 	doneBlk ~= nil and doneBlk.type == "Sponsor" and cal3.money > m0 and cal3.calendar[4] == nil)
+end
+
+-- ===== SponsorService — งาน sponsor แบบ notification (แก้ดีไซน์ 9 ส.ค. แทนการวางลงปฏิทิน) =====
+-- ★ ครอบ do...end: ไฟล์นี้เป็น chunk เดียวยาวมาก ชนเพดาน local 200 ตัวของ Luau
+--   (เจอจริงตอนเพิ่มเทสก้อนนี้ — "Out of local registers") · จบ block = register ถูกคืน
+do
+local SponsorService = if isStudio
+	then require(game:GetService("ServerScriptService").Services.SponsorService)
+	else require("../src/server/Services/SponsorService")
+local function sponsorReady() -- state ที่เข้าเงื่อนไขรับงานได้ (เฟส 2 + 10K)
+	local s = GameState.newGame()
+	s.day, s.phase, s.follower = 5, 2, 15_000
+	return s
+end
+local sp1 = sponsorReady()
+check("sponsor: ไม่มี offer ค้าง กดรับไม่ได้", SponsorService.accept(sp1) == false)
+check("sponsor offer: ก่อน 10K ไม่สุ่ม", (function()
+	local s = sponsorReady(); s.follower = 9_999
+	return SponsorService.rollOffer(s, function() return 0 end) == false
+end)())
+check("sponsor offer: เฟส 1 ไม่สุ่ม", (function()
+	local s = sponsorReady(); s.phase = 1
+	return SponsorService.rollOffer(s, function() return 0 end) == false
+end)())
+check("sponsor offer: สุ่มพลาด (>=5%) ไม่ได้", SponsorService.rollOffer(sp1, function() return 0.5 end) == false)
+check("sponsor offer: สุ่มติด (<5%) ได้", SponsorService.rollOffer(sp1, function() return 0.01 end) == true)
+check("sponsor offer: มีค้างแล้วไม่ซ้อน", SponsorService.rollOffer(sp1, function() return 0.01 end) == false)
+
+-- กดรับ → buff เริ่มทันที ไม่ต้องเลือกวัน + offer ถูกใช้หมด
+check("sponsor: กดรับได้ + offer หมด", SponsorService.accept(sp1) == true and sp1.sponsorOffer == false)
+check("sponsor: buff ถึงวัน day+SponsorBuffDays",
+	sp1.sponsorBuffUntilDay == 5 + Config.SponsorBuffDays)
+check("sponsor: กดรับซ้ำไม่ได้ (offer หมดแล้ว)", SponsorService.accept(sp1) == false)
+check("sponsor: buff active วันที่กด", SponsorService.buffActive(sp1) == true)
+
+-- ตัวคูณเงิน (Formulas.sponsorMult) — คูณเฉพาะเงิน ไม่แตะ follower
+check("sponsorMult: ไม่มี buff = 1", Formulas.sponsorMult(GameState.newGame()) == 1)
+check("sponsorMult: buff active = Config.SponsorBuffMult",
+	Formulas.sponsorMult(sp1) == Config.SponsorBuffMult)
+check("sponsorMult: save เก่าไม่มี field = 1", Formulas.sponsorMult({ day = 3 }) == 1)
+sp1.day = sp1.sponsorBuffUntilDay -- ถึงวันหมดอายุพอดี = หมดแล้ว
+check("sponsorMult: หมดอายุ = 1", Formulas.sponsorMult(sp1) == 1
+	and SponsorService.buffActive(sp1) == false)
+
+-- ขึ้นวันใหม่: offer ที่ไม่กดรับหมดอายุก่อนสุ่มใบใหม่ (ไม่งั้นค้างตลอดกาล = สุ่มใหม่ไม่ได้)
+local sp2 = sponsorReady()
+sp2.sponsorOffer = true
+check("sponsor onDay: offer เก่าไม่กดรับ = หมดอายุ (สุ่มพลาด)",
+	SponsorService.onDay(sp2, function() return 0.5 end) == false and sp2.sponsorOffer == false)
+local sp3 = sponsorReady()
+sp3.sponsorOffer = true
+check("sponsor onDay: ล้างใบเก่าแล้วสุ่มใบใหม่ติดได้",
+	SponsorService.onDay(sp3, function() return 0.01 end) == true and sp3.sponsorOffer == true)
+
+-- เงินจากคลิปคูณจริงตอน buff active (follower ต้องเท่าเดิม)
+local spUp = sponsorReady()
+FollowerService.finishEdit(spUp, { score = Config.MaxClipAccuracy })
+local clipIdx = #spUp.clips
+local moneyBefore, followerBefore = spUp.money, spUp.follower
+spUp.sponsorOffer = true
+SponsorService.accept(spUp)
+FollowerService.uploadClip(spUp, { clip = clipIdx }, 100, function() return 0.5 end)
+local gotFollower = spUp.follower - followerBefore
+local gotMoney = spUp.money - moneyBefore
+check("sponsor buff: เงิน = moneyGain × Mult (follower ไม่คูณ)",
+	gotFollower > 0 and gotMoney == math.floor(
+		Formulas.moneyGain(gotFollower, Formulas.phaseFor(followerBefore)) * Config.SponsorBuffMult))
+end
 
 -- ===== StaffService (docs/02 §9.8 lock 21 ก.ค.) =====
 local StaffService = if isStudio
@@ -1505,6 +1585,9 @@ check("ขั้นถัดจากที่ซื้อสูงสุด = n
 check("เลยกว่านั้น = locked", st[5].status == "locked")
 
 -- ===== responsive: ย่อแผงให้พอดีจอ (user feedback 1 ส.ค. — ตกขอบบน PC) =====
+-- ★ ครอบ do...end: chunk นี้ชนเพดาน local 200 ตัวของ Luau แล้ว (คอมไพล์ไม่ผ่านทั้งไฟล์)
+--   จบ block = register ถูกคืน · เป็นการจัดขอบเขตล้วนๆ ไม่แตะ assertion สักตัว
+do
 -- แผงออกแบบไว้ 778 × 704 px ตามภาพร่าง PDF
 local PW, PH = 778, 704
 check("จอใหญ่กว่าแผง = ไม่ขยาย (คงขนาดออกแบบ)", ShopKiosk.fitScale(PW, PH, 2560, 1400) == 1)
@@ -1528,6 +1611,7 @@ end
 check("tiersFor แนบ field image", select(2, pcall(function()
 	return ShopKiosk.tiersFor(camEntry, GameState.newGame())[1].image
 end)) == nil)
+end
 
 -- โมเดล Tool มีถึง Camera_6 — clamp ยังต้องทำงานสำหรับระดับที่ยังถือ Tool อยู่
 local hi = GameState.newGame()

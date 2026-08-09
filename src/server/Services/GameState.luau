@@ -32,8 +32,9 @@ function GameState.newGame()
 		filmZone = { spot = nil, expiresAt = 0 }, -- โซนถ่ายปัจจุบัน ย้ายทุก 120 วิ
 		notebookPlaced = false, -- โน้ตบุ๊ค (เฟส 1) วางอยู่บนพื้นไหม — วางแล้ว Tool หายจากมือ
 		spending = { food = 0, rent = 0, staff = 0 }, -- ⊖⊕ ใน Bank เป็น offset step (Config.Spending)
-		calendar = {}, -- [day] = {type=..., id=...}
-		sponsorOffer = false, -- มี offer ค้างรอวางในปฏิทินไหม (สุ่มรายวัน — CalendarService.rollSponsorOffer)
+		calendar = {}, -- [day] = {type=..., id=...} — ★ ปฏิทินถูกพับไว้ 9 ส.ค. (ดู SponsorService) เก็บ field ไว้เผื่อรื้อกลับ
+		sponsorOffer = false, -- มี offer ค้างรอกดรับไหม (สุ่มรายวัน — SponsorService.rollOffer · หมดอายุเมื่อขึ้นวันใหม่)
+		sponsorBuffUntilDay = 0, -- กดรับงานแล้ว → เงินจากคลิป ×Config.SponsorBuffMult จนถึงวันนี้ (Formulas.sponsorMult)
 		-- ระบบพนักงาน (docs/02 §9.8)
 		staff = {},          -- พนักงานจ้าง {id=, speed=, quality=, salary=}
 		companions = {},     -- เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง ไม่มี salary)

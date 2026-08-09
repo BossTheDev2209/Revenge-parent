@@ -71,11 +71,23 @@ function Formulas.moneyGain(followers: number, phase: number): number
 end
 
 -- PDF หน้า 6: sponsor จ่าย = เงินคลิปเฉลี่ย (base กลางเฟส, tier B) × 2–4 (สุ่ม)
+-- ⚠️ ใช้กับระบบ sponsor "เงินก้อน + วางลงปฏิทิน" ที่ถูกพับไว้ 9 ส.ค. (ดู CalendarService)
+--    ระบบปัจจุบันใช้ Formulas.sponsorMult แทน — เก็บฟังก์ชันนี้ไว้เผื่อรื้อปฏิทินกลับมา
 function Formulas.sponsorPay(phase: number, rng): number
 	rng = rng or math.random
 	local b = Config.FollowerBase[phase]
 	local avgClipMoney = (b.min + b.max) / 2 * Config.MoneyRatePerFollower[phase]
 	return math.floor(avgClipMoney * (2 + 2 * rng()))
+end
+
+-- ตัวคูณเงินจาก buff sponsor ที่กดรับไว้ (แก้ดีไซน์ 9 ส.ค.) — คูณเฉพาะ "เงิน" ไม่แตะ follower
+-- active ตราบใดที่วันปัจจุบันยังไม่ถึง sponsorBuffUntilDay (กดรับวัน 5 + 1 วัน → until 6 → มีผลตลอดวัน 5)
+-- save เก่าไม่มี field นี้ = 0 → คืน 1 (ไม่มี buff) ไม่พัง
+function Formulas.sponsorMult(state): number
+	local untilDay = state and state.sponsorBuffUntilDay or 0
+	local day = state and state.day or 0
+	if day < untilDay then return Config.SponsorBuffMult end
+	return 1
 end
 
 -- เช็คเงื่อนไขฝั่ง VidQ % ของ ending หนึ่งตัว (เงื่อนไขไหนไม่ระบุใน Config = ไม่เช็ค)

@@ -35,7 +35,8 @@ function FollowerService.uploadClip(state, action, mentalPct: number, rng)
 	local gained, viral = Formulas.followerGain(phase, clip.tier, mentalPct, rng)
 	gained = math.floor(gained * (clip.sizeMult or 1)) -- คูณขนาด footage ที่เลือก (money ตามไปเอง)
 	state.follower += gained
-	state.money += Formulas.moneyGain(gained, phase)
+	-- buff sponsor คูณเฉพาะ "เงิน" ไม่แตะ follower (สูตร follower ล็อก docs/02 §2)
+	state.money += math.floor(Formulas.moneyGain(gained, phase) * Formulas.sponsorMult(state))
 	state.phase = Formulas.phaseFor(state.follower)
 	clip.uploaded = true
 	clip.gained = gained

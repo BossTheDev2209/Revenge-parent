@@ -40,7 +40,8 @@ local function ensureContainer()
 	return frame
 end
 
--- opts = { title, body, icon (emoji), accent (Color3), sound, soundVol }
+-- opts = { title, body, icon (emoji), accent (Color3), sound, soundVol,
+--          action = { text, onClick } — มีปุ่มให้กดบนการ์ด (เช่นรับงาน sponsor) กดแล้วการ์ดปิดเอง }
 function Notify.push(opts)
 	local stack = ensureContainer()
 
@@ -102,7 +103,8 @@ function Notify.push(opts)
 
 	local bodyLabel = Instance.new("TextLabel")
 	bodyLabel.Position = UDim2.fromOffset(58, 36)
-	bodyLabel.Size = UDim2.fromOffset(WIDTH - 70, 30)
+	-- มีปุ่มกด = หลบที่ให้ปุ่มด้านขวา ไม่งั้นข้อความลอดใต้ปุ่ม
+	bodyLabel.Size = UDim2.fromOffset(WIDTH - 70 - (opts.action and 84 or 0), 30)
 	bodyLabel.BackgroundTransparency = 1
 	bodyLabel.FontFace = Font.fromEnum(Enum.Font.Gotham)
 	bodyLabel.TextSize = 13
@@ -149,7 +151,31 @@ function Notify.push(opts)
 	closeBtn:SetAttribute("Sfx", "none")
 	closeBtn.Parent = card
 	closeBtn.Activated:Connect(dismiss)
-	task.delay(HOLD, dismiss)
+
+	-- ★ ปุ่มกดบนการ์ด (ถ้ามี) — ต้อง parent **หลัง** closeBtn ตัวที่คลุมเต็มใบ
+	--   ลูกที่มาทีหลัง (ZIndex เท่ากัน) อยู่บนสุด = กินคลิกก่อน ไม่งั้นโดน closeBtn ปิดทิ้งแทน
+	if opts.action then
+		local act = Instance.new("TextButton")
+		act.Size = UDim2.fromOffset(74, 30)
+		act.Position = UDim2.new(1, -84, 1, -37)
+		act.BackgroundColor3 = opts.accent or Color3.fromRGB(90, 170, 90)
+		act.TextColor3 = Color3.fromRGB(20, 20, 24)
+		act.FontFace = Font.fromEnum(Enum.Font.GothamBold)
+		act.TextSize = 14
+		act.Text = opts.action.text or "รับ"
+		act.AutoButtonColor = true
+		act.Parent = card
+		local ac = Instance.new("UICorner")
+		ac.CornerRadius = UDim.new(0, 6)
+		ac.Parent = act
+		act.Activated:Connect(function()
+			if dismissed then return end -- กันกดรัวสองที = ยิง action ซ้ำ
+			if opts.action.onClick then opts.action.onClick() end
+			dismiss()
+		end)
+	end
+
+	task.delay(opts.hold or HOLD, dismiss) -- การ์ดที่ต้องตัดสินใจ (มีปุ่ม) ส่ง hold ยาวกว่ามาได้
 end
 
 function Notify.gain(followerDelta: number, moneyDelta: number?)
@@ -161,6 +187,20 @@ function Notify.gain(followerDelta: number, moneyDelta: number?)
 		icon = "📈",
 		accent = Color3.fromRGB(90, 190, 110),
 		sound = "upload_done", soundVol = 0.35,
+	})
+end
+
+-- งาน sponsor เข้า (แทนระบบวางลงปฏิทินที่พับไปแล้ว 9 ส.ค.) — กด "รับงาน" = buff เงินเริ่มทันที
+-- ค้างนานกว่าการ์ดอื่น (12 วิ) เพราะต้องให้ผู้เล่นทันตัดสินใจ · ปล่อยหาย = สละสิทธิ์ ใบใหม่สุ่มวันถัดไป
+function Notify.sponsor(multText: string, onAccept)
+	Notify.push({
+		title = "💼 มีงาน sponsor เข้า!",
+		body = ("กดรับ → เงินจากคลิป %s วันนี้"):format(multText),
+		icon = "💰",
+		accent = Color3.fromRGB(235, 175, 60),
+		sound = "upload_done", soundVol = 0.45,
+		hold = 12,
+		action = { text = "รับงาน", onClick = onAccept },
 	})
 end
 

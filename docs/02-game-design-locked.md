@@ -142,10 +142,22 @@ follower ที่ได้ = เลขสุ่ม base ของเฟส × V
 
 ~~Upgrade ดันความชัด → ดัน VidQ multiplier~~ — **ผิด แก้ 26 ก.ค.**: กล้องคูณแค่ GB/คลิกตอนอัด **ไม่แตะ VidQ** (VidQ มาจาก QTE อย่างเดียว) loop เศรษฐกิจปิดที่ อัดไว → ตัดได้บ่อย → follower/เงินเข้าเร็ว
 
-**Sponsor** (เขียนรายละเอียดไว้ในหน้าปฏิทินแล้ว):
-- ปลดล็อค 10K follower
-- จ่ายเป็นเงินก้อน
-- Trade-off: วันที่ถ่าย sponsor = ไม่ได้ปั๊ม follower คลิปตัวเอง
+**Sponsor** — ⚠️ **แก้ดีไซน์ 9 ส.ค. 2569 (user)**: เลิกวางลงปฏิทิน เปลี่ยนเป็น notification กดรับ
+- ปลดล็อค 10K follower + เฟส 2 ขึ้นไป · offer สุ่มเด้งเอง 5%/วัน (เงื่อนไขเดิม ไม่ขยับ)
+- offer เด้งเป็น **toast มุมขวาล่าง มีปุ่ม "รับงาน"** — กดปุ๊บ buff เริ่มทันที **ไม่ต้องเลือกวัน**
+- buff = **เงินที่ได้จากคลิปที่อัปโหลด ×2 นาน 1 วันในเกม** (`Config.SponsorBuffMult` / `SponsorBuffDays`)
+- **คูณเฉพาะเงิน ไม่แตะ follower** — สูตร follower ยังล็อกตาม §2 ทุกตัว
+- ไม่กดรับ = offer หมดอายุเมื่อขึ้นวันใหม่ แล้วสุ่มใบใหม่ (toast เป็นทางเดียวที่รับได้ ไม่มีที่เก็บค้าง)
+- ~~จ่ายเป็นเงินก้อน~~ · ~~Trade-off: วันถ่าย sponsor ไม่ได้ปั๊ม follower~~ — **ตัดทั้งคู่**
+  (trade-off เดิมไม่เคย implement จริง เป็น flavor text เฉยๆ · สูตรเงินก้อน `Formulas.sponsorPay` เก็บไว้เผื่อรื้อกลับ)
+
+> ⚠️ **ผลต่อเพดานเงิน**: buff ×2 เพิ่มเงินเกินกรอบ `follower × rate` ที่คำนวณเพดาน ~1.47 ล้านไว้
+> ขนาดผลจริงเล็ก (5%/วัน × เฉพาะคลิปที่อัปในวันนั้น) แต่ **ถ้าจะปรับ `SponsorBuffMult` ให้สูงกว่า 2 ต้องรีวิวเพดานใหม่ก่อน**
+
+**ปฏิทิน — พับไว้ (ไม่ได้ลบ)**: ระบบวาง block/ย้าย block/Canon lock ยังอยู่ครบใน `CalendarService.luau` +
+`CalendarApp.luau` + เทสใน `RunTests` แต่ **ถอด wiring ออกหมดแล้ว** (ไม่มีไอคอนปฏิทินบนจอคอม)
+เหตุผล: ทั้งระบบมีแค่ sponsor ที่ใช้จริง ส่วน Schedule/Canon block ไม่เคยมี UI มาต่อ และ canon event
+ปัจจุบันขับด้วย `pendingEvents`/StoryBeat ไม่ผ่านปฏิทิน · จะรื้อกลับ = ต่อ wire เดิม 4 จุด
 
 > **หมายเหตุ:** ตัวเลขใน UI ทุกหน้าเป็น placeholder ไม่ใช่ canon — ยึดตารางนี้
 
@@ -530,7 +542,7 @@ crossfade 1.2 วิอัตโนมัติ · cutscene ล็อกเพ�
 - [ ] Mental service (3 โซน + drain/recovery + activity cooldown)
 - [ ] Phase gate (อ่าน follower → คืนเฟส)
 - [ ] Dialogue engine (typewriter + เสียง + speed tag)
-- [ ] Calendar + sponsor + schedule event
+- [x] Sponsor (notification กดรับ → buff เงิน ×2 วันเดียว) — `SponsorService` · ~~Calendar + schedule event~~ พับไว้ 9 ส.ค.
 - [ ] Ending resolver (priority order, อ่าน VidQ % + comment %)
 
 ---

@@ -289,6 +289,11 @@ Config.ClipSizes = {
 Config.SponsorUnlockFollowers = 10_000
 Config.SponsorOfferChance = 0.05 -- PDF หน้า 6: offer เด้งเอง 5%/วัน (เฟส 2-3) ไม่ใช่ปุ่มกดเรียก
 Config.SponsorOfferMinPhase = 2
+-- ★ แก้ดีไซน์ 9 ส.ค. (user): sponsor ไม่ต้องเลือกวางวันในปฏิทินแล้ว — offer เด้งเป็น notification
+--   กดรับ = ได้ buff "เงินจากคลิป ×Mult" ทันที นาน Days วันในเกม (ปฏิทินถูกพับไว้ ดู CalendarService)
+--   offer ที่ไม่กดรับหมดอายุตอนขึ้นวันใหม่ (ไม่งั้นค้าง = สุ่มใบใหม่ไม่ได้ตลอดกาล เพราะไม่มี UI ปฏิทินให้เปิดดูแล้ว)
+Config.SponsorBuffMult = 2 -- เงินจากคลิปที่อัปโหลดระหว่าง buff ×เท่านี้ (follower ไม่คูณ — คูณเฉพาะเงิน)
+Config.SponsorBuffDays = 1 -- buff อยู่กี่วันในเกมนับจากวันที่กดรับ
 
 -- §5 Ending resolver — priority order สำคัญ เช็คแย่สุด→ดีสุด return ทันทีที่ match
 -- ห้ามสลับลำดับ เงื่อนไข overlap กัน

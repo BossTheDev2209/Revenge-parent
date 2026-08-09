@@ -70,6 +70,7 @@ end
 local tracks = {} -- [Animator][ชื่อท่า] = AnimationTrack (โหลดครั้งเดียวต่อตัวละคร)
 local posed = {} -- [Animator] = ท่า loop ที่ค้างอยู่
 local originalFace = {} -- [Decal หน้า] = texture เดิม (คืนตอนจบฉาก)
+local held = {} -- [ชื่อ prop] = Weld ที่ hold() สร้างไว้ (unhold ลบทิ้ง)
 
 -- เดินตาม path "A/B" ในโฟลเดอร์ที่ให้ — คืน instance ที่เจอ
 local function resolve(root: Instance?, path: string): Instance?
@@ -131,10 +132,17 @@ function AnimPlayer.findRig(actor: string?): Model?
 	return nil
 end
 
-local function animatorOf(rig: Model?): Animator?
-	local hum = rig and rig:FindFirstChildOfClass("Humanoid")
-	if not hum then return nil end
-	return hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+-- Humanoid (ตัวละคร) หรือ AnimationController (prop ไม่มีชีวิต) — 2 ทางเดียวที่มี Animator ได้
+local function animatorOf(rig: Instance?): Animator?
+	local controller = rig and (rig:FindFirstChildOfClass("Humanoid") or rig:FindFirstChildOfClass("AnimationController"))
+	if not controller then return nil end
+	return controller:FindFirstChildOfClass("Animator") or Instance.new("Animator", controller)
+end
+
+-- หา prop/object เท่าไหร่ก็ได้ในแมพ (ไม่ใช่ตัวละคร) — ต่างจาก findRig ที่จำกัดแค่ Workspace.NPC
+-- prop วางกระจายทุกที่ได้ ⚠️ ชื่อต้อง unique ทั้งโปรเจกต์ (ชื่อซ้ำ = เจอตัวแรกที่ค้นทั้ง workspace อาจไม่ใช่ตัวที่ตั้งใจ)
+function AnimPlayer.findObject(name: string): Model?
+	return workspace:FindFirstChild(name, true)
 end
 
 -- เล่นท่า — loop = true คือท่ายืนค้าง (pose) ท่าเดิมที่ค้างอยู่จะถูกหยุดให้
@@ -210,6 +218,73 @@ function AnimPlayer.stop(actor: string?)
 	if not animator then return end
 	for _, t in tracks[animator] or {} do t:Stop(FADE) end
 	posed[animator] = nil
+end
+
+-- ===== object animation (prop ไม่มีชีวิต — โล่รางวัล/กล่อง/ประตูที่เราสร้างเอง) =====
+-- ต้องมี AnimationController ใต้ prop model ก่อน (Instance.new("AnimationController") วางเอง ครั้งเดียว)
+-- Moon Animator animate ได้เหมือน Humanoid ทุกอย่าง — โฟลเดอร์ Animations ใช้ระบบ candidates เดียวกัน
+-- (ชื่อ prop = "actor" ในการค้นหา — ท่าเฉพาะ prop นั้นอยู่ ReplicatedStorage.Animations.<ชื่อ prop>/<ท่า>)
+function AnimPlayer.playObject(objectName: string, animName: string, loop: boolean?): boolean
+	local obj = AnimPlayer.findObject(objectName)
+	local animator = animatorOf(obj)
+	if not animator then
+		warn(("[AnimPlayer] playObject: ไม่เจอ '%s' (ต้องมี AnimationController ในตัว)"):format(tostring(objectName)))
+		return false
+	end
+	local anim = AnimPlayer.findAnimation(objectName, animName)
+	if not anim then
+		warn(("[AnimPlayer] playObject: ไม่เจอท่า '%s' ใน ReplicatedStorage.%s"):format(animName, FOLDER_NAME))
+		return false
+	end
+	tracks[animator] = tracks[animator] or {}
+	local key = anim:GetFullName()
+	local track = tracks[animator][key]
+	if not track then
+		track = animator:LoadAnimation(anim)
+		tracks[animator][key] = track
+	end
+	track.Looped = loop == true
+	track:Play(FADE)
+	return true
+end
+
+function AnimPlayer.stopObject(objectName: string)
+	local animator = animatorOf(AnimPlayer.findObject(objectName))
+	if not animator then return end
+	for _, t in tracks[animator] or {} do t:Stop(FADE) end
+end
+
+-- ===== ถือ prop ติดมือ (โล่รางวัล ฯลฯ) — ไม่ต้อง animate prop เอง แค่ผูกกับแขนที่ actor ขยับอยู่แล้ว =====
+-- จัดตำแหน่ง prop ให้แนบมือ (PrimaryPart) ใน Studio ไว้ก่อนเรียก — Weld เก็บ offset ปัจจุบัน ณ ตอนเรียกไว้เป๊ะ
+-- limb ไม่ใส่ = "Right Arm" (R6) · คืน false ถ้าหา actor/prop ไม่เจอ (ไม่พัง เล่นต่อได้)
+function AnimPlayer.hold(actor: string?, propName: string, limbName: string?): boolean
+	local rig = AnimPlayer.findRig(actor)
+	local prop = AnimPlayer.findObject(propName)
+	local limb = rig and rig:FindFirstChild(limbName or "Right Arm")
+	-- prop เป็นได้ทั้ง Part เดี่ยว (ใช้ตัวมันเอง) หรือ Model (ใช้ PrimaryPart/BasePart แรกที่เจอ)
+	local primary = prop and (prop:IsA("BasePart") and prop or prop:IsA("Model") and (prop.PrimaryPart or prop:FindFirstChildWhichIsA("BasePart")))
+	if not (limb and limb:IsA("BasePart") and primary) then
+		warn(("[AnimPlayer] hold: หา actor/prop ไม่เจอ (%s / %s)"):format(tostring(actor), tostring(propName)))
+		return false
+	end
+	AnimPlayer.unhold(propName) -- กัน weld ซ้อนถ้าเรียกซ้ำ
+	local weld = Instance.new("Weld")
+	weld.Name = "PropHold_" .. propName
+	weld.Part0 = limb
+	weld.Part1 = primary
+	weld.C0 = limb.CFrame:ToObjectSpace(primary.CFrame) -- เก็บตำแหน่งสัมพัทธ์ปัจจุบัน (จัด prop แนบมือไว้ก่อนแล้ว)
+	weld.Parent = limb
+	held[propName] = weld
+	return true
+end
+
+-- ปลด prop ออกจากมือ (คืนอิสระให้ physics/ตำแหน่งเดิมของมันเอง)
+function AnimPlayer.unhold(propName: string)
+	local w = held[propName]
+	if w then
+		w:Destroy()
+		held[propName] = nil
+	end
 end
 
 -- เล่นตาม field ในบท 1 บรรทัด/1 step — คืน actor ที่ถูกสั่ง (ให้ผู้เรียกเก็บไว้ stop ทีหลัง)

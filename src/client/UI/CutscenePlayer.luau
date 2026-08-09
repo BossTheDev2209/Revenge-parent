@@ -67,6 +67,17 @@ local VALID = {
 		return type(s.actor) == "string" and type(s.to) == "string"
 			and (s.t == nil or type(s.t) == "number")
 	end,
+	-- เล่น animation บน prop ไม่มีชีวิต (โล่รางวัล/กล่อง ฯลฯ) — ต้องมี AnimationController ในตัว prop (docs/engines/story-beat.md)
+	objAnim = function(s)
+		return type(s.object) == "string" and type(s.name) == "string"
+			and (s.loop == nil or type(s.loop) == "boolean")
+	end,
+	-- ผูก prop ติดมือ actor (Weld) — ใช้ตอน "ถือของ" ระหว่างท่าทาง เช่น รับโล่รางวัล
+	hold = function(s)
+		return type(s.actor) == "string" and type(s.prop) == "string"
+			and (s.limb == nil or type(s.limb) == "string")
+	end,
+	unhold = function(s) return type(s.prop) == "string" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -194,6 +205,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	end
 
 	local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบฉากแล้วหยุดให้หมด
+	local heldProps = {} -- prop ที่ hold() ไว้ — จบฉากแล้ว unhold ให้หมด (เว้น step ระบุ persist=true)
 	local actionRemote = game:GetService("ReplicatedStorage").Shared.Remotes.Action
 	-- ไม่คืน focus ตอนจบฉาก — ปล่อยให้ค้างที่เป้าจน TeleportTo (server) ย้ายตัวเข้าโซนนั้นแล้วค่อย clear
 	-- (clear ก่อน teleport = โซนที่ preload ไว้ unload ทันที แล้วต้องโหลดใหม่ตอนวาป = gameplay paused)
@@ -236,6 +248,15 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 				end
 			elseif step.type == "focus" then
 				actionRemote:FireServer({ type = "SetFocus", target = step.target }) -- preload แมพจุดนั้น
+			elseif step.type == "objAnim" then
+				AnimPlayer.playObject(step.object, step.name, step.loop)
+			elseif step.type == "hold" then
+				if AnimPlayer.hold(step.actor, step.prop, step.limb) and not step.persist then
+					heldProps[step.prop] = true -- auto-unhold ตอนจบฉาก เว้นแต่สั่ง persist=true (อยากให้ถือค้างต่อหลัง cutscene)
+				end
+			elseif step.type == "unhold" then
+				AnimPlayer.unhold(step.prop)
+				heldProps[step.prop] = nil
 			elseif step.type == "face" then
 				AnimPlayer.setFace(step.actor, step.name)
 				movedActors[step.actor] = true
@@ -278,6 +299,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 			end
 		end
 		for actor in movedActors do AnimPlayer.stop(actor) end
+		for propName in heldProps do AnimPlayer.unhold(propName) end
 		if hum and hum.Parent then
 			hum.WalkSpeed, hum.JumpPower = savedWalk, savedJump
 			hum:SetAttribute("MoveLocked", nil) -- ปลดล็อก — SprintHandler คืนความเร็วตามปุ่ม Shift เอง

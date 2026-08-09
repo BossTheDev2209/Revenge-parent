@@ -14,6 +14,7 @@
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local DialogueUI = require(script.Parent.UI.DialogueUI)
+local Audio = require(script.Parent.AudioService)
 
 local ScreenTransition = {}
 ScreenTransition.running = false
@@ -57,6 +58,9 @@ function ScreenTransition.play(opts)
 	gui.Parent = playerGui
 
 	task.spawn(function()
+		Audio.lockBGM(true) -- ห้ามโซนสั่งเพลงระหว่าง transition (วาปเข้าโซนใหม่ = เพลงจะเด้งกลางฉาก)
+		Audio.bgm(nil)      -- ดับเพลงที่ค้างมาก่อนหน้า
+
 		local tin = TweenService:Create(black, TweenInfo.new(fadeTime), { BackgroundTransparency = 0 })
 		tin:Play()
 		tin.Completed:Wait()
@@ -115,6 +119,7 @@ function ScreenTransition.play(opts)
 		tout:Play()
 		tout.Completed:Wait()
 		gui:Destroy()
+		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ (โซนใหม่จะเริ่มเพลงหลังฉากจบ)
 		ScreenTransition.running = false
 		if opts.onDone then opts.onDone() end
 	end)

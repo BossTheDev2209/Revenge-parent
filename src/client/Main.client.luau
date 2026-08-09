@@ -320,6 +320,7 @@ end
 local endingPlayed = false
 local prevClips, primed = 0, false -- primed กัน state แรก/โหลดเซฟไม่ให้ยิงเสียง
 local prevStaffClips, prevFollower, prevMoney = 0, 0, 0 -- toast ทีมลงคลิป / DM ปลดล็อก (เทียบ delta)
+local prevRentMissed = 0 -- เสียงตอนจ่ายค่าเช่าไม่ทัน/เงินหมด (เทียบ delta เหมือน prevClips)
 local prevSponsorOffer = false -- toast งาน sponsor: เด้งตอน false→true เท่านั้น (ไม่เด้งซ้ำทุก push)
 local appliedVolume = nil -- ระดับเสียงล่าสุดที่ apply จาก settings (กัน apply ทับตอน user ปรับ)
 local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพลง: apply จากเซฟครั้งเดียว ไม่ทับตอน user สลับเอง
@@ -378,6 +379,14 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		end
 		Audio.sfx(last and last.viral and "viral" or "upload_done")
 	end
+
+	-- จ่ายค่าเช่าไม่ทัน/เงินหมด (flags.rentMissed เพิ่มตอนตัดรอบ 7 วัน — MoneyService.onDay ฝั่ง server)
+	-- tonumber กัน error ถ้ามีที่อื่นตั้งเป็น boolean (เช่น /dev flag rentMissed — docs เตือนไว้แล้วว่าอย่าใช้)
+	local rentMissed = tonumber(state.flags.rentMissed) or 0
+	if primed and rentMissed > prevRentMissed then
+		Audio.sfx("rent_missed")
+	end
+	prevRentMissed = rentMissed
 
 	-- ทีม/เพื่อนร่วมทาง auto ลงคลิป (produceDaily รายวัน) → follower/เงินขึ้นเอง → toast แจ้ง ไม่งั้นงงว่ามาจากไหน
 	local staffCount = #state.staffClips

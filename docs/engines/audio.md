@@ -39,6 +39,7 @@ SoundService/
 | `save` | ปุ่มเซฟ |
 | `upload_done` | อัปคลิปสำเร็จ |
 | `viral` | คลิปนั้นไวรัล |
+| `rent_missed` | จ่ายค่าเช่าไม่ทัน/เงินหมดตอนตัดรอบ 7 วัน (ครบ 2 ครั้ง = Bad End 1) |
 
 **ไม่มีไฟล์ชื่อไหน = เงียบเฉพาะอันนั้น** + warn ครั้งเดียวใน Output (ไม่พัง วางเพิ่มทีหลังได้)
 เสียงเดินไม่อยู่ตารางนี้แล้ว — ใช้ระบบ material-based ที่ `ServerScriptService.Footsteps` แทน ([src/studio-only](../../src/studio-only/README.md))

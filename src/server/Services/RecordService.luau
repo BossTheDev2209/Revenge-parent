@@ -62,7 +62,31 @@ function RecordService.record(state, o)
 	state.footageGB = (state.footageGB or 0) + gained
 	state.lastRecordAt = now
 
-	return { ok = true, gained = gained, bonus = bonus, full = RecordService.isFull(state), reason = nil }
+	-- สุ่มเจอ QTE skill-check (docs/02 §9.5) — เฉพาะคลิกที่ยังไม่เต็ม (ไม่งั้น reward footage โดน cap เป็น 0 เปล่าประโยชน์)
+	local qte = not RecordService.isFull(state) and rng() < Config.RecordQTE.chance
+
+	return { ok = true, gained = gained, bonus = bonus, full = RecordService.isFull(state), qte = qte, reason = nil }
+end
+
+-- ===== RecordQTE reward (docs/02 §9.5) — footage bonus เพิ่ม (additive) ตามเกรดจังหวะ =====
+-- grade: "perfect" | "good" | "miss" · คืน GB bonus ก่อน cap — miss = 0 (คลิกได้ base ไปแล้ว ไม่ลงโทษ)
+function RecordService.qteReward(cameraLevel: number, grade: string): number
+	local R, Q = Config.Record, Config.RecordQTE
+	local base = R.footagePerClickGB[cameraLevel] or R.footagePerClickGB[1]
+	local mult = (grade == "perfect" and Q.rewardMultPerfect)
+		or (grade == "good" and Q.rewardMultGood)
+		or 0
+	return base * mult
+end
+
+-- ให้ reward QTE จริง — cap ด้วย storage เหมือน record() (footage ไม่ล้นถัง) · คืน { gained, grade }
+function RecordService.grantQTE(state, grade: string)
+	local lv = Formulas.activeLevel(state, "camera")
+	local reward = RecordService.qteReward(lv, grade)
+	local cap = RecordService.capacity(state)
+	local gained = math.min(reward, math.max(0, cap - (state.footageGB or 0)))
+	state.footageGB = (state.footageGB or 0) + gained
+	return { gained = gained, grade = grade }
 end
 
 -- ===== วงจรปิด: footage → คลิป (unlock 8 ส.ค. — ขนาดแปรผัน docs/02 §9.5) =====

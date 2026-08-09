@@ -375,6 +375,56 @@ check("EditQTE.canEdit พอดี 32 = ได้", EditQTE.canEdit(rce) == tru
 check("EditQTE.canEdit ไม่มี state = ไม่ได้", EditQTE.canEdit(nil) == false)
 end
 
+-- ===== RecordQTE — skill-check ตอนถ่ายคลิป (docs/02 §9.5, Config.RecordQTE) =====
+do
+	local RecordQTE = if isStudio
+		then require(game:GetService("StarterPlayer").StarterPlayerScripts.RecordQTE)
+		else require("../src/client/RecordQTE")
+
+	-- reward = footagePerClickGB[กล้อง] × mult ตามเกรด · miss = 0 (ไม่ลงโทษ)
+	check("qteReward perfect กล้อง1 = 1×10 = 10", RecordService.qteReward(1, "perfect") == 10)
+	check("qteReward good กล้อง1 = 1×5 = 5", RecordService.qteReward(1, "good") == 5)
+	check("qteReward miss = 0", RecordService.qteReward(1, "miss") == 0)
+	check("qteReward perfect กล้อง6 = 32×10 = 320", RecordService.qteReward(6, "perfect") == 320)
+	check("qteReward good กล้อง3 = 4×5 = 20", RecordService.qteReward(3, "good") == 20)
+	check("qteReward เกรดมั่ว = 0 (validate)", RecordService.qteReward(1, "zzz") == 0)
+
+	-- grantQTE เพิ่ม footage จริง + cap ด้วย storage
+	local gq = GameState.newGame() -- storage 1 = cap 128, กล้อง 1
+	local g1 = RecordService.grantQTE(gq, "perfect")
+	check("grantQTE perfect +10 footage", g1.gained == 10 and gq.footageGB == 10)
+	gq.footageGB = 125
+	local g2 = RecordService.grantQTE(gq, "perfect")
+	check("grantQTE ชน cap ตัดให้พอดี (125+3=128)", g2.gained == 3 and gq.footageGB == 128)
+	local gqMiss = GameState.newGame()
+	local g3 = RecordService.grantQTE(gqMiss, "miss")
+	check("grantQTE miss ไม่เพิ่ม footage", g3.gained == 0 and gqMiss.footageGB == 0)
+
+	-- record() roll QTE: rng ตัวแรก = bonus, ตัวที่สอง = qte (2%)
+	local function seqRng(vals)
+		local i = 0
+		return function() i += 1; return vals[i] or 0.99 end
+	end
+	local qc = GameState.newGame()
+	local rq = RecordService.record(qc, { now = 1, rng = seqRng({ 0.99, 0.01 }) }) -- ไม่ bonus, qte proc
+	check("record: qte proc เมื่อ rng<chance", rq.ok and rq.qte == true)
+	local rq2 = RecordService.record(qc, { now = 2, rng = seqRng({ 0.99, 0.99 }) }) -- ไม่ proc
+	check("record: qte ไม่ proc เมื่อ rng>=chance", rq2.ok and rq2.qte ~= true)
+	-- คลิกที่ทำให้เต็ม cap พอดี = ไม่ proc QTE (reward จะโดน cap 0)
+	local qfull = GameState.newGame()
+	qfull.footageGB = 127
+	local rqf = RecordService.record(qfull, { now = 1, rng = seqRng({ 0.99, 0.01 }) })
+	check("record: คลิกที่เต็ม cap พอดี ไม่ proc QTE", rqf.ok and rqf.qte ~= true)
+
+	-- gradeFor: โซน (perfectHW 0.035, goodHW 0.11)
+	-- ใช้ค่าในโซนชัดๆ เลี่ยง float edge (0.035/0.11 พอดีไม่เสถียรใน double)
+	check("gradeFor ตรงกลาง = perfect", RecordQTE.gradeFor(0.5, 0.5, 0.035, 0.11) == "perfect")
+	check("gradeFor ในโซน perfect (d=0.02) = perfect", RecordQTE.gradeFor(0.52, 0.5, 0.035, 0.11) == "perfect")
+	check("gradeFor ในโซน good (d=0.08) = good", RecordQTE.gradeFor(0.58, 0.5, 0.035, 0.11) == "good")
+	check("gradeFor ใกล้ขอบ good (d=0.10) = good", RecordQTE.gradeFor(0.60, 0.5, 0.035, 0.11) == "good")
+	check("gradeFor นอกโซน (d=0.2) = miss", RecordQTE.gradeFor(0.7, 0.5, 0.035, 0.11) == "miss")
+end
+
 -- ===== เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค. — docs/02 §9.5) =====
 do
 	-- clipSizeMult = gb / 32 baseline (proportional)

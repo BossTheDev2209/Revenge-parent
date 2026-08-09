@@ -25,6 +25,7 @@ local MenuUI = require(script.Parent.UI.MenuUI)
 local InteractBinder = require(script.Parent.InteractBinder)
 local Audio = require(script.Parent.AudioService)
 local RecordTool = require(script.Parent.RecordTool)
+local RecordQTE = require(script.Parent.RecordQTE) -- skill-check ตอนถ่ายคลิป (server สุ่ม 2%)
 local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
@@ -326,6 +327,7 @@ local appliedVolume = nil -- ระดับเสียงล่าสุดท
 local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพลง: apply จากเซฟครั้งเดียว ไม่ทับตอน user สลับเอง
 local appliedBus = {} -- ระดับเสียงแยกกลุ่ม bgm/sfx/ambient ที่ apply จากเซฟล่าสุด
 local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
+local lastQTEId = nil -- id ของ pendingRecordQTE ที่เล่นไปแล้ว (dedupe กัน push ซ้ำ retrigger)
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
 	HUD.update(state)
@@ -420,6 +422,15 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	if ShopKiosk.running and ShopKiosk.refresh then ShopKiosk.refresh(state) end -- ซื้อแล้วราคา/ระดับอัปทันที
 	StoryNPCPlacer.apply(state) -- ย้าย StoryNPC ตาม npcLoc (ทำจริงเฉพาะตัวที่ loc เปลี่ยน)
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
+
+	-- QTE ถ่ายคลิป (server สุ่ม 2% ตั้ง pendingRecordQTE = id) → เล่น skill-check แล้วส่งเกรดกลับ
+	-- ไม่ทับ dialogue/cutscene · dedupe ด้วย id กัน push ซ้ำเปิดซ้อน
+	local qid = state.pendingRecordQTE
+	if qid and qid ~= lastQTEId and not RecordQTE.running
+		and not DialogueUI.running and not CutscenePlayer.running then
+		lastQTEId = qid
+		RecordQTE.start(playerGui, fireAction)
+	end
 
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว
 	local eventId = state.pendingEvents[1]

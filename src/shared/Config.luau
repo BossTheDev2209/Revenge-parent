@@ -287,6 +287,23 @@ Config.Record = {
 }
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- 🎯 RecordQTE — DBD-style skill check ตอนถ่ายคลิป (ฟีเจอร์ใหม่ 10 ส.ค. user)
+--   คลิกถ่ายสำเร็จ → สุ่ม chance เจอ QTE → แถบเส้นล่างจอ เข็มกวาด กด Space (PC)/แตะ (มือถือ) ให้ตรงโซน
+--   Perfect = footage bonus ×rewardMultPerfect · Good = ×rewardMultGood · Miss = 0 (ไม่ลงโทษ คลิกได้ base ไปแล้ว)
+--   reward เป็น footage เพิ่ม (additive, cap ด้วย storage) → ไม่กระทบเพดานเงิน 1.47M โดยตรง (footage cap อยู่แล้ว)
+--   ระหว่าง QTE: InteractLock.lock() ปิด E + freeze เดิน/กระโดด · geometry (0..1 ตามความยาวแถบ) tune อิสระ ไม่มีใน PDF
+-- ═══════════════════════════════════════════════════════════════════════════
+Config.RecordQTE = {
+	chance = 0.02,            -- โอกาสเจอ QTE ต่อคลิกถ่ายสำเร็จ 1 ครั้ง (2%)
+	rewardMultPerfect = 10,   -- Perfect: footage bonus = footagePerClickGB[กล้อง] × 10
+	rewardMultGood = 5,       -- Good: × 5
+	sweepSeconds = 1.2,       -- เข็มกวาดแถบครบ 1 เที่ยว (ซ้าย→ขวา) กี่วิ — สั้น = ยาก
+	centerMin = 0.30, centerMax = 0.80, -- กึ่งกลางโซนสำเร็จสุ่มในช่วงนี้ (สัดส่วนความยาวแถบ)
+	goodHalfWidth = 0.11,     -- โซน Good (กว้าง): |pos-center| ≤ นี่ = อย่างน้อย Good
+	perfectHalfWidth = 0.035, -- โซน Perfect (แคบ กลางโซน Good): ≤ นี่ = Perfect
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- 🎬 ClipSizes — เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค.)
 --   ขนาด↑ = QTE ยากขึ้น (วงบนจอเยอะ + หดเร็ว + วงมาก) แลกกับ reward ×(gb/32)
 --   • rewardMult ไม่เก็บที่นี่ — คำนวณ Formulas.clipSizeMult(gb)=gb/footagePerClipGB (proportional lock)

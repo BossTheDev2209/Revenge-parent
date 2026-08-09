@@ -85,7 +85,18 @@ ActionRouter.register("PickupNotebook", function(s, a, player)
 end)
 ActionRouter.register("RecordFootage", function(s, a)
 	-- inZone มาจาก client (singleplayer เชื่อ client เหมือนคะแนน QTE) — server คุมสูตร/cooldown/cap เอง
-	RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
+	if s.pendingRecordQTE then return end -- มี QTE ค้างรอเล่นอยู่ = ไม่รับคลิกใหม่ (กันซ้อน QTE)
+	local r = RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
+	if r.qte then s.pendingRecordQTE = os.clock() end -- ค่า = id ให้ client dedupe (ไม่ retrigger จาก push ซ้ำ)
+end)
+-- client เล่น QTE เสร็จ → ส่งเกรด (perfect/good/miss) — server ให้ footage bonus (docs/02 §9.5)
+--   เชื่อเกรด client (singleplayer เหมือน inZone/คะแนน) · server คุมสูตร reward + cap + เคลียร์ pending เอง
+ActionRouter.register("RecordQTEResult", function(s, a)
+	if not s.pendingRecordQTE then return end -- ไม่มี QTE ค้าง = ทิ้ง (กัน client ยิงมั่วเอา reward)
+	s.pendingRecordQTE = nil
+	local grade = a.grade
+	if grade ~= "perfect" and grade ~= "good" then grade = "miss" end -- validate → miss
+	RecordService.grantQTE(s, grade)
 end)
 ActionRouter.register("FinishEdit", function(s, a)
 	-- footage ไม่พอ = ไม่ได้คลิป ไม่เสียใจ (client กันไว้แล้วชั้นนึง นี่คือชั้นตัดสิน)

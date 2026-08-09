@@ -78,6 +78,7 @@ end
 --   reset false = โน้ตบุ๊คกลับเข้ากระเป๋า (ผู้เล่นวางใหม่ได้) · flag world-model ใหม่ในอนาคตเพิ่มที่นี่
 function GameState.clearWorldFlags(state)
 	state.notebookPlaced = false
+	state.pendingRecordQTE = nil -- QTE เป็น transient client-driven — save ที่ติดค้างมาไม่ควร retrigger ตอนโหลด
 	return state
 end
 

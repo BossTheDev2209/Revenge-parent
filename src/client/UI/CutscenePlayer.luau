@@ -78,6 +78,9 @@ local VALID = {
 			and (s.limb == nil or type(s.limb) == "string")
 	end,
 	unhold = function(s) return type(s.prop) == "string" end,
+	-- โชว์/ซ่อน Part หรือ Model (ทุก BasePart ข้างใน) — ใช้สลับของจริงกับ duplicate สำหรับ animate
+	-- (เช่น ประตูจริงที่มี script ควบคุมอยู่แล้ว vs duplicate ที่ตัด script ออกไว้ animate เฉยๆ)
+	visible = function(s) return type(s.target) == "string" and type(s.show) == "boolean" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -257,6 +260,19 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 			elseif step.type == "unhold" then
 				AnimPlayer.unhold(step.prop)
 				heldProps[step.prop] = nil
+			elseif step.type == "visible" then
+				local target = workspace:FindFirstChild(step.target, true)
+				if target then
+					local parts = target:IsA("BasePart") and { target } or target:GetDescendants()
+					for _, p in parts do
+						if p:IsA("BasePart") then
+							p.Transparency = step.show and 0 or 1
+							p.CanCollide = step.show
+						end
+					end
+				else
+					warn("[CutscenePlayer] visible: หาไม่เจอ", step.target)
+				end
 			elseif step.type == "face" then
 				AnimPlayer.setFace(step.actor, step.name)
 				movedActors[step.actor] = true

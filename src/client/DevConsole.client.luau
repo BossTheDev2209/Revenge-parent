@@ -12,16 +12,47 @@
 --   /dev ending <id>     ตั้ง ending (Good1/Neutral1/.. เล่น cutscene จบ)
 --   /dev npcloc <actor> <loc>       ตั้งที่อยู่ StoryNPC (StoryNPCPlacer ย้ายตาม)
 --   /dev staffsplit      ยิง event พนักงานตีกัน
+--   /dev preview <2|3|4|...>   เล่น Content.Cutscenes.PhaseTransitions[key] ตรงๆ ฝั่ง client
+--                              (ไม่ผ่าน server/phase จริง — ทดสอบ [3]/[4] ได้ทันทีไม่ต้องไล่ follower)
 local RunService = game:GetService("RunService")
 if not RunService:IsStudio() then return end -- dev เท่านั้น — published ไม่โหลด
 
 local Players = game:GetService("Players")
 local TextChatService = game:GetService("TextChatService")
-local remote = game:GetService("ReplicatedStorage").Shared.Remotes.Action
+local RS = game:GetService("ReplicatedStorage")
+local remote = RS.Shared.Remotes.Action
+local ScreenTransition = require(script.Parent.ScreenTransition)
 
 local HELP = [[[DevConsole] /dev <cmd> <ค่า>
   follower <n> · phase <1-3> · money <n> · time <0-23> · mental <0-100> · day <n>
-  flag <ชื่อ> [true|false] · ending <id> · npcloc <actor> <loc> · staffsplit]]
+  flag <ชื่อ> [true|false] · ending <id> · npcloc <actor> <loc> · staffsplit
+  preview <key>  -- เล่น PhaseTransitions[key] ตรงๆ (client-only ไม่แตะ state)]]
+
+-- เก็บ day ล่าสุดไว้แทน [date] ตอน preview (ไม่พึ่ง Main.client) — เบาสุด ฟังรีโมทเดียวกัน
+local lastDay = 1
+RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(s)
+	if s and s.day then lastDay = s.day end
+end)
+
+local function preview(key)
+	local PhaseText = require(RS.Shared.Content.Cutscenes.PhaseTransitions)
+	local steps = PhaseText[tonumber(key) or key]
+	if not steps then
+		warn("[DevConsole] preview: ไม่มี PhaseTransitions[" .. tostring(key) .. "]")
+		return
+	end
+	local subbed = {}
+	for _, st in steps do
+		if st.text and st.text:find("%[date%]") then
+			local c = table.clone(st)
+			c.text = st.text:gsub("%[date%]", tostring(lastDay))
+			table.insert(subbed, c)
+		else
+			table.insert(subbed, st)
+		end
+	end
+	ScreenTransition.play({ steps = subbed })
+end
 
 local cmd = Instance.new("TextChatCommand")
 cmd.Name = "DevCmd"
@@ -35,6 +66,10 @@ cmd.Triggered:Connect(function(_, text)
 	local sub = parts[2]
 	if not sub or sub:lower() == "help" then
 		print(HELP)
+		return
+	end
+	if sub:lower() == "preview" then
+		preview(parts[3])
 		return
 	end
 	remote:FireServer({ type = "DevCmd", cmd = sub, value = parts[3], value2 = parts[4] })

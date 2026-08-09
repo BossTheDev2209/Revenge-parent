@@ -104,6 +104,13 @@ Format การนำเสนอ: พูด 10 นาที + Q&A 5 นาท�
     - **`git pull --rebase` ก่อน `git push` ทุกครั้ง** (กัน history ชนกัน)
     - **แบ่ง ownership ไฟล์** ช่วงแก้พร้อมกัน — ตกลงใครถือไฟล์ไหน อย่าแก้ไฟล์เดียวกันพร้อมกัน · **ก่อนแตะ Studio: pull git ล่าสุด + เช็คว่าอีกคนไม่ได้ถือไฟล์นั้น**
     - **ของที่อยู่ใน `.rbxl` ไม่ใช่ `src/` ต้อง save/publish place เอง** (git ไม่ track): property ของ service (เช่น `ProximityPromptService.Enabled`), `Model.LevelOfDetail`, GUI instance ใน StarterGui, บทที่ author ใน Studio → **Ctrl+S + publish** ไม่งั้นหาย/revert · ของพวกนี้ mirror ลง `src/` (หรือ `src/studio-only/`) + commit ด้วยถ้าทำได้
+13. **งานที่ user คลิกไม่กี่ทีแล้วเร็ว/ชัวร์กว่า agent ดิ้น → commit ก่อน แล้วบอก user ทำเอง อย่า automate** (ประหยัดเวลา+cost)
+    ถ้าทางเดียวที่ agent จะทำเองคือ workaround ที่เปราะ/ยาว (surgical write `.Source` ทั้งไฟล์ใหญ่, คลิก UI ผ่าน MCP, เดา state) แต่ user ทำมือได้ใน **1-2 คลิก** → หยุด บอก user ทำ
+    - **Connect Rojo** (plugin หลุดทุก restart) — คลิกเดียวใน plugin · agent write `.Source` เองทั้งไฟล์ = เสี่ยงพัง+เปลือง token
+    - **playtest / กด Play + ดูผลด้วยตา** — user เห็นไวกว่า agent สั่ง execute_luau ทีละอัน
+    - **Ctrl+S / publish place** — ของใน `.rbxl` (ดูข้อ 12)
+    ยกเว้น: งานที่ต้องทำซ้ำหลายรอบ/หลายไฟล์ หรือ user ไม่อยู่ตอบ → agent ทำเอง · **หลัก: งาน one-shot คลิกเดียว = โยนให้ user, งานวน/เยอะ = agent ทำ**
+    *(ตัวอย่างจริง 9 ส.ค.: Rojo หลุด 3 รอบ agent เกือบ direct-write ScreenTransition+Main.client 590 บรรทัดเข้า Studio — ที่ถูก = push git แล้วบอก user กด Connect Rojo คลิกเดียวจบ)*
 
 ## Layout
 

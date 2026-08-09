@@ -1,6 +1,8 @@
 -- StoryNPCPlacer.luau — วาง/ย้าย StoryNPC ตาม state.npcLoc (client render · server เป็นเจ้าของ npcLoc)
 -- ที่อยู่ NPC = อนุพันธ์ของ state ไม่ใช่วางตายในแมพ — instance เดียวย้ายไปมา ไม่ duplicate/ไม่ Destroy
 -- anchor = Part ชื่อ NPCHome_<actor>_<loc> ใน workspace · "away" = วาง anchor ไว้นอกจอ/ใต้แมพเอา
+-- วาง anchor แนบพื้นได้เลย (จุดศูนย์กลาง Part = ระดับพื้น) — โค้ดบวกสูงขึ้นให้เอง (เหมือน TeleportTo)
+-- ไม่งั้นตัวจะจมพื้นครึ่งตัว เพราะ PivotTo ใช้ CFrame ของ Part ตรงๆ เป็นจุดกึ่งกลางลำตัว ไม่ใช่จุดยืน
 -- ย้ายเฉพาะตอน loc เปลี่ยน (ไม่ restart idle ทุก push) · reuse AnimPlayer.findRig (หาใน Workspace.NPC)
 local isStudio = script ~= nil
 local AnimPlayer = if isStudio
@@ -26,7 +28,7 @@ function StoryNPCPlacer.apply(state)
 			if rig then -- rig ยังไม่ spawn/stream = ข้ามไว้ก่อน ไม่ mark → push หน้าลองใหม่
 				local anchor = workspace:FindFirstChild(StoryNPCPlacer.anchorName(actor, loc), true)
 				if anchor and anchor:IsA("BasePart") then
-					rig:PivotTo(anchor.CFrame)
+					rig:PivotTo(anchor.CFrame + Vector3.new(0, 3, 0)) -- ยกขึ้น 3 studs กันจมพื้น (ตรงกับ TeleportTo)
 					AnimPlayer.play(actor, "Idle", true) -- ยืน idle loop นอกบทคุย
 					applied[actor] = loc
 				else

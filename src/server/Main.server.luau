@@ -272,6 +272,47 @@ local function syncLighting(s)
 	Lighting.ClockTime = s.timeOfDay
 end
 
+-- ===== dev console (Studio เท่านั้น) — /dev <cmd> จาก DevConsole.client ตั้งค่า state ตรงๆ =====
+-- guard IsStudio: published game ยิงมาก็ไม่ทำ (กันโกง) · push อัตโนมัติหลัง route
+ActionRouter.register("DevCmd", function(s, a)
+	if not game:GetService("RunService"):IsStudio() then return end
+	local c = tostring(a.cmd):lower()
+	local n = tonumber(a.value)
+	if c == "money" and n then
+		s.money = n
+	elseif c == "follower" and n then
+		s.follower = n
+		s.phase = Formulas.phaseFor(n)
+		checkMilestones(s) -- ยิง milestone event/betrayed/BCA ตามยอด
+		checkEnding(s)
+	elseif c == "phase" and n then
+		local gate = { [1] = 0, [2] = 10_000, [3] = 100_000 }
+		s.follower = gate[n] or s.follower
+		s.phase = math.clamp(n, 1, 3)
+		checkMilestones(s)
+	elseif c == "time" and n then
+		s.timeOfDay = math.clamp(n, 0, 23)
+		syncLighting(s)
+	elseif c == "mental" and n then
+		s.mental = math.clamp(n, 0, 100)
+	elseif c == "day" and n then
+		s.day = n
+	elseif c == "flag" and a.value then
+		s.flags[a.value] = a.value2 ~= "false" -- ไม่ใส่ค่า/ไม่ใช่ "false" = true
+	elseif c == "ending" and a.value then
+		s.flags.ending = a.value
+		TimeService.setFrozen(true)
+	elseif c == "npcloc" and a.value and a.value2 then
+		s.npcLoc[a.value] = a.value2
+	elseif c == "staffsplit" then
+		s.flags.staffSplit = false -- อนุญาตยิงซ้ำระหว่าง dev
+		s.lastStaffSplit = StaffService.splitStaff(s)
+		s.flags.staffSplit = true
+	else
+		warn("[DevCmd] ไม่รู้จัก:", c)
+	end
+end)
+
 -- client action ทุกอันวิ่งผ่านเส้นนี้เส้นเดียว
 RS.Shared.Remotes.Action.OnServerEvent:Connect(function(player, action)
 	if ActionRouter.route(state, action, player) then

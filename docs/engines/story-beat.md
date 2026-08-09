@@ -45,6 +45,9 @@ StoryBeat.play(playerGui, {
 
 ## 3. Step `move` ใน CutscenePlayer — เดิน actor ไป Part
 
+**ก่อนใช้ เช็คก่อนว่าจำเป็นไหม:** ถ้าทำ animation clip เดียวยาวครอบทั้งฉาก (เคาะ→คุย→เดิน→นั่ง) ด้วย **Moon Animator** (bake root motion ได้จริง — ตัวเดินจริงในโลก ไม่ใช่เดินอยู่กับที่) **ไม่ต้องใช้ `move` เลย** ใช้ `anim` เดียว (`loop=false`) พอ ความรู้สึก cutscene มาจากกล้องตัด/แพนคลอไปกับ clip
+`move` มีไว้สำหรับกรณี **ไม่ได้ bake root motion ในclip** (เช่น anim ท่ายืน/นั่งแยกกัน อยากให้ engine เดินให้ระหว่าง 2 ท่า) — ทางเลือกสำรอง ไม่ใช่ทางหลัก
+
 เพิ่มจาก step เดิม (`camera`/`text`/`wait`/`anim`/`face`/`bgm`/`sound`/`focus`) — ดู [cutscene.md §2](cutscene.md)
 
 ```lua

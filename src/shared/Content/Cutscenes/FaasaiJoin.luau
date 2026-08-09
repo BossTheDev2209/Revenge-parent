@@ -1,14 +1,19 @@
--- FaasaiJoin — cutscene ตอนฟ้าใสมาขอฝึกงาน (เคาะประตู→เดินเข้า→นั่งเตียง)
--- เล่นผ่าน CutscenePlayer (mode 1) — step: camera / text / wait / anim / move / face / bgm / sound
---   move = เดิน actor ไป Part (ฟ้าใส: หน้าประตู→ข้างเตียง) · ต้องมี Part เป้า + cam ใน CutsceneCams/FaasaiJoin/
+-- FaasaiJoin — cutscene ตอนฟ้าใสมาขอฝึกงาน (เคาะประตู→คุย→เดินเข้า→นั่งเตียง)
+-- เล่นผ่าน CutscenePlayer (mode 1) — step: camera / text / wait / anim / face / bgm / sound
+-- ท่าทางทั้งหมด (เคาะ/คุย/เดิน/นั่ง) เป็น animation clip เดียวยาว ทำด้วย Moon Animator (root motion จริง)
+--   ความรู้สึก "cutscene" มาจากมุมกล้องตัด/แพนระหว่างเล่น ไม่ใช่ตัด step แยก
+--   { type = "anim", actor = "ฟ้าใส", name = "ชื่อ clip", loop = false } เล่นครั้งเดียวยาว
+--   วาง cam ใน CutsceneCams/FaasaiJoin/ ตัดสลับช่วง clip กำลังเล่น (ใส่ t ให้ตรงจังหวะ)
 -- ยิงตอน follower ถึง Config.FaasaiJoinFollower ในเฟส 2 (Main.client) — ครั้งเดียว (flag faasai_joined)
--- ⚠️ [placeholder] — Boss เขียน step จริง + วาง cam/anchor ในแมพ (ดู docs/engines/cutscene.md)
+-- ⚠️ [placeholder] — Boss เขียน step จริง + วาง cam/anchor ในแมพ (ดู docs/engines/cutscene.md, story-beat.md)
 return {
 	{ type = "text", text = "[placeholder] มีเสียงเคาะประตู..." },
 	{ type = "wait", t = 2 },
 	{ type = "text", text = "[placeholder] ฟ้าใส — คนที่เคยให้อาหารตอนเฟส 1 มาขอฝึกงานฟรีๆ" },
 	{ type = "wait", t = 3 },
-	-- ตัวอย่าง move (ปลดคอมเมนต์เมื่อวาง Part `FaasaiBedSpot` + rig ฟ้าใสในแมพแล้ว):
-	-- { type = "move", actor = "ฟ้าใส", to = "FaasaiBedSpot", t = 2.5 },
-	-- { type = "anim", actor = "ฟ้าใส", name = "SitDown", loop = true },
+	-- ตัวอย่าง: ปลดคอมเมนต์เมื่อมี clip จริง + วาง cam ในแมพแล้ว (t ของ wait = ยาวเท่า clip)
+	-- { type = "camera", cam = "FaasaiJoin_01" },
+	-- { type = "anim", actor = "ฟ้าใส", name = "KnockTalkWalkSit", loop = false },
+	-- { type = "camera", cam = "FaasaiJoin_02", t = 2 },
+	-- { type = "wait", t = 8 },
 }

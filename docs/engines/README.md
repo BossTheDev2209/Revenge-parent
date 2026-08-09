@@ -7,6 +7,7 @@
 | 🗣️ **Dialogue** = cutscene **โหมด 2 "ฉากคุย"** | เขียนบท NPC ในไฟล์ `Content.Dialogue.*` | [dialogue.md](dialogue.md) |
 | 🎬 **Cutscene** = cutscene **โหมด 1 "หนัง"** | เขียน ending 6 ไฟล์ + วาง Part กล้อง `Cam_*` | [cutscene.md](cutscene.md) |
 | 🔊 **Audio** | วาง Sound ใน SoundService + Part โซน `Zone_*` | [audio.md](audio.md) |
+| 🧩 **Story Beat** = ฉากกลางเกมที่ trigger จาก state (ไม่ใช่ ending/opening) | เขียน content cutscene/dialogue + วาง anchor `NPCHome_*` / Part `move` / cam | [story-beat.md](story-beat.md) |
 
 ## cutscene มี 2 โหมด — เลือกให้ถูกก่อนเขียน (Genshin ref)
 

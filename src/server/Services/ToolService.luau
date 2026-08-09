@@ -55,6 +55,19 @@ function ToolService.sync(player, state)
 		desired[n] = true
 	end
 
+	-- จำ ToolSource ที่ "ถืออยู่ในมือ" (Tool ที่เป็นลูกของ Character) ก่อน scan จะลบทิ้ง
+	-- ถ้าตัวนี้โดนอัปเกรดสลับเป็นกล้องตัวใหม่ ต้อง equip ตัวใหม่ให้ทันที ไม่งั้นมือว่าง
+	-- = ผู้เล่นนึกว่า "ลบของเก่าแต่ของใหม่ไม่มา" ทั้งที่ตัวใหม่ไปนอนใน Backpack เฉยๆ
+	local equippedSrc
+	if player.Character then
+		for _, t in player.Character:GetChildren() do
+			if t:IsA("Tool") and t:GetAttribute("ToolSource") then
+				equippedSrc = t:GetAttribute("ToolSource")
+				break
+			end
+		end
+	end
+
 	local function scan(container)
 		if not container then return end
 		for _, t in container:GetChildren() do
@@ -85,6 +98,13 @@ function ToolService.sync(player, state)
 			t:SetAttribute("ToolSource", name)
 			t.Name = ToolService.displayName(name)
 			t.Parent = player.Backpack
+			-- ตัวที่ถืออยู่เดิมเป็นกล้อง แล้วตัวใหม่นี้ก็เป็นกล้อง (อัปเกรด/ดาวน์เกรดสาย) →
+			-- equip ตัวใหม่กลับเข้ามือทันที ไม่ให้มือว่างหลังจ่ายเงินอัปเกรด
+			-- ถ้าเดิมเก็บไว้ใน Backpack ไม่ได้ถือ (equippedSrc = nil) = ไม่ยัดใส่มือ คงพฤติกรรมเดิม
+			if equippedSrc and equippedSrc:match("^Camera_") and name:match("^Camera_") then
+				local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+				if hum then hum:EquipTool(t) end
+			end
 		else
 			warn("[ToolService] ไม่มีโมเดล ToolModels." .. name)
 		end

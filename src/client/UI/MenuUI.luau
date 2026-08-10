@@ -47,6 +47,33 @@ function MenuUI.latestSlot(slots)
 	return best
 end
 
+-- เมนูหลักออกแบบพอดีจอสูง ~500px (ตัวเลข pixel เดิม: title 70-180, ปุ่มแรก y=210, ปุ่มสุดท้ายจบ 432+62=494)
+-- มือถือแนวนอน (~390px สูง) ต้องหดทั้งแผง ไม่งั้นปุ่มล้นขอบล่าง — scale ทั้งชุดแทนคำนวณ pixel ใหม่ทีละปุ่ม
+local MENU_DESIGN = {
+	panelWidth = 420,
+	topPad = 210, -- ที่ว่างเหนือปุ่มแรก (โลโก้/หัวเรื่อง) — GuiInset บวกเพิ่มตอน glue ไม่ใช่ตรงนี้ (pure fn แตะ GuiService ไม่ได้)
+	buttonHeight = 62,
+	buttonGap = 12, -- ระยะห่างเดิมจาก y ของปุ่ม (284-210-62=12)
+	buttonCount = 4,
+	refHeight = 500, -- ความสูงจอที่ตัวเลขข้างบนพอดีเป๊ะ ไม่ต้องหด
+	minScale = 0.6, -- กันตัวหนังสือเล็กจนอ่านไม่ออกบนจอเตี้ยมาก
+}
+
+-- viewport = Vector2-like ({X=,Y=}) → ตัวเลข layout ล้วนๆ ไม่แตะ Instance เลย (lune เทสได้)
+function MenuUI.layout(viewport)
+	local scale = math.clamp(viewport.Y / MENU_DESIGN.refHeight, MENU_DESIGN.minScale, 1)
+	local stackHeight = MENU_DESIGN.buttonCount * MENU_DESIGN.buttonHeight
+		+ (MENU_DESIGN.buttonCount - 1) * MENU_DESIGN.buttonGap
+	return {
+		scale = scale,
+		panelWidth = MENU_DESIGN.panelWidth * scale,
+		topPad = MENU_DESIGN.topPad,
+		stackHeight = stackHeight,
+		buttonHeight = MENU_DESIGN.buttonHeight,
+		buttonGap = MENU_DESIGN.buttonGap,
+	}
+end
+
 -- ===== Roblox glue =====
 
 if not isStudio then return MenuUI end
@@ -464,13 +491,31 @@ function MenuUI.open(playerGui, deps)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_MainMenu"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
+	gui.IgnoreGuiInset = true -- flash ต้องคลุมทั้งจอรวม topbar ตอนวาบขาว — ชดเชย homePanel เองด้วย GuiInset แทน (fitHomePanel ข้างล่าง)
 	gui.DisplayOrder = 10
 
+	local GuiService = game:GetService("GuiService")
 	local homePanel = Instance.new("Frame")
 	homePanel.Size = UDim2.new(0, 420, 1, 0)
 	homePanel.BackgroundTransparency = 1
 	homePanel.Parent = gui
+
+	local homeScale = Instance.new("UIScale")
+	homeScale.Parent = homePanel
+
+	-- มือถือจอเตี้ย (แนวนอน): หด homePanel ทั้งชุดให้ปุ่มไม่ล้นจอ + เว้น GuiInset กันชนไอคอน topbar
+	-- (UIScale ย่อของข้างในทั้งหมดพร้อมกัน ตำแหน่ง/ขนาดปุ่มเดิมเป็น pixel design คงที่ ไม่ต้องคำนวณใหม่ทีละปุ่ม)
+	local function fitHomePanel()
+		local vp = camera.ViewportSize
+		local inset = GuiService:GetGuiInset()
+		local layout = MenuUI.layout(Vector2.new(vp.X, math.max(1, vp.Y - inset.Y)))
+		homePanel.Position = UDim2.new(0, 0, 0, inset.Y)
+		homePanel.Size = UDim2.new(0, 420, 1, -inset.Y)
+		homeScale.Scale = layout.scale
+	end
+	fitHomePanel()
+	-- หมุนจอ/resize ต้องหดใหม่ · ต้อง disconnect ตอนเมนูปิด ไม่งั้นเปิดเมนูซ้ำ = ค้างหลาย connection (ดู launch ด้านล่าง)
+	local viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitHomePanel)
 
 	-- โลโก้ถ้ามีรูป ไม่มีก็ใช้ตัวหนังสือ
 	local title
@@ -671,6 +716,7 @@ function MenuUI.open(playerGui, deps)
 			task.delay(FLASH_IN + FLASH_HOLD, function()
 				-- คืนกล้อง/ตัวละคร "ใต้ผ้าขาว" แล้วค่อยเปิดเผย
 				camGuard:Disconnect()
+				viewportConn:Disconnect() -- กัน connection ค้างทุกครั้งที่เปิดเมนู (menu เปิดได้แค่ครั้งเดียวต่อ session แต่กันไว้)
 				-- คืนกล้องให้ default camera script: ต้องตั้ง CameraSubject ด้วย
 				-- ไม่งั้นกล้องค้างอยู่กลางอากาศ ไม่ตามตัวผู้เล่น
 				freezeCharacter(player, false)
@@ -750,6 +796,7 @@ function MenuUI.open(playerGui, deps)
 		local g = Instance.new("ScreenGui")
 		g.Name = "Gui_SnapPicker"
 		g.ResetOnSpawn = false
+		g.IgnoreGuiInset = true -- dim ต้องคลุมถึงขอบบนสุด ไม่งั้นเหลือแถบสว่างใต้ topbar
 		g.DisplayOrder = 30
 		local dim = Instance.new("TextButton")
 		dim.Size = UDim2.fromScale(1, 1)
@@ -904,6 +951,7 @@ function MenuUI.openFallback(playerGui, deps)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_MainMenu"
 	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true -- dim/bg เต็มจอต้องคลุมถึงขอบบนสุด ไม่งั้นเหลือแถบสว่างใต้ topbar
 	local bg = Instance.new("Frame")
 	bg.Size = UDim2.new(1, 0, 1, 0)
 	bg.BackgroundColor3 = Color3.fromRGB(15, 15, 25)

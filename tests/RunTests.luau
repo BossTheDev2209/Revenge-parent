@@ -1358,6 +1358,16 @@ check("latestSlot: เลือกช่องที่เซฟล่าสุ�
 }) == 3)
 check("latestSlot: savedAt หาย = ถือว่า 0 ไม่ crash", MenuUI.latestSlot({ [2] = {} }) == 2)
 
+-- MenuUI.layout: ต้องหดให้พอดีจอเตี้ย (มือถือแนวนอน) ไม่ให้ปุ่มล้นจอ
+do
+	local phone = MenuUI.layout(Vector2.new(844, 390))
+	local desktop = MenuUI.layout(Vector2.new(1920, 1080))
+	check("จอเตี้ยต้อง scale เล็กกว่าจอใหญ่", phone.scale < desktop.scale)
+	check("แผงเมนูต้องไม่กินเกินครึ่งจอกว้าง", phone.panelWidth <= 844 * 0.5)
+	check("ปุ่มทั้งกองต้องอยู่ในจอ", phone.scale * (phone.stackHeight + phone.topPad) <= 390)
+	check("จอใหญ่ไม่ต้องขยายเกิน 1", desktop.scale <= 1)
+end
+
 -- ===== AudioService (docs/02 §9.9) =====
 local Audio = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AudioService)

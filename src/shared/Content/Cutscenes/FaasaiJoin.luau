@@ -15,6 +15,7 @@ return {
 	{ type = "wait", t = 3 },
 	{ type = "camera", cam = "FaasaiJoin_01" },
 	{ type = "anim", actor = "ฟ้าใส", name = "KnockTalkWalkSit", loop = false },
+	{ type = "wait", t = 1.8 }, -- ถือกล้อง 01 ไว้ให้เห็นเคาะประตู+เริ่มคุยก่อนตัด (ไม่มี wait คั่น = cam ไม่หยุดรอ ข้าม 01 ไปเลย — ปรับเวลาได้ตามที่เห็นจริงตอน playtest)
 	{ type = "camera", cam = "FaasaiJoin_02", t = 2 },
 	{ type = "wait", t = 8 },
 }

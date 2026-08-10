@@ -5,7 +5,8 @@ New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
 
 $plugins = @(
     @{ src = 'CutsceneCamTool.plugin.luau'; dst = 'CutsceneCamTool.lua' },
-    @{ src = 'LodFix.plugin.luau';          dst = 'LodFix.lua' }
+    @{ src = 'LodFix.plugin.luau';          dst = 'LodFix.lua' },
+    @{ src = 'RojoControl.plugin.luau';     dst = 'RojoControl.lua' }
 )
 foreach ($p in $plugins) {
     $src = Join-Path $PSScriptRoot $p.src

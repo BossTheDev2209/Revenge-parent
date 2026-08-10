@@ -15,6 +15,9 @@ local Config = if isStudio
 local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../shared/Formulas")
+local Audio = if isStudio
+	then require(script.Parent.AudioService)
+	else require("./AudioService")
 
 local RecordTool = {}
 
@@ -82,10 +85,12 @@ function RecordTool.init(player, fireAction, getState)
 				--   ห้ามใช้ normal ของแผ่นจอตัดสิน — แผ่นบางมี 2 หน้าเหมือนกัน เดาผิดข้างได้ 180° (เคยพลาดมาแล้ว)
 				-- ยืนยันด้วยการจำลอง PivotTo จริงใน Studio: +90° -> dot +1.000 | -90° -> -1.000 (หันหลัง) | 180°/0° -> ~0.2 (หันข้าง)
 				local cf = root.CFrame * CFrame.new(0, -2.5, -4) * CFrame.Angles(0, math.pi / 2, 0)
+				Audio.sfx("notebook_place")
 				fireAction({ type = "PlaceNotebook", cf = cf })
 			else
 				local part = spotPart()
 				local inside = RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
+				Audio.sfx("camera_shutter")
 				fireAction({ type = "RecordFootage", inZone = inside })
 			end
 		end)
@@ -143,6 +148,7 @@ function RecordTool.init(player, fireAction, getState)
 		l.TextScaled = true
 		l.Text = bonus and ("+%.1f Bonus!"):format(amount) or ("+%.1f"):format(amount)
 		l.Parent = bb
+		Audio.sfx(bonus and "record_bonus" or "record_gain", nil, 0.5)
 
 		local tween = game:GetService("TweenService"):Create(l, TweenInfo.new(1.2), {
 			TextTransparency = 1, TextStrokeTransparency = 1,
@@ -169,9 +175,16 @@ function RecordTool.init(player, fireAction, getState)
 
 	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง
 	task.spawn(function()
+		local wasInside = false
 		while true do
 			local s = getState()
 			local part = spotPart()
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local inside = root ~= nil and RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
+			if inside ~= wasInside then
+				Audio.sfx(inside and "zone_enter" or "zone_exit")
+				wasInside = inside
+			end
 			if part then
 				ring.CFrame = CFrame.new(part.Position + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90))
 				local left = math.max(0, (s.filmZone.expiresAt or 0) - os.clock())

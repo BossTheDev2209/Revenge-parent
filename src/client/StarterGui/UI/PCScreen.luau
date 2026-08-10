@@ -15,6 +15,14 @@ local UIAssets = if isStudio
 local InteractLock = if isStudio
 	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("InteractLock"))
 	else nil
+local Audio = if isStudio
+	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
+	else nil
+
+-- ไม่มี Sound ชื่อนั้น = AudioService warn ครั้งเดียวแล้วเงียบ (ไม่พัง) · nil ตอนรันนอก Studio
+local function sfx(name: string)
+	if Audio then Audio.sfx(name) end
+end
 
 local PCScreen = {}
 PCScreen.running = false
@@ -191,11 +199,14 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		appFrame.Visible = true
 		currentApp = app.create(appFrame, deps)
 		if currentApp and currentApp.refresh and state then currentApp.refresh(state) end
+		sfx("app_open")
 	end
-	local function closeApp()
+	-- silent = ปิดทั้งเครื่อง (closeScreen เล่น pc_off แทน ไม่ให้เสียงซ้อนกัน 2 ตัว)
+	local function closeApp(silent: boolean?)
 		appFrame.Visible = false
 		appFrame:ClearAllChildren()
 		currentApp = nil
+		if not silent then sfx("app_close") end
 	end
 
 	-- ---- ไอคอน: clone IconTemplate ต่อแอป (แต่ง template อันเดียวใน Studio) ----
@@ -231,12 +242,13 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		camera.CFrame = savedCam.cf
 		camera.CameraType = savedCam.type
 		gui.Enabled = false
-		closeApp()
+		closeApp(true)
 		for _, b in iconClones do b:Destroy() end -- ล้าง clone (instance ถาวร ไม่ Destroy ตัว gui)
 		if exitConn then exitConn:Disconnect() end -- กัน handler ซ้อนตอนเปิดใหม่
 		PCScreen.running = false
 		PCScreen.forceClose = nil
 		if InteractLock then InteractLock.unlock() end
+		sfx("pc_off")
 	end
 	PCScreen.forceClose = closeScreen
 

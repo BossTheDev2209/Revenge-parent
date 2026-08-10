@@ -12,6 +12,18 @@
 --          (ใส่ `Ambient` = ชื่อใน Ambient / `Priority` = number ก็ได้ ทับซ้อนกันเอาเลขมากกว่า)
 --
 -- ไม่มีเสียงชื่อนั้น = warn ครั้งเดียวแล้วเงียบ **เกมไม่พัง**
+--
+--   SFX/ ที่ยังไม่มีเสียง (wire ไว้แล้วในโค้ด รอทีมอัดเสียงใส่):
+--     qte_tick             เข็ม skillcheck แตะเข้าโซน good
+--     qte_hit_perfect / qte_hit_good / qte_hit_miss   ผลแต่ละครั้งที่กด
+--     qte_jackpot           จบรอบด้วย perfect ล้วน
+--     camera_shutter         กดกล้องอัดคลิป
+--     record_bonus / record_gain   ตัวเลขลอย +Bonus / +ปกติ
+--     notebook_place          วางโน้ตบุ๊คลงพื้น
+--     zone_enter / zone_exit    เข้า/ออกวงโซนถ่าย
+--     app_open / app_close      เปิด/ปิดแอปในคอม
+--     pc_off                    ปิดหน้าจอคอมทั้งจอ
+--
 -- pure: insideBox / bestZone (เทสใน lune ได้) | glue: ที่เหลือ
 local isStudio = script ~= nil
 local Config = if isStudio

@@ -149,6 +149,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 	local resolved = false
 	local startedAt = os.clock()
 	local heartbeat
+	local inGoodBand = false -- ติดตามสถานะเข้า/ออกโซน good กันเล่น qte_tick ทุก frame
 
 	local GRADE_COLOR = {
 		perfect = Color3.fromRGB(245, 240, 180),
@@ -183,6 +184,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 		end
 		local jackpot = missN == 0 and goodN == 0 and perfectN == #grades and perfectN > 0
 		Audio.sfx(perfectN > 0 and "qte_perfect" or goodN > 0 and "qte_good" or "qte_miss")
+		if jackpot then Audio.sfx("qte_jackpot") end
 		local resultColor = jackpot and Color3.fromRGB(255, 215, 90)
 			or (perfectN + goodN) > 0 and Color3.fromRGB(120, 210, 150)
 			or Color3.fromRGB(235, 90, 90)
@@ -205,6 +207,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 		table.insert(grades, grade)
 		hitsDone += 1
 		flashGrade(grade)
+		Audio.sfx("qte_hit_" .. grade, 0.05)
 		if hitsDone >= hitsRequired then
 			finishAll()
 		else
@@ -231,6 +234,9 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 			dir = 1
 		end
 		needle.Position = UDim2.new(pos, 0, 0.5, 0)
+		local nowInGoodBand = math.abs(pos - center) <= Q.goodHalfWidth
+		if nowInGoodBand and not inGoodBand then Audio.sfx("qte_tick") end
+		inGoodBand = nowInGoodBand
 	end)
 
 	-- input: PC = Space (sink กันกระโดด) · มือถือ = แตะจอทั้งจอ

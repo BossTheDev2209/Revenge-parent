@@ -9,6 +9,10 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../src/shared/Formulas")
 
+local NPCIndicator = if isStudio
+	then require(game.StarterPlayer.StarterPlayerScripts.NPCIndicator)
+	else require("../src/client/NPCIndicator")
+
 local GameState = if isStudio
 	then require(game:GetService("ServerScriptService").Services.GameState)
 	else require("../src/server/Services/GameState")
@@ -1765,6 +1769,26 @@ check("เงินไม่พอซื้อ pc ชิ้นที่สอง
 local oldSave = { upgrades = { camera = 2, storage = 1 } }
 GameState.mergeDefaults(oldSave, GameState.newGame())
 check("save เก่าไม่มี pc → เติมเป็น 1 ไม่ทับ camera", oldSave.upgrades.pc == 1 and oldSave.upgrades.camera == 2)
+
+-- ===== NPCIndicator: yaw + clamp (component หันตัว NPC — 10 ส.ค.) =====
+do
+	-- ยืนยันเทียบ CFrame.Angles(0,yaw,0).LookVector จริงใน Studio ก่อนล็อกเลข (yaw=+90° ชี้ -X ไม่ใช่ +X)
+	check("yawOf หันหน้า -Z (ตั้งต้น) = 0", math.abs(NPCIndicator.yawOf(0, -1)) < 0.001)
+	check("yawOf ทิศ +X = -90 องศา", math.abs(NPCIndicator.yawOf(1, 0) - math.rad(-90)) < 0.001)
+	check("yawOf ทิศ -X = +90 องศา", math.abs(NPCIndicator.yawOf(-1, 0) - math.rad(90)) < 0.001)
+
+	-- ไม่เกิน maxAngle = ได้ค่าตรงๆ ไม่ถูกหั่น
+	check("clampYawDelta ในช่วง = ผ่านตรงๆ",
+		math.abs(NPCIndicator.clampYawDelta(0, math.rad(30), 70) - math.rad(30)) < 0.001)
+	-- เกิน maxAngle = โดน clamp ที่ขอบ
+	check("clampYawDelta เกินขวา = clamp ที่ +maxAngle",
+		math.abs(NPCIndicator.clampYawDelta(0, math.rad(150), 70) - math.rad(70)) < 0.001)
+	check("clampYawDelta เกินซ้าย = clamp ที่ -maxAngle",
+		math.abs(NPCIndicator.clampYawDelta(0, math.rad(-150), 70) - math.rad(-70)) < 0.001)
+	-- ทิศตั้งต้นอยู่ใกล้ ±180 (จุดที่ Dev Forum ติดกัน) — ต้อง wrap ก่อน clamp ไม่ใช่เด้งข้าม
+	check("clampYawDelta ทิศตั้งต้นใกล้ 180 องศา ไม่เด้งข้ามฝั่ง",
+		math.abs(NPCIndicator.clampYawDelta(math.rad(179), math.rad(-179), 70) - math.rad(2)) < 0.001)
+end
 
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 -- คืน table ให้ execute_luau อ่านผลตรงๆ — ไม่ต้อง clone Source + patch print + pcall probe อีก

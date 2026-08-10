@@ -130,12 +130,14 @@ HUD.init(playerGui)
 local MUTE_ICON = "rbxassetid://76621637786639" -- ไอคอนตอนปิดเพลง
 local musicNormalImg = nil -- ไอคอนปกติ (เก็บตอน wire ไว้คืนเวลาเลิก mute)
 local function refreshMuteIcon(muted)
-	local b = playerGui:FindFirstChild("Gui_HUD") and playerGui.Gui_HUD:FindFirstChild("MusicButton")
+	local root = playerGui:FindFirstChild("Gui_HUD") and playerGui.Gui_HUD:FindFirstChild("Root")
+	local b = root and root:FindFirstChild("MusicButton")
 	if b and musicNormalImg then b.Image = muted and MUTE_ICON or musicNormalImg end
 end
 local hudGui = playerGui:FindFirstChild("Gui_HUD")
+local hudRoot = hudGui and (hudGui:FindFirstChild("Root") or hudGui) -- ชิ้นส่วน HUD อยู่ใต้ Root (ล็อกอัตราส่วน)
 if hudGui then
-	local setBtn = hudGui:FindFirstChild("SettingButton")
+	local setBtn = hudRoot:FindFirstChild("SettingButton")
 	if setBtn then
 		setBtn.Activated:Connect(function()
 			local panel = playerGui:FindFirstChild("SettingsGUI")
@@ -143,7 +145,7 @@ if hudGui then
 			if main then main.Visible = not main.Visible end
 		end)
 	end
-	local musicBtn = hudGui:FindFirstChild("MusicButton")
+	local musicBtn = hudRoot:FindFirstChild("MusicButton")
 	if musicBtn then
 		musicNormalImg = musicBtn.Image
 		musicBtn.Activated:Connect(function()

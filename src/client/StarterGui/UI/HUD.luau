@@ -355,9 +355,12 @@ local BINDINGS = {
 function HUD.bind(gui)
 	HUD.gui = gui
 	HUD.prev = nil
+	-- ทุกชิ้นอยู่ใต้ Root (Frame ล็อกอัตราส่วน 2.2532 — กันเลย์เอาต์เพี้ยนเวลาจอคนละสัดส่วน)
+	-- build() จากโค้ดไม่มี Root → fallback ใช้ gui ตรงๆ
+	local base = gui:FindFirstChild("Root") or gui
 	local missing = {}
 	for _, b in BINDINGS do
-		local node = gui
+		local node = base
 		for _, step in b.path do
 			node = node and node:FindFirstChild(step)
 		end

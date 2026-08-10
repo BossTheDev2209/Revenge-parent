@@ -109,7 +109,20 @@ function Invoke-RojoRestart {
     }
 }
 
-# Invoke-RojoInstances is added above this line by Task 3 below. Keep this switch at the bottom of the file.
+function Invoke-RojoInstances {
+    $studios = Get-Process -Name RobloxStudioBeta -ErrorAction SilentlyContinue
+    if (-not $studios) {
+        Write-Host "no Roblox Studio window open" -ForegroundColor Yellow
+        return
+    }
+    $studios | Select-Object Id, StartTime, MainWindowTitle | Format-Table -AutoSize | Out-String | Write-Host
+    if ($studios.Count -gt 1) {
+        Write-Host "⚠️  $($studios.Count) Studio windows open — pattern (8): make sure you're editing/testing in the one connected to rojo serve, close the rest" -ForegroundColor Red
+    } else {
+        Write-Host "✅ single Studio window" -ForegroundColor Green
+    }
+}
+
 switch ($Command) {
     'status'    { Invoke-RojoStatus }
     'restart'   { Invoke-RojoRestart }

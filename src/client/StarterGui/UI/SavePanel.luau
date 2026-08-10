@@ -5,8 +5,10 @@
 --   ทั้งสอง gui ถาวร ไม่ Instance.new()/Destroy() ใหม่ทุกครั้งอีกต่อไป
 --   เปิด/ปิด = toggle Gui_SavePanel.Enabled (เหมือน PCScreen) · SavePanel.init() wire event ครั้งเดียว
 -- ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน (ที่เหลือแต่ง/ย้ายได้ใน Studio):
---   Gui_SaveButton.SaveBtn
+--   Gui_HUD.Root.SaveBtn   ← ปุ่มอยู่ในชุด HUD (10 ส.ค.) ไม่ใช่ ScreenGui แยกแล้ว
 --   Gui_SavePanel.{Dim, Panel.{Title, Slot1..Slot4}}
+-- อยู่ใน Gui_HUD.Root เพราะ: scale ตามชุด HUD ชุดเดียวกัน + ซ่อน/โผล่ตาม Gui_HUD.Enabled เอง
+-- (อยู่ในเมนู HUD ปิด = ปุ่มเซฟหายไปด้วย ไม่ลอยทับฉากเมนู)
 --
 -- กดช่องว่าง = เซฟใหม่ · กดช่องที่มีของ = กดซ้ำอีกทีเพื่อทับ (กันเผลอทับเซฟอื่น)
 -- อ่าน slotList จาก state (fireAction RequestSlots) — ต่อ StateChanged อัปเดต label เอง **เฉพาะตอนเปิดอยู่**
@@ -31,24 +33,6 @@ local function corner(o, r)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, r or 8)
 	c.Parent = o
-end
-
-function SavePanel.buildButton(parent): ScreenGui
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "Gui_SaveButton"
-	gui.ResetOnSpawn = false
-	local btn = Instance.new("TextButton")
-	btn.Name = "SaveBtn"
-	btn.Size = UDim2.new(0, 100, 0, 36)
-	btn.Position = UDim2.new(0, 8, 1, -44)
-	btn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.TextScaled = true
-	btn.Text = "💾 เซฟ"
-	btn:SetAttribute("Sfx", "save")
-	btn.Parent = gui
-	gui.Parent = parent
-	return gui
 end
 
 function SavePanel.buildPanel(parent): ScreenGui
@@ -115,8 +99,6 @@ end
 -- ===== glue: หา instance ที่ baked ไว้ (หรือ build fallback) แล้ว wire event ครั้งเดียว =====
 -- deps = { fireAction, getState } — เรียกครั้งเดียวตอน Main.client เริ่ม (แพทเทิร์นเดียวกับ HUD.init)
 function SavePanel.init(playerGui, deps)
-	local btnGui = playerGui:FindFirstChild("Gui_SaveButton") or playerGui:WaitForChild("Gui_SaveButton", 5)
-		or SavePanel.buildButton(playerGui)
 	local panelGui = playerGui:FindFirstChild("Gui_SavePanel") or playerGui:WaitForChild("Gui_SavePanel", 5)
 		or SavePanel.buildPanel(playerGui)
 
@@ -173,11 +155,13 @@ function SavePanel.init(playerGui, deps)
 		if panelGui.Enabled then refresh() end
 	end)
 
-	local btn = btnGui:FindFirstChild("SaveBtn") or btnGui:FindFirstChildOfClass("TextButton")
+	-- ปุ่มเซฟอยู่ในชุด HUD — path ตรงๆ ไม่มีการค้นหา/เดาชื่อ (ย้ายใน Studio แล้วมาแก้ path ตรงนี้)
+	local hudRoot = playerGui:FindFirstChild("Gui_HUD") and playerGui.Gui_HUD:FindFirstChild("Root")
+	local btn = hudRoot and hudRoot:FindFirstChild("SaveBtn")
 	if btn then
 		btn.Activated:Connect(SavePanel.open)
 	else
-		warn("[SavePanel] Gui_SaveButton โครงไม่ครบ (ต้องมี SaveBtn) — แก้ชื่อใน Studio ให้ตรง")
+		warn("[SavePanel] ไม่เจอ Gui_HUD.Root.SaveBtn — ปุ่มเซฟจะกดไม่ได้")
 	end
 end
 

@@ -16,7 +16,7 @@ function Get-RojoApiInfo {
     try {
         $r = Invoke-WebRequest -Uri "http://localhost:$Port/api/rojo" -UseBasicParsing -TimeoutSec 3
         $raw = [System.Text.Encoding]::GetEncoding('ISO-8859-1').GetString($r.Content)
-        $projectName = if ($raw -match 'projectName([\w.\-]+)') { $matches[1] } else { $null }
+        $projectName = if ($raw -match 'projectName.{1,2}?([\w.\-]+)') { $matches[1] } else { $null }
         $sessionId = if ($raw -match '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})') { $matches[1] } else { $null }
         return [PSCustomObject]@{ Port = $Port; ProjectName = $projectName; SessionId = $sessionId; Ok = $true }
     } catch {

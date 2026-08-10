@@ -76,7 +76,12 @@ function RecordTool.init(player, fireAction, getState)
 			if not root then return end
 			if src == "Notebook" then
 				-- วางห่างตัว 4 studs หันหน้าจอเข้าหาผู้เล่น
-				local cf = root.CFrame * CFrame.new(0, -2.5, -4) * CFrame.Angles(0, math.pi, 0)
+				-- yaw +90° (ไม่ใช่ 180°): PivotTo จัด CFrame ให้ PrimaryPart = Interact_NotebookPack (ฐาน)
+				-- แต่จอกางตามแกน "ลึก" ของฐาน (local X) ไม่ใช่ LookVector → 180° ทำให้จอหันข้าง
+				-- ★ เกณฑ์ที่ใช้ตัดสิน: "ทิศจอ→คีย์บอร์ด" ต้องชี้ไปหาผู้เล่น (คนนั่งฝั่งคีย์บอร์ด จอย่อมหันมาทางนั้น)
+				--   ห้ามใช้ normal ของแผ่นจอตัดสิน — แผ่นบางมี 2 หน้าเหมือนกัน เดาผิดข้างได้ 180° (เคยพลาดมาแล้ว)
+				-- ยืนยันด้วยการจำลอง PivotTo จริงใน Studio: +90° -> dot +1.000 | -90° -> -1.000 (หันหลัง) | 180°/0° -> ~0.2 (หันข้าง)
+				local cf = root.CFrame * CFrame.new(0, -2.5, -4) * CFrame.Angles(0, math.pi / 2, 0)
 				fireAction({ type = "PlaceNotebook", cf = cf })
 			else
 				local part = spotPart()

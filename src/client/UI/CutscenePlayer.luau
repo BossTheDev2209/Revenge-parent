@@ -195,6 +195,15 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		skipBtn.Active = false
 	end)
 
+	-- ซ่อน GUI อื่นที่เปิดอยู่ระหว่างฉาก (HUD/ปุ่มเซฟ ฯลฯ บังภาพ) — จำไว้คืนตอนจบ (pattern เดียวกับ DialogueUI)
+	local hiddenGuis = {}
+	for _, g in playerGui:GetChildren() do
+		if g:IsA("ScreenGui") and g.Enabled then
+			g.Enabled = false
+			table.insert(hiddenGuis, g)
+		end
+	end
+
 	gui.Parent = playerGui
 
 	-- รอแบบขัดจังหวะได้ — กดข้ามแล้วไม่ต้องรอ wait ที่ค้างอยู่ให้ครบ · คืน true ถ้าโดนข้าม
@@ -323,6 +332,7 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		camera.CameraType = savedType
 		camera.FieldOfView = savedFov
 		gui:Destroy()
+		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
 		CutscenePlayer.running = false
 		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ
 		if onDone then onDone() end

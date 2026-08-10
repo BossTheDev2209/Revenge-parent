@@ -90,7 +90,7 @@ function RecordTool.init(player, fireAction, getState)
 			else
 				local part = spotPart()
 				local inside = RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
-				Audio.sfx("camera_shutter")
+				-- ตัดเสียงชัตเตอร์ออก (10 ส.ค.): กดรัวๆ แล้วซ้อนกับ record_bonus/record_gain (จังหวะไม่ตรงกัน) ฟังรำคาญ
 				fireAction({ type = "RecordFootage", inZone = inside })
 			end
 		end)
@@ -173,18 +173,25 @@ function RecordTool.init(player, fireAction, getState)
 		end
 	end)
 
-	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง
-	task.spawn(function()
+	-- เข้า/ออกโซน: เช็คทุกเฟรม (Heartbeat) แยกจากลูปอัปเดตวง/label ข้างล่าง — ต้องได้ยินทันที ไม่ใช่รอ 0.5s
+	do
 		local wasInside = false
-		while true do
-			local s = getState()
-			local part = spotPart()
+		game:GetService("RunService").Heartbeat:Connect(function()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local part = spotPart()
 			local inside = root ~= nil and RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
 			if inside ~= wasInside then
 				Audio.sfx(inside and "zone_enter" or "zone_exit")
 				wasInside = inside
 			end
+		end)
+	end
+
+	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง (ภาพ/ข้อความ ไม่ต้องไวเท่าเสียง — 0.5s พอ)
+	task.spawn(function()
+		while true do
+			local s = getState()
+			local part = spotPart()
 			if part then
 				ring.CFrame = CFrame.new(part.Position + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90))
 				local left = math.max(0, (s.filmZone.expiresAt or 0) - os.clock())

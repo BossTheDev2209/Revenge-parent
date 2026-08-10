@@ -17,8 +17,7 @@
 --     qte_tick             เข็ม skillcheck แตะเข้าโซน good
 --     qte_hit_perfect / qte_hit_good / qte_hit_miss   ผลแต่ละครั้งที่กด
 --     qte_jackpot           จบรอบด้วย perfect ล้วน
---     camera_shutter         กดกล้องอัดคลิป
---     record_bonus / record_gain   ตัวเลขลอย +Bonus / +ปกติ
+--     record_bonus / record_gain   ตัวเลขลอย +Bonus / +ปกติ (ตัดเสียงชัตเตอร์กล้องออกแล้ว 10 ส.ค. — กดรัวๆ ซ้อนกับเสียง gain ฟังรำคาญ)
 --     notebook_place          วางโน้ตบุ๊คลงพื้น
 --     zone_enter / zone_exit    เข้า/ออกวงโซนถ่าย
 --     app_open / app_close      เปิด/ปิดแอปในคอม

@@ -38,6 +38,15 @@
 | **④ duplicate instance** | มีโมดูลชื่อซ้ำ 2 ตัว require ได้ผลไม่แน่นอน | สแกนชื่อซ้ำใต้ container ที่ Rojo จัดการ |
 | **⑤ leftover session lock** | `ServerStorage.__Rojo_SessionLock` ค้างหลัง disconnect ไม่สะอาด | เช็ค instance ชื่อขึ้นต้น `__Rojo` |
 | **⑥ ย้ายไฟล์แล้วลืม map** | เหมือน ① แต่เกิดหลัง refactor ย้ายโฟลเดอร์ | หลัง `git mv` ทุกครั้ง **ต้องเปิด `default.project.json` ทวนทันที** |
+| **⑦ "Connected แต่ไม่ sync"** — แก้ `default.project.json` แล้วไม่ restart `rojo serve` | plugin โชว์ **Connected** เขียวปกติ แต่ไฟล์ที่เพิ่ง map ใหม่ไม่เข้า Studio · ไฟล์ที่ map อยู่**เดิม**ยัง sync ปกติ = หลอกมาก | เทียบ `StartTime` ของ process `rojo` กับ `LastWriteTime` ของ `default.project.json` |
+| **⑧ คุยผิด Studio** — เปิด Studio ค้างหลายหน้าต่าง | แก้/ตรวจไปคนละ instance กับที่ Rojo ต่ออยู่ · MCP `list_roblox_studios` เห็นมากกว่า 1 ตัว | นับ instance ก่อนเริ่มงาน · ปิดให้เหลือหน้าต่างเดียว (CLAUDE.md §5 ห้ามเปิดพร้อมกัน) |
+
+> **⑦ เจอจริง 10 ส.ค. 2569 (ยืนยันด้วย timestamp):** `rojo serve` เริ่ม **20:33:58** · `default.project.json`
+> เพิ่ม node `StarterGui` ตอน **20:42:26** (หลังไป 8.5 นาที) → server ที่รันอยู่ยังใช้ project เก่า
+> พิสูจน์ชัดว่าไม่ใช่ Rojo พัง: `Main.client.luau` (map อยู่เดิม) แก้แล้วเข้า Studio ทันที
+> ส่วน `StarterGui.UI.HUD`/`SavePanel` (เพิ่ง map) ไม่เข้าเลย
+> **`rojo serve` อ่าน project file ตอน start ครั้งเดียว — แก้ project file = ต้อง restart server เสมอ**
+> (การกด Disconnect/Connect ที่ plugin **ไม่พอ** เพราะฝั่ง server ยังถือ project เก่าอยู่)
 
 > **สภาพเครื่อง ณ 10 ส.ค.:** `rojo.exe` รัน 2 process ปกติ (shim ของ rokit + binary จริง 7.7.0) ฟังที่ port **34872** ตัวเดียว —
 > ถ้าเจอ **หลาย port** ในช่วง 34870-34890 = มีหลาย session ชนกัน ให้ฆ่าให้เหลือตัวเดียวก่อนทำงาน

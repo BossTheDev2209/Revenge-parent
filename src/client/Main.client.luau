@@ -196,6 +196,18 @@ refreshBackpack() -- ตั้ง hotbar ให้ตรงสถานะตั
 -- เก็บ deps ไว้ reuse ตอนกลับเมนูหลัง ending (game over → main menu)
 local menuDeps = { fireAction = fireAction, onNewGame = playOpening,
 	getState = function() return latestState end }
+
+-- ★ ตัวรับ StateChanged ตัวหลักอยู่ล่างไฟล์ (~บรรทัด 340) กว่า client จะรันมาถึงตรงนั้น
+--   server push slotList ไปแล้ว (prefetch listSlots เสร็จ ~0.3 วิ เร็วกว่า client boot)
+--   push ที่มาก่อน connect = **หายเงียบ ไม่มีใครรับ** → เมนูไม่เห็นเซฟ, กดช่องเซฟไม่ติด
+--   (slotsReady ไม่เคยเป็น true → ปุ่มช่อง return ทิ้ง) ต้องกด "เล่นต่อ" ที่ยิง RequestSlots ใหม่เท่านั้นถึงหลุด
+--   ยิ่ง DataStore เร็ว ยิ่งพังบ่อย — เลยเป็นๆ หายๆ · ดักตั้งแต่ก่อนเปิดเมนู แล้วปลดตอนตัวหลักพร้อม
+local earlyStateConn
+earlyStateConn = RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
+	latestState = state
+	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
+end)
+
 MenuUI.open(playerGui, menuDeps) -- seed slotList ที่ server prefetch มาแล้ว (ไม่ต้องรอ)
 
 -- ปุ่มเซฟเล็กมุมซ้ายล่าง + หน้าต่างเลือกช่อง — baked เป็น Gui_SaveButton/Gui_SavePanel จริงแล้ว (9 ส.ค.)
@@ -330,6 +342,7 @@ local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพ�
 local appliedBus = {} -- ระดับเสียงแยกกลุ่ม bgm/sfx/ambient ที่ apply จากเซฟล่าสุด
 local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
 local lastQTEId = nil -- id ของ pendingRecordQTE ที่เล่นไปแล้ว (dedupe กัน push ซ้ำ retrigger)
+if earlyStateConn then earlyStateConn:Disconnect() end -- ตัวหลักพร้อมแล้ว ปลดตัวดักชั่วคราวข้างบน
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	latestState = state
 	HUD.update(state)

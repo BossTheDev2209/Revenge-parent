@@ -1,14 +1,19 @@
 # Handoff — RojoDoctor: plugin ตรวจสุขภาพ Rojo sync
 
-**เขียน:** 10 ส.ค. 2569 · **สถานะ:** ยังไม่เริ่มเขียนโค้ด — handoff ให้ agent ตัวถัดไป
-**ที่มา:** audit ครบ 236 commit เจอ Rojo incident 6 เคส (ตาราง + pattern เต็ม → `docs/08-studio-sync-handoff.md`)
+**เขียน:** 10 ส.ค. 2569 (อัปเดตเย็นวันเดียวกันหลังเจอ pattern ⑦⑧) · **สถานะ:** ยังไม่เริ่มเขียนโค้ด — handoff ให้ agent ตัวถัดไป
+**ที่มา:** audit ครบ 236 commit เจอ Rojo incident 8 pattern (ตารางเต็ม → `docs/08-studio-sync-handoff.md`)
 
 ## ปัญหาที่ต้องแก้
 
 Rojo **ไม่เคยแจ้ง error ตอนพัง** ทุกเคสที่เกิดมาคนเพิ่งรู้ตัวหลังเสียเวลาไปแล้วเป็นวัน:
 แก้โค้ดแล้วเกมไม่เปลี่ยน (ไฟล์ไม่มีปลายทางใน map / plugin หลุด), งานหายจาก full-sync, instance ซ้ำ, session lock ค้าง
 
+**ที่แย่ที่สุดคือ plugin โชว์ "Connected" เขียวสวยตอนที่ไฟล์ไม่ได้ sync จริง** (pattern ⑦) — user รายงานเองว่า
+เจอซ้ำหลายครั้ง ยืนยันแล้วว่าเกิดจาก `rojo serve` อ่าน project file ตอน start ครั้งเดียว
+พอแก้ `default.project.json` ระหว่างทาง server ยังถือ project เก่า แต่ websocket ยังต่ออยู่ → ไฟเขียวหลอก
+
 ต้องมีปุ่มเดียวที่ตอบได้ว่า **"ตอนนี้โค้ดที่รันอยู่ใน Studio ตรงกับดิสก์จริงไหม"** ก่อนจะไปนั่ง debug logic
+— **ห้ามเชื่อไฟเขียวของ plugin เป็นคำตอบ**
 
 ## Scope
 
@@ -23,8 +28,10 @@ Studio plugin ชื่อ **`RojoDoctor`** — toolbar `Streaming Fix` (ใช�
 | 2 | **ดิสก์ ≠ Studio** (pattern ①②) | เทียบ `#Source` + checksum ต่อไฟล์ · **normalize `\r\n` → `\n` ก่อนเทียบเสมอ** ไม่งั้น false positive ทุกไฟล์ | length หรือ checksum ต่าง |
 | 3 | **โมดูลชื่อซ้ำ** (pattern ④) | สแกน `LuaSourceContainer` ทุกตัวใต้ container ที่ Rojo จัดการ นับชื่อซ้ำ | ชื่อเดียวกัน ≥2 ตัว |
 | 4 | **session lock ค้าง** (pattern ⑤) | หา instance ชื่อขึ้นต้น `__Rojo` (เคยเจอ `ServerStorage.__Rojo_SessionLock`) | เจอทั้งที่ไม่ได้ connect อยู่ |
-| 5 | **หลาย session ชนกัน** | ยิง `HttpService` ไปที่ port 34870–34890 ดูว่ามีกี่ตัวตอบ (`/api/rojo` คืน JSON มี `sessionId`) | ตอบมากกว่า 1 port |
+| 5 | **หลาย session ชนกัน** | ยิง `HttpService` ไปที่ port 34870–34890 ดูว่ามีกี่ตัวตอบ (`/api/rojo` คืน JSON มี `sessionId`, `projectName`) | ตอบมากกว่า 1 port |
 | 6 | **plugin connected อยู่ไหม** (pattern ②) | เช็ค ① + ④ ประกอบกัน (Rojo ไม่มี API บอกสถานะตรงๆ) | — |
+| 7 | **⭐ server ถือ project เก่า** (pattern ⑦ — ตัวที่ user เจอซ้ำบ่อยสุด) | `/api/rojo` คืน `projectName` + โครง tree ที่ server ถืออยู่ → เทียบว่ามี node ครบตาม `default.project.json` ปัจจุบันไหม | server ไม่รู้จัก node ที่มีในไฟล์ = ต้อง **restart `rojo serve`** |
+| 8 | **Studio เปิดหลายหน้าต่าง** (pattern ⑧) | plugin ตรวจฝั่งตัวเองไม่ได้ → ให้ print `game.PlaceId` + `game.JobId` ออกมาให้เทียบด้วยตา · ฝั่ง agent ใช้ MCP `list_roblox_studios` นับ | เห็นมากกว่า 1 instance |
 
 ## ข้อควรระวังตอนทำ (เสียเวลามาแล้วทั้งนั้น)
 
@@ -40,8 +47,11 @@ Studio plugin ชื่อ **`RojoDoctor`** — toolbar `Streaming Fix` (ใช�
 ## Definition of done
 
 - [ ] `tools/RojoDoctor.plugin.luau` + เพิ่มใน `tools/install_plugin.ps1`
-- [ ] กดปุ่มแล้วได้รายการ ✅/❌ ครบ 5 เช็ค พร้อมบอกชัดว่าไฟล์ไหน/instance ไหนมีปัญหา
-- [ ] **ทดสอบกับของจริง:** ย้อน `default.project.json` ให้ตัด node `StarterGui` ออกชั่วคราว → เช็ค #1 ต้องจับได้ → ใส่คืน
+- [ ] กดปุ่มแล้วได้รายการ ✅/❌ ครบ 8 เช็ค พร้อมบอกชัดว่าไฟล์ไหน/instance ไหนมีปัญหา **และต้องทำอะไรต่อ**
+      (เช่น "server ถือ project เก่า → restart `rojo serve`" ไม่ใช่แค่ ❌ เฉยๆ)
+- [ ] **ทดสอบกับของจริง 2 เคส** (reproduce ได้ทั้งคู่ ไม่ต้องรอให้บังเอิญเกิด):
+  - เช็ค #1: ตัด node `StarterGui` ออกจาก `default.project.json` ชั่วคราว → ต้องจับได้ → ใส่คืน
+  - เช็ค #7: แก้ `default.project.json` **โดยไม่ restart** `rojo serve` → ต้องจับได้ว่า server ถือ project เก่า
 - [ ] เขียนวิธีใช้ลง `tools/README.md` + ลิงก์จาก `docs/08`
 - [ ] commit + push
 

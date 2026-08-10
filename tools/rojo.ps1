@@ -74,8 +74,42 @@ function Invoke-RojoStatus {
     }
 }
 
-# Invoke-RojoRestart / Invoke-RojoKillAll / Invoke-RojoInstances
-# are added above this line by Tasks 2-3 below. Keep this switch at the bottom of the file.
+function Invoke-RojoKillAll {
+    $procs = Get-Process -Name rojo -ErrorAction SilentlyContinue
+    if (-not $procs) {
+        Write-Host "no rojo process running" -ForegroundColor Yellow
+        return
+    }
+    $procs | Stop-Process -Force
+    Write-Host "killed $($procs.Count) rojo process(es) (shim + real binary — normal to see 2)" -ForegroundColor Green
+}
+
+function Invoke-RojoRestart {
+    Invoke-RojoKillAll
+    Start-Sleep -Milliseconds 500
+
+    Write-Host "starting: rojo serve (in $RepoRoot)" -ForegroundColor Cyan
+    Start-Process -FilePath 'rojo' -ArgumentList 'serve' -WorkingDirectory $RepoRoot -WindowStyle Normal
+
+    $deadline = (Get-Date).AddSeconds(15)
+    $port = $null
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Milliseconds 500
+        foreach ($p in Get-ListeningRojoPorts) {
+            $info = Get-RojoApiInfo -Port $p
+            if ($info.Ok) { $port = $p; break }
+        }
+        if ($port) { break }
+    }
+
+    if ($port) {
+        Write-Host "✅ rojo serve up on port $port — now click Disconnect then Connect in Studio's Rojo plugin" -ForegroundColor Green
+    } else {
+        Write-Host "❌ rojo serve did not come up within 15s — check the new terminal window it opened" -ForegroundColor Red
+    }
+}
+
+# Invoke-RojoInstances is added above this line by Task 3 below. Keep this switch at the bottom of the file.
 switch ($Command) {
     'status'    { Invoke-RojoStatus }
     'restart'   { Invoke-RojoRestart }

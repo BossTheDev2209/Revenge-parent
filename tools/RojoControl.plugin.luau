@@ -82,10 +82,28 @@ local function findLeftovers()
 			end
 		end
 	end
+	-- expected Rojo pairing: src/server/X.server.luau -> ServerScriptService.X, src/client/X.client.luau -> StarterPlayer.StarterPlayerScripts.X
+	-- same name on both sides is normal (see default.project.json), not a real duplicate — don't warn on it
+	local function isServerClientPair(paths): boolean
+		if #paths ~= 2 then
+			return false
+		end
+		local a, b = paths[1], paths[2]
+		local aServer = a:find("ServerScriptService.", 1, true) == 1
+		local bServer = b:find("ServerScriptService.", 1, true) == 1
+		local aClient = a:find("StarterPlayer.StarterPlayerScripts.", 1, true) == 1
+		local bClient = b:find("StarterPlayer.StarterPlayerScripts.", 1, true) == 1
+		return (aServer and bClient) or (bServer and aClient)
+	end
+
 	for name, paths in seen do
 		if #paths > 1 then
-			dupes += 1
-			warn(("[RojoControl] duplicate module name %q at: %s"):format(name, table.concat(paths, ", ")))
+			if isServerClientPair(paths) then
+				print(("[RojoControl] %s: expected server/client pair, not a duplicate — %s"):format(name, table.concat(paths, ", ")))
+			else
+				dupes += 1
+				warn(("[RojoControl] duplicate module name %q at: %s"):format(name, table.concat(paths, ", ")))
+			end
 		end
 	end
 	if dupes == 0 then

@@ -173,17 +173,18 @@ function RecordTool.init(player, fireAction, getState)
 		end
 	end)
 
-	-- เข้า/ออกโซน: เช็คทุกเฟรม (Heartbeat) แยกจากลูปอัปเดตวง/label ข้างล่าง — ต้องได้ยินทันที ไม่ใช่รอ 0.5s
+	-- เข้าโซน: เช็คทุกเฟรม (Heartbeat) แยกจากลูปอัปเดตวง/label ข้างล่าง — ต้องได้ยินทันที ไม่ใช่รอ 0.5s
+	-- ตัดเสียงตอนออกโซนแล้ว (10 ส.ค.): user ฟังแล้วรำคาญ เหลือแค่ตอนเข้า
 	do
 		local wasInside = false
 		game:GetService("RunService").Heartbeat:Connect(function()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			local part = spotPart()
 			local inside = root ~= nil and RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
-			if inside ~= wasInside then
-				Audio.sfx(inside and "zone_enter" or "zone_exit")
-				wasInside = inside
+			if inside and not wasInside then
+				Audio.sfx("zone_enter")
 			end
+			wasInside = inside
 		end)
 	end
 

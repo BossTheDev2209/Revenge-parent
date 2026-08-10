@@ -182,10 +182,26 @@ Buy_<ชื่อ> + Item_<ชื่อ>                                   ป�
 - ทุกอันเป็น `Tool` ที่มี Part ชื่อ **`Handle`** (ตัวที่มือจับ) ส่วนที่เหลือ weld ติดเข้ากับ Handle
 - ชื่อ Tool ที่โชว์บน hotbar ระบบตั้งให้เอง ("กล้อง (1080p)" / "ไม้เซลฟี่" / "โน้ตบุ๊ค") ไม่ต้องตั้งเอง
 - **`NotebookPlaced` เป็น Model** ต้องมี 2 Part นี้:
-  - `Interact_pcMonitor` — จอ **4 × 2.6 studs** หน้าจอ = ด้าน Front (UI แปะบนนี้)
+  - `Interact_pcMonitor` — จอ (UI แปะบนนี้) · **ขนาด/แนวหมุนอิสระ** `MenuUI.faceToward()` หาหน้าที่กว้างสุดที่หันเข้ากล้องเองตอนรัน
   - `Interact_NotebookPack` — ตัวฐาน (กดเก็บกลับ) ตั้งเป็น `PrimaryPart`
   - ทั้งคู่ `Anchored ✓` · ไม่ต้องใส่ ProximityPrompt (ระบบใส่ให้)
-- ตอนนี้เป็น**กล่องเปล่า placeholder** ทั้งหมด เปลี่ยนได้เลย
+
+#### ⚠️ บทเรียนจริง 9–10 ส.ค. 2569 — โน้ตบุ๊ค 6 บั๊กซ้อน อ่านก่อนแตะโมเดลนี้
+
+1. **`PrimaryPart` ห้ามว่าง และห้ามเป็น `Interact_pcMonitor`** — `ToolService.placeNotebook` เรียก `Model:PivotTo(cf)` ซึ่งจัด **CFrame ของ PrimaryPart** ให้เท่า `cf`
+   - `PrimaryPart = nil` → Roblox ใช้ pivot ที่คิดไว้ตอน group ของเก่า → โมเดลไปโผล่ไกล ~50 studs (อาการ "กดวางแล้วไม่มีอะไรโผล่")
+   - `PrimaryPart = Interact_pcMonitor` → จอเป็นชิ้น**เอียง** `PivotTo` จับมันตั้งตรง = เหวี่ยงคีย์บอร์ดคว่ำ (อาการ "หน้าคว่ำ")
+   - **ต้องเป็น `Interact_NotebookPack` เท่านั้น** (ฐานวางแบน `Up = (0,1,0)`)
+2. **จอกางตามแกน "ลึก" ของฐาน (local X) ไม่ใช่ LookVector** — ยืนยันจาก Size: จอ `Z=2.09` ≈ ฐาน `Z=2.22` → Z คือ**ความกว้าง**, X คือความลึก. กางตาม Z จะได้จอทรงมือถือ
+   → เพราะแบบนี้ [`RecordTool.luau:84`](../src/client/RecordTool.luau) ต้อง yaw **`+math.pi/2`** ไม่ใช่ `math.pi`
+   **ใครหมุน/สร้างโมเดลนี้ใหม่ ต้อง re-derive เลข yaw นั้นด้วย** ไม่งั้นจอหันข้าง/หันหลัง
+3. **ห้ามตัดสิน "จอหันทางไหน" จาก normal ของแผ่นจอ** — แผ่นบาง (0.001) มี 2 หน้าเหมือนกันเป๊ะ เดาผิดข้างได้ 180° ทั้งที่ `dot` ออกมา `+1.000` สวยงาม (พลาดจริงมาแล้ว 1 รอบ เสีย test cycle ของ user)
+   **เกณฑ์ที่ถูก:** เวกเตอร์ **จอ→คีย์บอร์ด ต้องชี้ไปหาผู้เล่น** (คนนั่งฝั่งคีย์บอร์ด) — เกณฑ์นี้ทำนายอาการที่เจอจริงถูกทั้ง 2 ครั้ง
+4. **ฝาจอห้ามหนา 0.001** — อ่านเป็นใบมีดลอย. หนา ~0.08 พอ และต้อง**ขยายออกด้านหลังจอ** ไม่ใช่ทับผิวจอ · ตัว `Interact_pcMonitor` คงบางไว้กัน z-fighting
+5. **Tool `Notebook`: `Handle` ห้ามมี `WeldConstraint` ที่ `Part0 == Part1`** (self-weld) — พอ equip ตัวละครที่ weld กับ Handle ผ่าน Motor6D จะถูกเหวี่ยงไปหา Tool แทนที่ Tool จะมาเข้ามือ · และตั้ง `Handle.CanCollide = false`
+6. **ชื่อ Part ต้องเป๊ะ** — `InteractBinder.luau:147` เช็ค `Interact_NotebookPack` ตรงตัว. เคยตั้งเป็น `Interact_Notebook` → กด E เก็บไม่ได้ (แก้ชื่อ ไม่ใช่เขียน resolver — CLAUDE.md rule 8)
+
+- ตอนนี้เป็น**กล่องเปล่า placeholder** ทั้งหมด เปลี่ยนได้เลย (ยกเว้นข้อ 1–6 ข้างบน)
 
 ### 3.7 ห้อง Main Menu — `Workspace.MenuScene` (lock 27 ก.ค. — แผน `plans/2026-07-27-menu-scene.md`)
 

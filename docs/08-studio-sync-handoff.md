@@ -15,6 +15,33 @@
   (ของ **ไม่ใช่สคริปต์** — โมเดล/NPC/รูป/UI instance — ยังทำใน Studio ตามเดิม ปลอดภัยด้วย ignoreUnknownInstances)
 - รันเทสยังใช้ MCP `execute_luau` → `require(SSS.Tests.RunTests)` เหมือนเดิม (Rojo ทำแค่ sync)
 
+### 🚨 ทะเบียน "Rojo incident" ทั้งหมดที่เคยเกิดในโปรเจกต์นี้ (audit ครบ 236 commit — 10 ส.ค. 2569)
+
+ทุกเคสด้านล่างเกิดจริง มี commit อ้างอิงได้ · **ทั้งหมดมีจุดร่วมเดียวกัน: Rojo ไม่เคยแจ้ง error ตอนพัง**
+
+| วันที่ | เคส | commit | เสียหายจริง |
+|---|---|---|---|
+| 21 ก.ค. | ถอด Rojo ออกทั้งโปรเจกต์ ต้องตามลบ `__Rojo_SessionLock` ที่ค้างใน Studio เอง | `b5e126d` | instance ขยะค้างใน place |
+| 1 ส.ค. | plugin หลุดหลัง restart Studio → แก้โค้ดบนดิสก์แล้วไม่เข้า Studio → **เกือบ rewrite `InteractBinder` ทั้งไฟล์** ทั้งที่ logic ถูกอยู่แล้ว | `edfd7d5` (rule 10) | เกือบเสียงานทั้งไฟล์ |
+| 9 ส.ค. | **full-sync destroy+recreate สคริปต์ทุกไฟล์จาก git** → งานที่ author ใน Studio แต่ยังไม่ commit **หายเกลี้ยง** (บทหมวย, Phase label, interaction) | `d269d81` (rule 12) | กู้คืนได้บางส่วนจาก JSON export → `ff77435`, `4e2bbf3` |
+| 9 ส.ค. | sync รอบก่อนทิ้ง `ActivityCutscene` ซ้ำไว้ 2 ตัวใน `StarterPlayerScripts` (เนื้อหาเหมือนกันเป๊ะ) | `edc1827` | instance ซ้ำ เสี่ยง require ผิดตัว |
+| 9 ส.ค. | รายงานว่า "อัดคลิปแล้ว footage ไม่เพิ่ม" → ไล่ debug logic เป็นชุด **สุดท้ายคือ stale sync เทสโค้ดเก่า** | `59d5f11` | เสียเวลา debug ของที่ไม่ได้พัง |
+| 9→10 ส.ค. | `git mv` ไฟล์เข้า `src/client/StarterGui/` + ย้าย instance ใน Studio ครบ **แต่ลืมอัป `default.project.json`** → 11 โมดูล (HUD/SavePanel/PCScreen/Apps×8) แก้ทิ้งเปล่าอยู่ 1 วันเต็ม | `edc1827` → แก้ที่ `d2f24c4` | HUD ค้างค่า placeholder, ปุ่มเซฟเก่าโผล่ |
+
+**pattern ที่ต้องระวัง (สรุปจากทั้ง 6 เคส):**
+
+| pattern | อาการที่เห็น | วิธีจับ |
+|---|---|---|
+| **① silent no-op** — ไฟล์ไม่มีปลายทางใน map | แก้โค้ดแล้ว "ไม่มีอะไรเปลี่ยน" ไม่มี error เลย | เทียบ marker string / `#Source` ระหว่างดิสก์กับ instance ที่เกม require จริง |
+| **② stale plugin** — Rojo หลุดหลัง restart | พฤติกรรมไม่ตรงโค้ด · แก้แล้วเหมือนไม่ได้แก้ | เช็คสถานะ connect **ก่อน** debug logic เสมอ (rule 10) |
+| **③ destructive full-sync** — destroy+recreate ทุกไฟล์ | งานใน Studio ที่ยังไม่ commit หายหมด | ห้าม full-sync เด็ดขาด · commit ทันทีทุกครั้ง (rule 12) |
+| **④ duplicate instance** | มีโมดูลชื่อซ้ำ 2 ตัว require ได้ผลไม่แน่นอน | สแกนชื่อซ้ำใต้ container ที่ Rojo จัดการ |
+| **⑤ leftover session lock** | `ServerStorage.__Rojo_SessionLock` ค้างหลัง disconnect ไม่สะอาด | เช็ค instance ชื่อขึ้นต้น `__Rojo` |
+| **⑥ ย้ายไฟล์แล้วลืม map** | เหมือน ① แต่เกิดหลัง refactor ย้ายโฟลเดอร์ | หลัง `git mv` ทุกครั้ง **ต้องเปิด `default.project.json` ทวนทันที** |
+
+> **สภาพเครื่อง ณ 10 ส.ค.:** `rojo.exe` รัน 2 process ปกติ (shim ของ rokit + binary จริง 7.7.0) ฟังที่ port **34872** ตัวเดียว —
+> ถ้าเจอ **หลาย port** ในช่วง 34870-34890 = มีหลาย session ชนกัน ให้ฆ่าให้เหลือตัวเดียวก่อนทำงาน
+
 ### ⚠️⚠️ กับดัก "แก้แล้วไม่มีอะไรเปลี่ยน" — ไฟล์ที่ไม่มีใน `default.project.json` = แก้ทิ้งเปล่า (เจอจริง 10 ส.ค. 2569)
 
 `src/client` map ไป `StarterPlayerScripts` **ทั้งโฟลเดอร์** → `src/client/StarterGui/UI/HUD.luau` เลยไปโผล่ที่

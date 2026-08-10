@@ -141,6 +141,8 @@ Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ�
 1. ก๊อป `Workspace.NPC.R6` (rig ต้นแบบ — **ห้ามแก้ตัวจริง**) มาวางเป็น scratch rig ชั่วคราว
 2. วางคู่กับ `NPC_special_<ชื่อ>` ตรงตำแหน่งฉาก คีย์เฟรมทั้งคู่ให้อินเทอร์แอคกัน
 3. Export เป็น **2 Animation object แยกกัน** (clip NPC / clip player) เข้า `ReplicatedStorage.Animations` — เพราะรันจริงเรียกคนละ step (`actor="ฟ้าใส"` / `actor="player"`) แยกกัน
+   ⚠️ **ต้อง export ทีละ rig ผ่าน `File > Export Rig` → folder `AnimSaves` (บาง version ชื่อ `MoonAnimater2Saves`) → right-click คลิปที่ต้องการ → `Save to Roblox`** —
+   **ห้ามใช้ปุ่ม Export ทั่วไป/คีย์ลัดตอนมีหลาย rig อยู่ในโปรเจกต์** จะได้ clip ผสมข้อมูลหลาย rig พัง (error `"AnimationClip loaded is not valid"` ไม่บอกเหตุผลตรงๆ เลย เสียเวลาไล่มาแล้วทั้งวัน — เคสเต็ม + วิธีเทส/วิธีสำรอง → [docs/17-animation-export-gotcha.md](../17-animation-export-gotcha.md))
 4. **ลบ scratch rig ทิ้งหลัง export** — ห้ามทิ้งไว้ใต้ `Workspace.NPC` เด็ดขาด (`findRig` ค้นเจาะจงแค่โฟลเดอร์นี้ ตัวปลอมชื่อชนจะไปแย่งของจริงตอนรัน — คอมเมนต์เตือนไว้ในโค้ดเอง [AnimPlayer.luau:112-113](../../src/client/AnimPlayer.luau#L112))
 
 **ตำแหน่ง/ทิศตอนคีย์เฟรม:** root motion ที่ bake เป็นการเคลื่อนที่**สัมพัทธ์**จากจุดเริ่ม ไม่ใช่พิกัดโลกตายตัว — สิ่งที่สำคัญคือ**ทิศที่หัน** ณ เฟรมแรกให้ตรงกับตอนเล่นจริง (เช่น player หันเข้าประตู) ไม่ใช่พิกัด XY เป๊ะ — เล่นจริงจะสัมพัทธ์กับตำแหน่ง/ทิศของตัวจริง ณ ตอนนั้นเอง
@@ -160,6 +162,7 @@ Workspace.NPC.StoryNPC.NPC_special_<ชื่อ>   -- แม่/พ่อ/ฟ�
 1. เลือกใน Studio: ปุ่ม **Easy Weld** ของ Moon Animator (แปลง Weld ธรรมดาที่ต่อกันอยู่แล้วให้เป็น Motor6D อัตโนมัติ — ไม่ต้องสร้าง Motor6D มือ) เจอ **Clean** ล้าง Weld/RigAttachment เก่าทิ้งได้หลัง rig เสร็จ ไม่กระทบระบบเรา
 2. เพิ่ม `AnimationController` เป็น**ลูกตรง**ของ prop model (`Humanoid` ก็ได้เหมือนกัน — โค้ดเช็คทั้งคู่ `AnimPlayer.animatorOf`)
 3. Animate ปกติ export เป็น `Animation` เข้า `ReplicatedStorage.Animations` เหมือนท่าตัวละคร (ตั้งชื่อ prop = "actor" ในการค้นหา เช่น `ReplicatedStorage.Animations.TrophyBCA/Open`)
+   ⚠️ **prop ก็เสี่ยง export ผิดแบบเดียวกับตัวละคร** ถ้าโปรเจกต์ Moon Animator เดียวกันมีทั้ง prop + NPC/player (เช่นฉากรับโล่ BCA ที่ player ต้องขยับมือด้วย) — export แยกทีละ item เสมอ ตามขั้นตอน §6 ข้อ 3 ด้านบน
 
 ```lua
 { type = "objAnim", object = "TrophyBCA", name = "Open", loop = false }

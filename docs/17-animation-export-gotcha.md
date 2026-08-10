@@ -74,3 +74,42 @@ conn:Disconnect()
 - [Failed to load animation with sanitized ID... AnimationClip loaded is not valid — DevForum](https://devforum.roblox.com/t/failed-to-load-animation-with-sanitized-id-rbxassetid000000000-animationclip-loaded-is-not-valid/3100099)
 - [How to export moon animator animation to roblox animation? — DevForum](https://devforum.roblox.com/t/how-to-export-moon-animator-animation-to-roblox-animation/1996677)
 - `docs/08-studio-sync-handoff.md` — pattern Rojo sync แยกเรื่องกัน (อย่าสับสนกับ gotcha นี้ คนละสาเหตุ)
+
+---
+
+## ส่วนเสริม — Moon Animator ที่ต้องรู้ก่อนทำ cutscene ที่เหลือ (#3 เจียเจียเข้าร่วม, #4 ฟ้าใสออก, #5 BCA)
+
+คัตซีนที่เหลือทุกตัวใน `docs/16-story-bible.md` §3 มีแพทเทิร์นเดียวกับ `FaasaiJoin` — **NPC + player โต้ตอบกันในฉากเดียว** (โต๊ะ BCA, ฟ้าใสเดินออกจากห้อง ฯลฯ) แปลว่า**เจอความเสี่ยง export ผิดแบบนี้ได้อีกทุกตัว** ถ้าไม่ระวัง
+
+### วิธีหลัก (ยืนยันแล้วว่าใช้ได้จริงจากเคสนี้)
+
+`File > Export Rig` → folder **`AnimSaves`** โผล่ในตัว rig → right-click คลิปเฉพาะตัวที่ต้องการ → **Save to Roblox** — **ทำแยกทีละ rig เสมอ** (เลือกให้แน่ใจว่า rig ที่ไฮไลต์/selected คือตัวที่ต้องการจริง ก่อนกด export ทุกครั้ง)
+
+⚠️ **บาง version ของ Moon Animator ใช้ชื่อ folder ว่า `MoonAnimater2Saves` แทน `AnimSaves`** (rename ในเวอร์ชันใหม่กว่า) — เจอชื่อไม่ตรงอย่าตกใจ หา folder ที่มีหน้าตาคล้ายกัน (เก็บ KeyframeSequence ต่อคลิป) แทน
+
+### วิธีสำรอง (ถ้าวิธีหลักมีปัญหาอีก — ผ่าน Roblox Animation Editor ของจริงแทน Moon Animator)
+
+1. `File > Save` ใน Moon Animator ตั้งชื่อคลิป
+2. เปิด dummy rig ตัวใหม่ (rig เปล่าๆ ที่**ไม่ใช่**ตัวที่ animate) → หา folder AnimSaves/MoonAnimater2Saves → copy KeyframeSequence ออกมา
+3. วางไปที่ AnimSaves ของ dummy rig ตัวใหม่นั้น
+4. เลือก dummy rig → เปิด Roblox **Avatar tab > Animation Editor** ตรงๆ (ปลั๊กอินของ Roblox เอง ไม่ใช่ Moon Animator) → เลือก rig → OK
+5. เมนู 3 จุด (⋮) → **Publish to Roblox** → Content Type = "Development Item", Asset Category = "Animation" → Save
+6. รอ "Successfully submitted!" → copy Asset ID
+
+ทางนี้อ้อมกว่าแต่ผ่าน pipeline "publish" ทางการของ Roblox ตรงๆ ไม่พึ่งปุ่มลัดของ Moon Animator เลย — ใช้เป็นแผนสำรองถ้าวิธีหลักพังอีกและเวลาไม่พอไล่ debug
+
+### เคสของ object/prop (`objAnim`, story-beat.md §7.1) เสี่ยงแบบเดียวกัน
+
+`Easy Weld` + `AnimationController` ใช้ pipeline export เดียวกับตัวละคร (Moon Animator ไม่สนว่า rig เป็นคนหรือประตู) — **ถ้าฉากไหนมีทั้ง prop ที่ต้อง `objAnim` และ NPC/player ที่ต้อง `anim` อยู่ในโปรเจกต์ Moon Animator เดียวกัน (เช่น ฉากเปิดโล่ BCA ที่ player ต้องขยับมือรับด้วย) ต้อง export แยกกันคนละครั้งเหมือนกันทุกตัว** — เช็คให้ชัวร์ว่า item ที่ไฮไลต์อยู่ตรงกับตัวที่กำลัง export ก่อนกด
+
+### R6 quirks ที่คนทำ animation ควรรู้ (จากรีเสิร์ช ไม่ใช่จากเคสนี้โดยตรง)
+
+- อย่ายกแขน R6 สูงเกินไป — ดูไม่เป็นธรรมชาติ (ข้อจำกัดของ R6 rig เอง)
+- อย่า "งอ" R6 ตรงข้อต่อ (rig ไม่มีข้อศอก/เข่าจริง) — จัด position/rotation ของทั้งท่อนแทน
+- root motion bake เป็น**ตำแหน่งสัมพัทธ์**จากจุดเริ่ม ไม่ใช่พิกัดโลกตายตัว (ตรงกับที่ `story-beat.md §6` เขียนไว้แล้ว) — ทิศที่หันตอนเฟรมแรกสำคัญกว่าพิกัด XY เป๊ะ
+
+### อ้างอิงเพิ่ม
+
+- [How To Convert Moon Animations (2024) — DevForum](https://devforum.roblox.com/t/how-to-convert-moon-animations-2024/3012501) (วิธีสำรองผ่าน Animation Editor)
+- [Getting Started with Moon Animator 2 [Unofficial] — DevForum](https://devforum.roblox.com/t/getting-started-with-moon-animator-2-unofficial/476330) (R6 quirks, ปุ่มพื้นฐาน)
+- [Want To Export Object Animations You Made in Moon Animator 2? — DevForum](https://devforum.roblox.com/t/want-to-export-object-animations-you-made-in-moon-animator-2-now-you-can/2515950) (plugin ทางเลือกสำหรับ object animation แบบ TweenService — ไม่ใช่ pipeline หลักของโปรเจกต์นี้ แต่มีไว้เผื่อ Motor6D/AnimationController มีปัญหา)

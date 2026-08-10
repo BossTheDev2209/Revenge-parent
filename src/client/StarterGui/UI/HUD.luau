@@ -350,7 +350,9 @@ local BINDINGS = {
 	{ field = "dayLabel", path = { "Calendar", "DayLabel" } },
 	{ field = "storageLabel", path = { "StorageBox", "StorageLabel" } },
 	{ field = "cameraLabel", path = { "CameraBox", "CameraLabel" } },
-	{ field = "mentalFill", path = { "MentalTrack", "MentalFill" } },
+	-- บาร์ใจ + หัวใจบน/ล่าง + ป้าย % อยู่ในกรอบ MentalGroup เดียวกัน (10 ส.ค.)
+	-- เพื่อให้ระยะห่างหัวใจกับบาร์คงที่ทุกขนาดจอ — หัวใจคือ indicator ของบาร์ ห่างออกไป = สื่อไม่ได้
+	{ field = "mentalFill", path = { "MentalGroup", "MentalTrack", "MentalFill" } },
 }
 
 function HUD.bind(gui)

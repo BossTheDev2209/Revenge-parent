@@ -292,6 +292,7 @@ function HUD.build(parent): ScreenGui
 		UDim2.new(0, MENTAL_W, MENTAL_BOT - MENTAL_TOP, 0), Color3.fromRGB(15, 15, 20))
 	barBack.Name = "MentalTrack"
 	barBack.BackgroundTransparency = 0.1
+	barBack.ClipsDescendants = true -- แถบในไม่โผล่พ้นขอบมนของราง (มุมมนของ fill กับของรางไม่ตรงกันเป๊ะ)
 	local fill = Instance.new("Frame")
 	fill.Name = "MentalFill"
 	fill.AnchorPoint = Vector2.new(0, 1)

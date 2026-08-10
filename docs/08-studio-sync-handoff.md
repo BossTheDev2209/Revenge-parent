@@ -41,6 +41,10 @@
 | **⑦ "Connected แต่ไม่ sync"** — แก้ `default.project.json` แล้วไม่ restart `rojo serve` | plugin โชว์ **Connected** เขียวปกติ แต่ไฟล์ที่เพิ่ง map ใหม่ไม่เข้า Studio · ไฟล์ที่ map อยู่**เดิม**ยัง sync ปกติ = หลอกมาก | เทียบ `StartTime` ของ process `rojo` กับ `LastWriteTime` ของ `default.project.json` |
 | **⑧ คุยผิด Studio** — เปิด Studio ค้างหลายหน้าต่าง | แก้/ตรวจไปคนละ instance กับที่ Rojo ต่ออยู่ · MCP `list_roblox_studios` เห็นมากกว่า 1 ตัว | นับ instance ก่อนเริ่มงาน · ปิดให้เหลือหน้าต่างเดียว (CLAUDE.md §5 ห้ามเปิดพร้อมกัน) |
 
+**เครื่องมือแก้ (10 ส.ค.):** `tools/rojo.ps1 status|restart|kill-all|instances` (ฝั่ง OS) +
+`tools/RojoControl.plugin.luau` ปุ่ม `Rojo Status`/`Find Leftovers` ใน toolbar `Streaming Fix` (ฝั่ง Studio) —
+วิธีใช้เต็ม → `tools/README.md`
+
 > **⑦ เจอจริง 10 ส.ค. 2569 (ยืนยันด้วย timestamp):** `rojo serve` เริ่ม **20:33:58** · `default.project.json`
 > เพิ่ม node `StarterGui` ตอน **20:42:26** (หลังไป 8.5 นาที) → server ที่รันอยู่ยังใช้ project เก่า
 > พิสูจน์ชัดว่าไม่ใช่ Rojo พัง: `Main.client.luau` (map อยู่เดิม) แก้แล้วเข้า Studio ทันที

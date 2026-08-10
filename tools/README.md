@@ -44,4 +44,4 @@ pwsh tools/rojo.ps1 restart     # kill ทุกตัว + start ใหม่�
 pwsh tools/rojo.ps1 instances   # เช็คว่าเปิด Studio ค้างหลายหน้าต่างไหม (pattern ⑧)
 ```
 
-ปุ่ม `Rojo Status` / `Check Sync` ใน Studio toolbar `Streaming Fix` เสริมฝั่ง Studio (`tools/RojoControl.plugin.luau`) — ใช้คู่กัน: `rojo.ps1 status` บอกว่า process/port โอเคไหม, ปุ่มใน Studio บอกว่า Studio เห็นอะไรอยู่
+ปุ่ม `Rojo Status` / `Find Leftovers` ใน Studio toolbar `Streaming Fix` เสริมฝั่ง Studio (`tools/RojoControl.plugin.luau`) — ใช้คู่กัน: `rojo.ps1 status` บอกว่า process/port โอเคไหม, ปุ่มใน Studio บอกว่า Studio เห็นอะไรอยู่

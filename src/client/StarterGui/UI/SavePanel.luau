@@ -41,6 +41,7 @@ function SavePanel.buildPanel(parent): ScreenGui
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 20
 	gui.Enabled = false
+	gui.IgnoreGuiInset = true -- dim คลุมเต็มจอถึงแถบบนสุด (ไม่เว้นช่อง topbar ~36px)
 
 	local dim = Instance.new("TextButton") -- ฉากหลังมืด กดปิด
 	dim.Name = "Dim"

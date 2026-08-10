@@ -17,6 +17,7 @@ python tools/mcp_driver.py <steps.json>
 |---|---|
 | **`gen_sync.py`** | สแกน `src/` + `tests/` จากดิสก์ → gen luau ก้อนเดียวยัดเข้า Studio · **รันทุกครั้งหลังแก้โค้ด** (docs/08 §0) |
 | **`mcp_driver.py`** | ยิง step ไป Studio MCP (execute_luau / start_stop_play) · หา path Studio อัตโนมัติ |
+| **`rojo.ps1`** | คุม `rojo serve` ระดับ process — `status` (จับ pattern ⑦ server ถือ project เก่า) / `restart` (kill+start ใหม่ทีเดียว) / `kill-all` / `instances` (จับ pattern ⑧ เปิด Studio หลายหน้าต่าง) · รายละเอียด pattern → `docs/08-studio-sync-handoff.md` |
 
 ## สคริปต์เฉพาะงาน (รันครั้งเดียว/เมื่อจำเป็น)
 
@@ -34,3 +35,13 @@ python tools/mcp_driver.py <steps.json>
 4. เพิ่ม 1 บรรทัดใน `NPC_DIALOGUE` (`src/client/InteractBinder.luau`) : `Interact_NPC_<ชื่อ> = "<ไฟล์บท>"`
 5. สร้างไฟล์บท `src/shared/Content/Dialogue/<ไฟล์บท>.luau` (format → docs/engines/dialogue.md)
 6. `gen_sync.py` + `mcp_driver.py` → เข้า Studio
+
+## เจอ Rojo พัง (แก้แล้วไม่เข้า Studio)
+
+```bash
+pwsh tools/rojo.ps1 status      # เช็คว่า server ถือ project เก่าไหม (pattern ⑦) + กี่ session
+pwsh tools/rojo.ps1 restart     # kill ทุกตัว + start ใหม่ทีเดียว — แล้วกด Disconnect/Connect ใน Studio
+pwsh tools/rojo.ps1 instances   # เช็คว่าเปิด Studio ค้างหลายหน้าต่างไหม (pattern ⑧)
+```
+
+ปุ่ม `Rojo Status` / `Check Sync` ใน Studio toolbar `Streaming Fix` เสริมฝั่ง Studio (`tools/RojoControl.plugin.luau`) — ใช้คู่กัน: `rojo.ps1 status` บอกว่า process/port โอเคไหม, ปุ่มใน Studio บอกว่า Studio เห็นอะไรอยู่

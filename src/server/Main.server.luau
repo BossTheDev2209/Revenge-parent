@@ -88,12 +88,12 @@ ActionRouter.register("RecordFootage", function(s, a)
 	if s.pendingRecordQTE then return end -- มี QTE ค้างรอเล่นอยู่ = ไม่รับคลิกใหม่ (กันซ้อน QTE)
 	local r = RecordService.record(s, { now = os.clock(), inZone = a.inZone == true })
 	if r.qte then
-		-- id ให้ client dedupe (ไม่ retrigger จาก push ซ้ำ) + rounds = จำนวน bounce สุ่มตอน proc (docs/02 §9.5 v2)
-		local rounds = RecordService.pickRounds(Config.RecordQTE.roundsMin, Config.RecordQTE.roundsMax)
-		s.pendingRecordQTE = { id = os.clock(), rounds = rounds }
+		-- id ให้ client dedupe (ไม่ retrigger จาก push ซ้ำ) + hits = จำนวนครั้งที่ต้องกด สุ่มตอน proc (docs/02 §9.5 v3)
+		local hits = RecordService.pickHitsRequired(Config.RecordQTE.hitsMin, Config.RecordQTE.hitsMax)
+		s.pendingRecordQTE = { id = os.clock(), hits = hits }
 	end
 end)
--- client เล่น QTE ครบทุกรอบแล้ว → ส่งเกรดทั้งชุด (1 ค่าต่อรอบ) — server ให้ footage bonus สะสม (docs/02 §9.5 v2)
+-- client เล่น QTE กดครบทุกครั้งแล้ว → ส่งเกรดทั้งชุด (1 ค่าต่อครั้งที่กด) — server ให้ footage bonus สะสม (docs/02 §9.5 v3)
 --   เชื่อเกรด client (singleplayer เหมือน inZone/คะแนน) · server คุมสูตร reward + cap + เคลียร์ pending เอง
 ActionRouter.register("RecordQTEResult", function(s, a)
 	if not s.pendingRecordQTE then return end -- ไม่มี QTE ค้าง = ทิ้ง (กัน client ยิงมั่วเอา reward)
@@ -341,9 +341,9 @@ ActionRouter.register("DevCmd", function(s, a, player)
 		s.flags.staffSplit = true
 	elseif c == "qte" then
 		-- force-trigger RecordQTE (client watch → เปิด skill-check ทันที ไม่ต้องรอสุ่ม 2%)
-		-- /dev qte <n>  = บังคับจำนวนรอบ (เทสยาก/ง่าย) · ไม่ใส่ = สุ่มปกติเหมือน proc จริง
-		local rounds = n or RecordService.pickRounds(Config.RecordQTE.roundsMin, Config.RecordQTE.roundsMax)
-		s.pendingRecordQTE = { id = os.clock(), rounds = math.clamp(rounds, 1, 20) }
+		-- /dev qte <n>  = บังคับจำนวนครั้งที่ต้องกด (เทสยาก/ง่าย) · ไม่ใส่ = สุ่มปกติเหมือน proc จริง
+		local hits = n or RecordService.pickHitsRequired(Config.RecordQTE.hitsMin, Config.RecordQTE.hitsMax)
+		s.pendingRecordQTE = { id = os.clock(), hits = math.clamp(hits, 1, 20) }
 	else
 		warn("[DevCmd] ไม่รู้จัก:", c)
 	end

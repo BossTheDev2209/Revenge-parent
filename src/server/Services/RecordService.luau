@@ -68,15 +68,15 @@ function RecordService.record(state, o)
 	return { ok = true, gained = gained, bonus = bonus, full = RecordService.isFull(state), qte = qte, reason = nil }
 end
 
--- จำนวนรอบ (bounce) ของ RecordQTE หนึ่งครั้ง — สุ่ม min..max แบบ uniform (pure, เทสได้)
-function RecordService.pickRounds(min: number, max: number, rng): number
+-- จำนวนครั้งที่ต้องกด (ไม่ใช่จำนวน bounce ของเข็ม) ของ RecordQTE หนึ่งครั้ง — สุ่ม min..max แบบ uniform (pure, เทสได้)
+function RecordService.pickHitsRequired(min: number, max: number, rng): number
 	rng = rng or math.random
 	return min + math.floor(rng() * (max - min + 1))
 end
 
--- ===== RecordQTE reward (docs/02 §9.5 v2) — footage bonus สะสมจากหลายรอบ เพดานรวม rewardMultMax =====
--- grades = { "perfect"|"good"|"miss", ... } (1 ค่าต่อรอบ ยาว = จำนวนรอบที่เล่นจริง)
---   ต่อรอบ Perfect = rewardMultMax/N · Good = ×goodRewardRatio ของนั้น · Miss = 0 (ไม่ลงโทษ)
+-- ===== RecordQTE reward (docs/02 §9.5 v3) — footage bonus สะสมจากหลายครั้งที่กด เพดานรวม rewardMultMax =====
+-- grades = { "perfect"|"good"|"miss", ... } (1 ค่าต่อครั้งที่กด ยาว = จำนวนครั้งที่กดจริง)
+--   ต่อครั้ง Perfect = rewardMultMax/N · Good = ×goodRewardRatio ของนั้น · Miss = 0 (ไม่ลงโทษ)
 --   ผลรวม: ทำ Perfect ครบทุกรอบ = ได้ rewardMultMax เป๊ะ ไม่ว่า N จะเป็นเท่าไหร่ (เพดานคงที่)
 function RecordService.qteReward(cameraLevel: number, grades: { string }): number
 	local R, Q = Config.Record, Config.RecordQTE

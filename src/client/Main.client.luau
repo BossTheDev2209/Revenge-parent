@@ -423,14 +423,14 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	StoryNPCPlacer.apply(state) -- ย้าย StoryNPC ตาม npcLoc (ทำจริงเฉพาะตัวที่ loc เปลี่ยน)
 	if MenuUI.updateSlots then MenuUI.updateSlots(state) end
 
-	-- QTE ถ่ายคลิป (server สุ่ม 2% ตั้ง pendingRecordQTE = {id, rounds}) → เล่น skill-check แล้วส่งเกรดทั้งชุดกลับ
+	-- QTE ถ่ายคลิป (server สุ่ม 2% ตั้ง pendingRecordQTE = {id, hits}) → เล่น skill-check แล้วส่งเกรดทั้งชุดกลับ
 	-- ไม่ทับ dialogue/cutscene · dedupe ด้วย id กัน push ซ้ำเปิดซ้อน
 	local qte = state.pendingRecordQTE
 	local qid = qte and qte.id
 	if qid and qid ~= lastQTEId and not RecordQTE.running
 		and not DialogueUI.running and not CutscenePlayer.running then
 		lastQTEId = qid
-		RecordQTE.start(playerGui, fireAction, qte.rounds)
+		RecordQTE.start(playerGui, fireAction, qte.hits)
 	end
 
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว

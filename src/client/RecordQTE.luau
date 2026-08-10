@@ -1,8 +1,11 @@
--- RecordQTE.luau — DBD-style skill-check ตอนถ่ายคลิป แบบหลายรอบ (v2 10 ส.ค. — docs/02 §9.5)
--- แถบเส้นแนวนอนล่างจอ เข็มวิ่งกลับไปมา (ping-pong) N รอบ (server สุ่มส่งมา) · กด Space (PC) / แตะ (มือถือ)
---   ให้ตรงโซนตอนเข็มผ่าน · ชนขอบไม่ทันกด = miss รอบนั้น (0) แล้วสลับทิศต่อทันที — เล่นครบทุกรอบเสมอ ไม่ fail-fast
---   ยิ่งรอบหลังยิ่งไว (sweepSecondsFor) · โซนกึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอด (เข็มวิ่งผ่านเป้าเดิมซ้ำ)
--- server เป็นคนสุ่ม 2% + จำนวนรอบ + คิด reward สะสม (RecordService) — ไฟล์นี้แค่เล่น skill-check แล้วส่งเกรดทั้งชุดกลับ
+-- RecordQTE.luau — DBD-style skill-check ตอนถ่ายคลิป (v3 10 ส.ค. — docs/02 §9.5)
+-- แถบเส้นแนวนอนล่างจอ เข็มวิ่งกลับไปมา (ping-pong) "อิสระ" ไม่หยุด ชนขอบ = สลับทิศเอง (แค่ physics ไม่นับอะไร)
+--   ผู้เล่นต้อง**กด N ครั้ง** (Space บน PC / แตะบนมือถือ — server สุ่มส่งมา ไม่เกี่ยวกับจำนวน bounce ของเข็มเลย)
+--   กด 1 ครั้ง = เกรดจากตำแหน่งเข็ม ณ ตอนนั้น แล้วเข็มเดินหน้าต่อตามเดิม (ไม่รีเซ็ต ไม่สลับทิศจากการกด)
+--   เล่นจนกดครบ N ครั้งเสมอ ไม่ fail-fast · โซนกึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอด (เข็มวิ่งผ่านเป้าเดิมซ้ำ)
+--   ยิ่งกดสำเร็จไปแล้วกี่ครั้ง ยิ่งเร่งไว (sweepSecondsFor ผูกกับจำนวนที่กดไปแล้ว)
+--   timeout safety net: ไม่กดเลยเกิน Config.RecordQTE.timeoutSeconds = auto-จบ (ที่เหลือ miss) กัน InteractLock ค้างตลอดไป
+-- server เป็นคนสุ่ม 2% + จำนวนครั้งที่ต้องกด + คิด reward สะสม (RecordService) — ไฟล์นี้แค่เล่น skill-check แล้วส่งเกรดทั้งชุดกลับ
 --
 -- pure ส่วน: gradeFor / sweepSecondsFor (เทส lune ได้) · Roblox glue: start (สร้างแถบ + input + lock + state machine)
 -- ระหว่าง QTE: InteractLock.lock() ปิด ProximityPrompt (กด E ไม่ได้) + freeze เดิน/กระโดด (reuse ของเดิม)
@@ -23,18 +26,18 @@ function RecordQTE.gradeFor(pos: number, center: number, perfectHW: number, good
 	return "miss"
 end
 
--- ความเร็วรอบที่ round (1-indexed) — เร่งทีละรอบจนถึงพื้น sweepSecondsMin (pure — เทสได้)
-function RecordQTE.sweepSecondsFor(round: number, cfg): number
-	local s = cfg.sweepSecondsStart - (round - 1) * cfg.sweepSpeedupPerRound
+-- ความเร็วเข็มเมื่อกดสำเร็จไปแล้ว hitsDone ครั้ง (1-indexed = hitsDone+1) — เร่งทีละครั้งจนถึงพื้น sweepSecondsMin (pure — เทสได้)
+function RecordQTE.sweepSecondsFor(hitIndex: number, cfg): number
+	local s = cfg.sweepSecondsStart - (hitIndex - 1) * cfg.sweepSpeedupPerHit
 	return math.max(cfg.sweepSecondsMin, s)
 end
 
 -- ===== Roblox glue =====
--- rounds: จำนวนรอบทั้งหมด (server สุ่มส่งมาผ่าน state.pendingRecordQTE.rounds)
-function RecordQTE.start(playerGui, fireAction, rounds: number)
+-- hitsRequired: จำนวนครั้งที่ต้องกด (server สุ่มส่งมาผ่าน state.pendingRecordQTE.hits)
+function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 	if RecordQTE.running then return end
 	RecordQTE.running = true
-	rounds = math.max(1, rounds or 1)
+	hitsRequired = math.max(1, hitsRequired or 1)
 
 	local Q = Config.RecordQTE
 	local RunService = game:GetService("RunService")
@@ -46,7 +49,7 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 
 	InteractLock.lock() -- ปิด E + freeze เดิน/กระโดด ตลอด QTE
 
-	-- โซนสำเร็จ: กึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอดทุกรอบ (เข็มวิ่งผ่านเป้าเดิมซ้ำๆ)
+	-- โซนสำเร็จ: กึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอด (เข็มวิ่งผ่านเป้าเดิมซ้ำๆ)
 	local center = Q.centerMin + math.random() * (Q.centerMax - Q.centerMin)
 	local ACTION = "RecordQTE_Press"
 
@@ -70,17 +73,17 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 	prompt.Text = UIS.TouchEnabled and "แตะจอ! ให้เข็มตรงโซน" or "กด SPACE! ให้เข็มตรงโซน"
 	prompt.Parent = gui
 
-	local roundLabel = Instance.new("TextLabel")
-	roundLabel.AnchorPoint = Vector2.new(0.5, 1)
-	roundLabel.Position = UDim2.new(0.5, 0, 1, -150)
-	roundLabel.Size = UDim2.fromOffset(200, 24)
-	roundLabel.BackgroundTransparency = 1
-	roundLabel.FontFace = Font.fromEnum(Enum.Font.Gotham)
-	roundLabel.TextSize = 16
-	roundLabel.TextColor3 = Color3.fromRGB(190, 194, 208)
-	roundLabel.TextStrokeTransparency = 0.6
-	roundLabel.Text = ("รอบ 1/%d"):format(rounds)
-	roundLabel.Parent = gui
+	local hitLabel = Instance.new("TextLabel")
+	hitLabel.AnchorPoint = Vector2.new(0.5, 1)
+	hitLabel.Position = UDim2.new(0.5, 0, 1, -150)
+	hitLabel.Size = UDim2.fromOffset(200, 24)
+	hitLabel.BackgroundTransparency = 1
+	hitLabel.FontFace = Font.fromEnum(Enum.Font.Gotham)
+	hitLabel.TextSize = 16
+	hitLabel.TextColor3 = Color3.fromRGB(190, 194, 208)
+	hitLabel.TextStrokeTransparency = 0.6
+	hitLabel.Text = ("กดแล้ว 0/%d"):format(hitsRequired)
+	hitLabel.Parent = gui
 
 	-- แถบ (track) กลางล่างจอ — ขนาดกลาง
 	local TRACK_W = 460
@@ -120,7 +123,7 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 	zone(Q.goodHalfWidth, Color3.fromRGB(70, 180, 120), 0.35)     -- Good = เขียว
 	zone(Q.perfectHalfWidth, Color3.fromRGB(245, 240, 180), 0.05) -- Perfect = ขาวนวล (เด่นสุด)
 
-	-- เข็มวิ่ง (ping-pong)
+	-- เข็มวิ่ง (ping-pong อิสระ ไม่หยุดจนกว่าจะกดครบ)
 	local NEEDLE_COLOR = Color3.fromRGB(255, 90, 90)
 	local needle = Instance.new("Frame")
 	needle.Name = "Needle"
@@ -137,11 +140,14 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 	local nScale = Instance.new("UIScale")
 	nScale.Parent = needle
 
-	-- ---------- state machine: pos/dir ต่อเนื่องข้ามรอบ (ไม่กระโดด) ----------
+	-- ---------- state ----------
+	-- pos/dir = physics ของเข็มล้วนๆ อัปเดตทุก frame อิสระจากการกด (bounce เองที่ขอบ ไม่นับอะไร)
+	-- hitsDone/grades = ผูกกับ "การกด" เท่านั้น — คนละแกนกับ pos/dir โดยเจตนา (v3: แก้จาก v2 ที่ผูกรอบเข้ากับ bounce)
 	local pos, dir = 0, 1
-	local roundIndex = 1
+	local hitsDone = 0
 	local grades = {}
 	local resolved = false
+	local startedAt = os.clock()
 	local heartbeat
 
 	local GRADE_COLOR = {
@@ -158,7 +164,7 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 		task.delay(0.6, function() if gui then gui:Destroy() end end)
 	end
 
-	-- แฟลชสีเข็มตามเกรด + pop เล็กๆ ให้ฟีดแบ็กแต่ละรอบ (ไม่บล็อกการเล่นต่อ)
+	-- แฟลชสีเข็มตามเกรด + pop เล็กๆ ให้ฟีดแบ็กแต่ละครั้งที่กด (ไม่บล็อกการเล่นต่อ)
 	local function flashGrade(grade)
 		local c = GRADE_COLOR[grade]
 		needle.BackgroundColor3 = c
@@ -180,10 +186,10 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 		local resultColor = jackpot and Color3.fromRGB(255, 215, 90)
 			or (perfectN + goodN) > 0 and Color3.fromRGB(120, 210, 150)
 			or Color3.fromRGB(235, 90, 90)
-		prompt.Text = jackpot and "JACKPOT! Perfect ครบทุกรอบ!"
+		prompt.Text = jackpot and "JACKPOT! Perfect ครบทุกครั้ง!"
 			or ("จบ! Perfect×%d  Good×%d  Miss×%d"):format(perfectN, goodN, missN)
 		prompt.TextColor3 = resultColor
-		roundLabel.Text = ""
+		hitLabel.Text = ""
 		TweenService:Create(track, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
 		TweenService:Create(prompt, TweenInfo.new(0.6, Enum.EasingStyle.Quad), {
 			TextTransparency = 1, TextStrokeTransparency = 1,
@@ -192,40 +198,37 @@ function RecordQTE.start(playerGui, fireAction, rounds: number)
 		cleanup()
 	end
 
-	-- ตัดจบ 1 รอบ (โดนกด หรือ ชนขอบ) → บันทึกเกรด, สลับทิศต่อจากจุดเดิม (ไม่กระโดด), หรือจบทั้งชุดถ้าครบ N
-	local function endRound(grade: string)
+	-- กด 1 ครั้ง = บันทึกเกรดจากตำแหน่งเข็มปัจจุบัน — ไม่แตะ pos/dir (เข็มเดินหน้าต่อตามเดิม)
+	local function press()
+		if resolved then return end
+		local grade = RecordQTE.gradeFor(pos, center, Q.perfectHalfWidth, Q.goodHalfWidth)
 		table.insert(grades, grade)
+		hitsDone += 1
 		flashGrade(grade)
-		roundIndex += 1
-		if roundIndex > rounds then
+		if hitsDone >= hitsRequired then
+			finishAll()
+		else
+			hitLabel.Text = ("กดแล้ว %d/%d"):format(hitsDone, hitsRequired)
+		end
+	end
+
+	-- เข็มขยับอิสระทุก frame ตามอัตราเร็วที่ผูกกับ hitsDone (ยิ่งกดไปแล้วเยอะ ยิ่งไว) — ชนขอบสลับทิศเอง ไม่นับอะไร
+	-- timeout: ไม่กดเลยนานเกิน timeoutSeconds = auto-เติม miss ที่เหลือให้ครบแล้วจบ (กัน InteractLock ค้างตลอดไป)
+	heartbeat = RunService.Heartbeat:Connect(function(dt)
+		if resolved then return end
+		if os.clock() - startedAt > Q.timeoutSeconds then
+			while #grades < hitsRequired do table.insert(grades, "miss") end
 			finishAll()
 			return
 		end
-		dir = -dir -- สลับทิศจากตำแหน่งปัจจุบันทันที (ต่อเนื่อง ไม่รีเซ็ต pos)
-		roundLabel.Text = ("รอบ %d/%d"):format(roundIndex, rounds)
-	end
-
-	local function press()
-		if resolved then return end
-		endRound(RecordQTE.gradeFor(pos, center, Q.perfectHalfWidth, Q.goodHalfWidth))
-	end
-
-	-- เข็มขยับตามอัตราเร็วของรอบปัจจุบัน (progress/วิ = 1/sweepSecondsFor(roundIndex))
-	-- ชนขอบ (0 หรือ 1) ก่อนกด = miss รอบนั้นอัตโนมัติ แล้วสลับทิศต่อ (เหมือน endRound จากการกด)
-	heartbeat = RunService.Heartbeat:Connect(function(dt)
-		if resolved then return end
-		local speed = 1 / RecordQTE.sweepSecondsFor(roundIndex, Q)
+		local speed = 1 / RecordQTE.sweepSecondsFor(hitsDone + 1, Q)
 		pos += dir * speed * dt
 		if pos >= 1 then
 			pos = 1
-			needle.Position = UDim2.new(1, 0, 0.5, 0)
-			endRound(RecordQTE.gradeFor(1, center, Q.perfectHalfWidth, Q.goodHalfWidth))
-			return
+			dir = -1
 		elseif pos <= 0 then
 			pos = 0
-			needle.Position = UDim2.new(0, 0, 0.5, 0)
-			endRound(RecordQTE.gradeFor(0, center, Q.perfectHalfWidth, Q.goodHalfWidth))
-			return
+			dir = 1
 		end
 		needle.Position = UDim2.new(pos, 0, 0.5, 0)
 	end)

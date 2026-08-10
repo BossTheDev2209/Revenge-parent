@@ -5,7 +5,8 @@
 --   { type = "anim", actor = "ฟ้าใส", name = "ชื่อ clip", loop = false } เล่นครั้งเดียวยาว
 --   วาง cam ใน CutsceneCams/FaasaiJoin/ ตัดสลับช่วง clip กำลังเล่น (ใส่ t ให้ตรงจังหวะ)
 -- ยิงตอน follower ถึง Config.FaasaiJoinFollower ในเฟส 2 (Main.client) — ครั้งเดียว (flag faasai_joined)
--- animation clip ยืนยันแล้ว (rbxassetid://76365653201923, re-export 10 ส.ค.) + cam anchor มีในแมพแล้ว
+-- animation clip ยืนยันแล้ว (rbxassetid://81531260316285, export 11 ส.ค. ผ่าน Moon Animator AnimSaves > Save to Roblox
+--   เจาะจงตัว Faasai_door_anim — export ผิดวิธีมาก่อน (ปุ่ม Export ทั้งฉากรวมหลาย rig) ทำ clip พังมาหลายรอบ) + cam anchor มีในแมพแล้ว
 -- ⚠️ t ของ wait ท้ายสุด = ประมาณความยาว clip เดา — ยัง**ไม่ได้วัดจริง** ปรับตามที่เห็นตอน playtest
 return {
 	{ type = "text", text = "[placeholder] มีเสียงเคาะประตู..." },

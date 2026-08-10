@@ -35,6 +35,15 @@
         "$path": "src/client",
         "$ignoreUnknownInstances": true
       }
+    },
+
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$ignoreUnknownInstances": true,
+      "UI": {
+        "$path": "src/client/StarterGui/UI",
+        "$ignoreUnknownInstances": true
+      }
     }
   }
 }

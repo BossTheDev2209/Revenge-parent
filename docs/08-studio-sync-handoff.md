@@ -15,6 +15,26 @@
   (ของ **ไม่ใช่สคริปต์** — โมเดล/NPC/รูป/UI instance — ยังทำใน Studio ตามเดิม ปลอดภัยด้วย ignoreUnknownInstances)
 - รันเทสยังใช้ MCP `execute_luau` → `require(SSS.Tests.RunTests)` เหมือนเดิม (Rojo ทำแค่ sync)
 
+### ⚠️⚠️ กับดัก "แก้แล้วไม่มีอะไรเปลี่ยน" — ไฟล์ที่ไม่มีใน `default.project.json` = แก้ทิ้งเปล่า (เจอจริง 10 ส.ค. 2569)
+
+`src/client` map ไป `StarterPlayerScripts` **ทั้งโฟลเดอร์** → `src/client/StarterGui/UI/HUD.luau` เลยไปโผล่ที่
+`StarterPlayerScripts.StarterGui.UI.HUD` ซึ่ง**ไม่มีใคร require** ส่วนตัวจริงที่เกมใช้คือ `StarterGui.UI.HUD`
+(instance baked ใน `.rbxl`) ที่ตอนนั้น **ไม่มีใน map เลย → Rojo ไม่เคยแตะ**
+
+ผลคือแก้ `HUD.luau`/`SavePanel.luau`/`PCScreen.luau`/`Apps/*` บนดิสก์แล้ว **เกมยังรันโค้ดเก่า** โดยไม่มี error อะไรเลย
+อาการที่เห็น: HUD โชว์ค่า placeholder ที่คนแต่ง GUI พิมพ์ไว้ (999,999) เพราะ `HUD.bind` หา path ไม่เจอ → ไม่เคยอัปเดต ·
+ปุ่มเซฟเขียวตัวเก่าโผล่ตั้งแต่หน้าเมนู เพราะ `SavePanel` เวอร์ชันเก่ายังมี `buildButton` fallback อยู่
+
+**แก้แล้ว 10 ส.ค.** — เพิ่ม node `StarterGui.UI` → `src/client/StarterGui/UI` ใน `default.project.json`
+
+**กติกาสำหรับ agent ต่อไป — ก่อนแก้สคริปต์ใดๆ ใน `src/` ให้เช็คก่อนว่ามันมีปลายทางจริง:**
+1. เปิด `default.project.json` ดูว่า path นั้นถูก map ไป container ไหน
+2. ยืนยันใน Studio ว่า **ตัวที่เกม require จริง** อยู่ path เดียวกับที่ map (ไม่ใช่ instance ชื่อซ้ำคนละที่)
+3. หลังแก้ ตรวจว่าเข้าจริง: `#instance.Source` หรือหา marker string ที่เพิ่งเพิ่ม — **อย่าเชื่อว่า Rojo connected = ทุกไฟล์ถึงปลายทาง**
+
+> วิธีเทียบว่าดิสก์กับ Studio ตรงกันไหมโดยไม่ต้องอ่านทั้งไฟล์: normalize `\r\n` → `\n` แล้วเทียบ `#Source` + checksum
+> (ใช้ยืนยัน 10 ส.ค. ว่า 9 จาก 11 โมดูลตรงกันเป๊ะ เหลือแค่ 2 ตัวที่ต่าง = ไม่มีงานใครค้างใน Studio ปลอดภัยที่จะเปิด map)
+
 ---
 
 ## ⚠️ Workflow เก่า (user สั่ง 20 ก.ค.) — **superseded โดย Rojo ข้างบนสำหรับสคริปต์**: Studio = ของจริงทุกอย่าง

@@ -189,9 +189,9 @@ function RecordTool.init(player, fireAction, getState)
 	end
 
 	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง (ภาพ/ข้อความ ไม่ต้องไวเท่าเสียง — 0.5s พอ)
-	-- ป้ายลอย (hideBillboards, 12 ส.ค. 2569, user): otherBillboards ใน InteractBinder ซ่อนแค่ billboard
-	-- (ตัวเลข "×1.5 120s") — วงแหวนแดง (ring) เป็น 3D Part คนละตัว ไม่ใช่ BillboardGui เลยไม่โดน gate นั้น
-	-- ring.Transparency มีจุดเดียวที่แตะคือ loop นี้ ไม่มีระบบอื่นแย่งคุม เลยสลับตรงนี้ได้ปลอดภัย (ไม่ทางเดียวแบบ billboard)
+	-- ป้ายลอย (hideBillboards, 12 ส.ค. 2569, user): ตั้งใจแรกคือให้ otherBillboards ใน InteractBinder
+	-- ซ่อน billboard (ตัวเลข "×1.5 120s") ให้เอง แต่ทดสอบจริงแล้วไม่ติด (billboard.Enabled ค้าง true แม้ hideAll=true —
+	-- สาเหตุยังไม่ชัด ไม่ตามต่อเพราะเวลาจำกัด) เลยคุมตรงนี้เองแทน ทั้งวงแหวนและตัวเลข ไม่มีระบบอื่นแย่งคุม 2 property นี้เลย
 	local RING_TRANSPARENCY = ring.Transparency
 	task.spawn(function()
 		while true do
@@ -199,6 +199,8 @@ function RecordTool.init(player, fireAction, getState)
 			local part = spotPart()
 			local hideAll = s and s.settings and s.settings.hideBillboards
 			ring.Transparency = hideAll and 1 or RING_TRANSPARENCY
+			zoneLabel.TextTransparency = hideAll and 1 or 0
+			zoneLabel.TextStrokeTransparency = hideAll and 1 or 0.3
 			if part then
 				ring.CFrame = CFrame.new(part.Position + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90))
 				local left = math.max(0, (s.filmZone.expiresAt or 0) - os.clock())

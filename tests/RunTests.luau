@@ -1368,6 +1368,19 @@ do
 	check("จอใหญ่ไม่ต้องขยายเกิน 1", desktop.scale <= 1)
 end
 
+-- DialogueUI.layout: กล่องข้อความ 900px ต้องหดพอดีจอมือถือ ไม่ล้นแถบดำบน-ล่าง
+do
+	local phonePortrait = DialogueUI.layout(Vector2.new(390, 844))
+	local phoneLandscape = DialogueUI.layout(Vector2.new(844, 390))
+	local desktop = DialogueUI.layout(Vector2.new(1920, 1080))
+	check("จอแคบ (portrait) scale เล็กกว่าจอกว้าง", phonePortrait.scale < desktop.scale)
+	check("จอเตี้ย (landscape) scale เล็กกว่าจอใหญ่", phoneLandscape.scale < desktop.scale)
+	-- จอ portrait แคบมาก (390px < กล่อง 906px ธรรมชาติ) หดจนสุด min scale ได้ ข้อความยังอ่านออกอยู่ (ไม่หดจนเล็กเกินไป)
+	check("จอ portrait หดไม่เกิน min scale ที่กำหนด", phonePortrait.scale >= 0.5)
+	check("กล่องต้องไม่สูงเกินพื้นที่ระหว่างแถบดำ (76% จอ) — บั๊กที่รายงานมาจริง", phoneLandscape.scale * 212 <= 390 * 0.76 + 0.01)
+	check("จอใหญ่ไม่ต้องขยายเกิน 1", desktop.scale <= 1)
+end
+
 -- ===== AudioService (docs/02 §9.9) =====
 local Audio = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.AudioService)

@@ -37,6 +37,21 @@ local InteractLock = if isStudio
 local DialogueUI = {}
 DialogueUI.running = false
 
+-- กล่องออกแบบไว้ที่ 900x176px (Config.Dialogue.box) — จอแคบ/เตี้ยกว่านี้ต้องหด ไม่งั้นล้นขอบจอ/ทะลุแถบดำ
+-- pure: รับ viewport {X,Y} คืน scale (≤1) ให้ UIScale ตัวเดียวหดทั้งกล่อง+ขอบ+ข้อความไปด้วยกัน
+local BOX_MARGIN_SCALE = 0.06 -- เว้นขอบซ้ายขวาข้างละ 6% ของจอกันกล่องชิดขอบเป๊ะ
+local BOX_VISIBLE_HEIGHT_SCALE = 0.76 -- พื้นที่ระหว่างแถบดำบน (12%) - ล่าง (12%)
+local BOX_MIN_SCALE = 0.5
+function DialogueUI.layout(viewport)
+	local B = Config.Dialogue.box
+	local naturalW = B.width + B.border * 2
+	local naturalH = B.height + B.border * 2 + B.bottomGap
+	local maxW = viewport.X * (1 - BOX_MARGIN_SCALE * 2)
+	local maxH = viewport.Y * BOX_VISIBLE_HEIGHT_SCALE
+	local scale = math.min(1, maxW / naturalW, maxH / naturalH)
+	return { scale = math.max(BOX_MIN_SCALE, scale) }
+end
+
 local TONES = { plus = true, neutral = true, minus = true }
 
 -- ฟอนต์เดียวกับเมนู — isStudio guard เพราะ lune ไม่มี Font
@@ -213,6 +228,16 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	barBottom.Position = UDim2.new(0, 0, 0.88, 0)
 	barBottom.Parent = gui
 
+	-- container ครอบ boxBorder+box ไว้ด้วยกัน — UIScale ตัวเดียวหดทั้งคู่พร้อมกันไม่ให้เพี้ยนสัมพัทธ์กัน
+	-- (จอแคบกว่า 900px = กล่องล้นขอบ/ทะลุแถบดำ ถ้าไม่หด — ดู DialogueUI.layout ด้านบน)
+	local boxContainer = Instance.new("Frame")
+	boxContainer.Name = "BoxContainer"
+	boxContainer.Size = UDim2.fromScale(1, 1)
+	boxContainer.BackgroundTransparency = 1
+	boxContainer.Parent = gui
+	local boxScale = Instance.new("UIScale")
+	boxScale.Parent = boxContainer
+
 	-- ขอบขาวแบบ Undertale — Frame สีขาวทึบหนึ่งชั้น "หลัง" กล่อง ใหญ่กว่ากล่องรอบด้านละ border px
 	-- (ไม่ใช้ UIStroke เพราะ UIStroke คร่อมกึ่งกลางขอบ ครึ่งในครึ่งนอก — ต้องการขอบที่อยู่ "นอก" กล่องล้วนๆ)
 	local boxBorder = Instance.new("Frame")
@@ -222,7 +247,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	boxBorder.Size = UDim2.fromOffset(B.width + B.border * 2, B.height + B.border * 2)
 	boxBorder.BackgroundColor3 = Color3.new(1, 1, 1) -- ขาวโพลน
 	boxBorder.BorderSizePixel = 0
-	boxBorder.Parent = gui
+	boxBorder.Parent = boxContainer
 
 	-- กล่องขนาดคงที่ ยึดกลางล่างจอ (Undertale ref) — ข้อความยาวขึ้นตัดบรรทัด ไม่ยืดกล่อง ไม่ย่อฟอนต์
 	local box = Instance.new("TextButton") -- ทั้งกล่องคือปุ่ม continue
@@ -236,7 +261,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	box.AutoButtonColor = false
 	box.Text = "" -- ข้อความจริงอยู่ TextLabel ข้างใน (กล่องเป็นแค่ปุ่มกดไปต่อ)
 	box:SetAttribute("Sfx", "dialogue_advance") -- เสียงคลิกไปบรรทัดถัดไป (คนละเสียงกับปุ่ม UI ทั่วไป)
-	box.Parent = gui
+	box.Parent = boxContainer
 
 	-- หน้าตัวละครฝั่งซ้าย = เรนเดอร์โมเดล 3 มิติจริงของ NPC ที่คุยด้วย (ไม่ใช่รูปภาพ) — ดู ModelViewport.luau
 	-- ไม่เจอ rig ของตัวนั้นในแมพตอนนี้ (เช่น actor พิมพ์ผิด) = ซ่อนช่อง ข้อความเลื่อนไปกินที่แทน ไม่พัง
@@ -328,6 +353,14 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	end
 
 	gui.Parent = playerGui
+
+	-- หดกล่องให้พอดีจอ (มือถือ/จอเตี้ย) — refit ตอนหมุนจอ, disconnect ตอนจบบท
+	local camera = workspace.CurrentCamera
+	local function fitBox()
+		boxScale.Scale = DialogueUI.layout(camera.ViewportSize).scale
+	end
+	fitBox()
+	local viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBox)
 
 	local picks = {}
 
@@ -478,6 +511,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		if not ok then warn("[DialogueUI] บทพังกลางคัน:", err) end
 		-- cleanup เสมอ (แม้บทพัง)
 		for actor in movedActors do AnimPlayer.stop(actor) end
+		viewportConn:Disconnect()
 		gui:Destroy()
 		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
 		DialogueUI.running = false

@@ -54,10 +54,14 @@
 **แผง:** ยืมหน้าตาจาก Toolbox "Cafe Settings System" (by Tigo) — สแกน backdoor แล้ว ใช้แค่ GUI + กลไก drag สไลเดอร์ (ไม่ใช้ IconHandler ของมัน) · logic เขียนเองต่อกับระบบเรา
 - **ที่อยู่:** `StarterGui.SettingsGUI` (instance แต่งใน Studio ได้) · logic = `SettingsController` (LocalScript ฝังในแผง — sandboxed, require ข้ามสคริปต์ไม่ได้ → ยุ่ง SoundGroup ตรงๆ) · สำเนา git ที่ `src/studio-only/SettingsController.client.luau`
 - **เปิด/ปิด:** ปุ่ม `SettingButton` บน HUD → toggle `SettingsMain.Visible`
-- **ช่องตั้งค่า:** เสียง = ระดับเสียงรวม + เพลง/เอฟเฟกต์/บรรยากาศ (แยกกลุ่ม) · ภาพ = เงา (GlobalShadows) + คุณภาพกราฟิก (SavedQualityLevel สูง/ต่ำ)
+- **ช่องตั้งค่า:** เสียง = ระดับเสียงรวม + เพลง/เอฟเฟกต์/บรรยากาศ (แยกกลุ่ม) · ภาพ = เงา (GlobalShadows) + คุณภาพกราฟิก (SavedQualityLevel สูง/ต่ำ) + **ป้ายลอย** (`hideBillboards`, ดูล่าง)
 - **เสียงแยกกลุ่ม:** SoundGroup `Master > Music/SFX/Ambient` (AudioService route เสียงเข้ากลุ่มพวกนี้) · สไลเดอร์เซ็ต `.Volume` ของกลุ่ม
 - **Mute เพลง:** `MusicButton` บน HUD สลับปิด/เปิดเพลง — จำระดับก่อน mute ที่ attribute `PreMute` · ไอคอนสลับเป็น `rbxassetid://76621637786639` ตอนปิด
-- **เซฟ:** `SetSetting` keys `volume/bgmVol/sfxVol/ambientVol` (0-1) + `shadow/musicMuted` (bool) → persist ในเซฟ · quality ให้ platform จำเอง · apply ตอนโหลด (apply เสียงก่อน mute เสมอ)
+- **ป้ายลอย (`hideBillboards`) — ⚠️ พบว่ามีอยู่แล้วใน Studio 12 ส.ค. 2569 ไม่เคย commit จนกว่า session นี้จะเจอ:**
+  เดิมสร้างไว้เป็นปุ่มในแท็บ "ตั้งค่า" ของ **หน้าเมนูหลัก** เท่านั้น (`MenuUI.luau`, ใช้ `textButton` โดยตรง ไม่ผ่าน `SettingsController`) — "ใช้ตอนอัดคลิปแนะนำเกม ไม่อยากให้ UI ลอยเกะกะ" ปิดป้ายลอยทุกใบทั้งเกม (ตัวคูณโซนถ่าย + ชื่อ NPC + ป้ายอื่นๆ เช่น CartHint) กลไกอยู่ที่ `InteractBinder.luau`: ป้าย `Interact_*` (`labels` table) กับป้ายอื่นที่ไม่ผูก `Interact_*` (`otherBillboards`, weak table เก็บทุก `BillboardGui`) แยกกันคุม — `otherBillboards` **บังคับ `Enabled=false` ทางเดียวเท่านั้น** เปิดกลับไม่คืนให้อัตโนมัติ (ปล่อยให้ script เจ้าของคุมเอง ตามคอมเมนต์ในโค้ด) ส่วน `labels` (NPC/interact) คืนค่าปกติเองทุกเฟรมตามระยะ/`seenDialogue` เมื่อปิดปุ่ม
+  **12 ส.ค. 2569 (user):** เพิ่มทางเข้าที่สองจากแผง Settings **ระหว่างเล่นเกมจริง** (`SettingsController.client.luau`, แถว `FloatingLabels`) — คีย์/กลไก server เดิมทั้งหมด แค่เพิ่มปุ่มเข้าถึงจากอีกที่ `SettingsController` sandboxed อ่าน `state.settings` ตรงไม่ได้ เลย mirror ผ่าน `workspace:GetAttribute("HideBillboards")` แทน (`Main.client.luau`, แบบเดียวกับที่ toggle เงาอ่าน `Lighting.GlobalShadows`)
+  ⚠️ ผลข้างเคียงจาก `otherBillboards` ที่เป็นทางเดียว: ถ้าผู้เล่นกดปิดแล้วเปิดกลับระหว่างเล่น ป้ายตัวคูณโซนถ่าย (ไม่ใช่ `Interact_*`) อาจไม่กลับมาโชว์เองจนกว่าจะมี event อื่นมา touch `Enabled` ให้ (เช่น transition เข้า/ออกเมนู) — เดิมออกแบบไว้สำหรับ record-once ไม่ได้ตั้งใจให้ toggle กลับไปมาบ่อยระหว่างเล่นจริง ยังไม่ได้แก้ (flag ไว้ ไม่ใช่ blocker วันนี้)
+- **เซฟ:** `SetSetting` keys `volume/bgmVol/sfxVol/ambientVol` (0-1) + `shadow/musicMuted/hideBillboards` (bool) → persist ในเซฟ · quality ให้ platform จำเอง · apply ตอนโหลด (apply เสียงก่อน mute เสมอ)
 
 ## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ ครบ (เปลี่ยนเป็น SurfaceGui 21 ก.ค.)
 

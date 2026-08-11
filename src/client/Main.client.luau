@@ -370,6 +370,7 @@ local prevRentMissed = 0 -- เสียงตอนจ่ายค่าเช�
 local prevSponsorOffer = false -- toast งาน sponsor: เด้งตอน false→true เท่านั้น (ไม่เด้งซ้ำทุก push)
 local appliedVolume = nil -- ระดับเสียงล่าสุดที่ apply จาก settings (กัน apply ทับตอน user ปรับ)
 local appliedShadow, appliedMusicMuted = nil, nil -- เงา/ปิดเพลง: apply จากเซฟครั้งเดียว ไม่ทับตอน user สลับเอง
+local appliedHideBillboards = nil -- ป้ายลอย (NPC/โซน) — 12 ส.ค. 2569, user
 local appliedBus = {} -- ระดับเสียงแยกกลุ่ม bgm/sfx/ambient ที่ apply จากเซฟล่าสุด
 local prevPhase, phasePrimed = 1, false -- phasePrimed กัน state แรก/โหลดเซฟไม่ให้วาปข้ามเฟสเอง
 local lastQTEId = nil -- id ของ pendingRecordQTE ที่เล่นไปแล้ว (dedupe กัน push ซ้ำ retrigger)
@@ -386,6 +387,13 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	if state.settings and state.settings.shadow ~= nil and state.settings.shadow ~= appliedShadow then
 		appliedShadow = state.settings.shadow
 		game:GetService("Lighting").GlobalShadows = appliedShadow
+	end
+	-- ป้ายลอย (NPC/โซน) — InteractBinder อ่าน state.settings.hideBillboards ตรงๆ ผ่าน getState() อยู่แล้ว
+	-- แต่ SettingsController.client.luau (LocalScript sandboxed ฝัง GUI, require ไม่ได้) อ่านไม่ถึง state เลย
+	-- เลย mirror ลง workspace Attribute ให้แผง Settings อ่าน/toggle ผ่านตรงนั้นแทน (แบบเดียวกับ Lighting.GlobalShadows)
+	if state.settings and state.settings.hideBillboards ~= nil and state.settings.hideBillboards ~= appliedHideBillboards then
+		appliedHideBillboards = state.settings.hideBillboards
+		workspace:SetAttribute("HideBillboards", appliedHideBillboards)
 	end
 	if state.settings then
 		for _, kv in { { "bgmVol", "bgm" }, { "sfxVol", "sfx" }, { "ambientVol", "ambient" } } do

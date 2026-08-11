@@ -665,6 +665,22 @@ function MenuUI.open(playerGui, deps)
 			L.GlobalShadows = not L.GlobalShadows
 			shadowText()
 		end)
+
+		-- ปิดป้ายลอย (ชื่อเหนือหัว NPC + ป้ายบอกวิธีเล่น ฯลฯ) — ใช้ตอนอัดคลิปแนะนำเกม ไม่อยากให้ UI ลอยเกะกะ
+		local seedSettings = deps.getState and deps.getState()
+		local billboard = textButton(setGui, "", UDim2.new(0.05, 0, 0.56, 0), UDim2.new(0.9, 0, 0.11, 0))
+		local function billboardText()
+			local on = seedSettings and seedSettings.settings and seedSettings.settings.hideBillboards
+			billboard.Text = "🏷️ ป้ายลอย (NPC/โซน): " .. (on and "ปิด" or "เปิด")
+		end
+		billboardText()
+		billboard.Activated:Connect(function()
+			local st = deps.getState and deps.getState()
+			local cur = st and st.settings and st.settings.hideBillboards
+			seedSettings = st
+			deps.fireAction({ type = "SetSetting", key = "hideBillboards", value = not cur })
+			billboardText()
+		end)
 	end
 
 	local function showSurface(which)

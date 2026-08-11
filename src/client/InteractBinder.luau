@@ -191,11 +191,21 @@ function InteractBinder.init(deps)
 		end
 	end
 
-	-- ป้ายที่ต้องจางตามระยะ — เก็บไว้ให้ loop เดียวอัปเดตทั้งหมด
+	-- ป้ายที่ต้องจางตามระยะ (ผูกกับ Interact_* เท่านั้น) — เก็บไว้ให้ loop เดียวอัปเดตทั้งหมด
 	local labels = {}
 	local function trackLabel(inst)
 		local bb = inst:FindFirstChildOfClass("BillboardGui")
 		if bb then labels[bb] = inst end
+	end
+
+	-- ป้ายลอยอื่นทั้งหมด (ไม่ผูก Interact_* เช่น CartHint/ป้ายบอกวิธีเล่น) — เก็บแยกไว้กด "ปิดป้ายลอย" ตอนอัดคลิป
+	-- ไม่แตะ Enabled ตอนปุ่มปิดอยู่ (off) ปล่อยให้ script เจ้าของคุมเองตามปกติ — บังคับ false ตอนเปิดปุ่มอย่างเดียว
+	local otherBillboards = setmetatable({}, { __mode = "k" }) -- weak: ป้ายโดนลบแล้วปล่อยหลุดเอง
+	local function trackOther(bb)
+		if not labels[bb] then otherBillboards[bb] = true end
+	end
+	local function bindBillboard(inst)
+		if inst:IsA("BillboardGui") then trackOther(inst) end
 	end
 
 	local wired = {} -- กัน wire ซ้ำเวลา DescendantAdded ยิงหลายรอบ
@@ -226,17 +236,27 @@ function InteractBinder.init(deps)
 
 	for _, d in workspace:GetDescendants() do
 		bind(d)
+		bindBillboard(d)
 	end
 	workspace.DescendantAdded:Connect(bind)
+	workspace.DescendantAdded:Connect(bindBillboard)
 
 	-- จางป้ายตามระยะ — เดินเข้าใกล้ค่อยโผล่ ไม่ใช่เห็นเด่นทั้งแมพ
 	local player = game:GetService("Players").LocalPlayer
 	game:GetService("RunService").Heartbeat:Connect(function()
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		local st = deps.getState and deps.getState()
+		-- ปุ่ม "ปิดป้ายลอย" ใน MenuUI settings (state.settings.hideBillboards) — ใช้ตอนอัดคลิปแนะนำเกม
+		-- บังคับ Enabled=false ข้ามลอจิกระยะ/seenDialogue ทั้งหมด · ป้ายอื่นที่ไม่ใช่ NPC ก็บังคับด้วยเหมือนกัน
+		local hideAll = st and st.settings and st.settings.hideBillboards
+		for bb in otherBillboards do
+			if bb.Parent and hideAll then bb.Enabled = false end
+		end
 		for bb, part in labels do
 			if not bb.Parent or not part.Parent then
 				labels[bb] = nil
+			elseif hideAll then
+				bb.Enabled = false
 			else
 				-- ป้ายหัว NPC โผล่เฉพาะหลัง "คุยจบ" ตัวนั้นแล้ว (seenDialogue มี key = เคยคุยจบในเฟสไหนก็ได้)
 				-- ป้าย interact อื่น (เตียง/คอม/ร้าน) ไม่อยู่ใน NPC_DIALOGUE = โชว์ปกติเสมอ

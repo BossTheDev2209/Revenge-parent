@@ -116,6 +116,18 @@ initToggle("HidePlayers", function() return UserGameSettings.SavedQualityLevel ~
 	UserGameSettings.SavedQualityLevel = (UserGameSettings.SavedQualityLevel ~= LOW) and LOW or HIGH
 end, "สูง", "ต่ำ")
 
+-- ป้ายลอย (ตัวคูณโซนถ่าย + ชื่อ NPC — 12 ส.ค. 2569, user)
+-- ใช้ key/กลไก state.settings.hideBillboards ตัวเดียวกับปุ่ม "ป้ายลอย (NPC/โซน)" ที่มีอยู่แล้วในหน้าเมนูหลัก
+-- (MenuUI.luau — เดิมทำไว้ใช้ตอนอัดคลิปแนะนำเกม) แค่เพิ่มทางเข้าอีกทางจากแผง Settings ตอนเล่นเกมจริง
+-- thread นี้ require ไม่ได้ (sandboxed) เลยอ่าน state.settings ตรงๆ ไม่ได้ — Main.client mirror ค่าลง
+-- workspace:Attribute("HideBillboards") ให้แทน (แบบเดียวกับที่ toggle เงาอ่าน Lighting.GlobalShadows)
+-- getOn() คืน "ป้ายกำลังโชว์อยู่ไหม" (ตรงข้ามกับ hideBillboards) ให้ตรงความหมายเดียวกับ toggle อื่นในไฟล์นี้
+initToggle("FloatingLabels", function() return workspace:GetAttribute("HideBillboards") ~= true end, function()
+	local hidden = workspace:GetAttribute("HideBillboards") == true
+	workspace:SetAttribute("HideBillboards", not hidden)
+	persist("hideBillboards", not hidden)
+end, "เปิด", "ปิด")
+
 closeButton.MouseButton1Click:Connect(function() settingsMain.Visible = false end)
 
 local function refreshAll() for _, f in refreshers do f() end end

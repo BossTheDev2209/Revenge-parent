@@ -1892,6 +1892,11 @@ bg2.phase = 2
 check("เฟส 2: AdjustSpending ทำงานปกติ",
 	MoneyService.adjustSpending(bg2, "food", 1) == true and bg2.spending.food == 1)
 
+-- ===== ป้ายลอย (ตัวคูณโซน/ชื่อ NPC) — mirror ของ hideBillboards ที่มีอยู่แล้วใน Studio (ไม่เคย commit)
+-- InteractBinder.luau คุมการซ่อนจริง (inline ใน Heartbeat loop ไม่ใช่ pure function ตามรูปแบบเดิมของไฟล์นั้น)
+-- เทสได้แค่ default ตรงนี้ — เพิ่มทางเข้าใหม่จากแผง Settings ในเกม (12 ส.ค. 2569, user) ใช้ key เดียวกับ MenuUI =====
+check("newGame ไม่ซ่อนป้ายไว้ก่อน (default false)", GameState.newGame().settings.hideBillboards == false)
+
 -- ===== NPCIndicator: yaw + clamp (component หันตัว NPC — 10 ส.ค.) =====
 do
 	-- ยืนยันเทียบ CFrame.Angles(0,yaw,0).LookVector จริงใน Studio ก่อนล็อกเลข (yaw=+90° ชี้ -X ไม่ใช่ +X)

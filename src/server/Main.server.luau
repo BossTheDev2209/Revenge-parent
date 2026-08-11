@@ -279,7 +279,7 @@ ActionRouter.register("SetSetting", function(s, a)
 	s.settings = s.settings or {}
 	if a.key == "volume" or a.key == "bgmVol" or a.key == "sfxVol" or a.key == "ambientVol" then
 		s.settings[a.key] = math.clamp(tonumber(a.value) or 1, 0, 1)
-	elseif a.key == "shadow" or a.key == "musicMuted" then
+	elseif a.key == "shadow" or a.key == "musicMuted" or a.key == "hideBillboards" then
 		s.settings[a.key] = a.value == true
 	end
 end)

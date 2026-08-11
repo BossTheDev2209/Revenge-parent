@@ -122,4 +122,6 @@ return {
 		"พี่นอนบ้างรึเปล่าครับ ผมเห็นพี่ออนไลน์ตลอดเลย ตีสามตีสี่ก็ยังเห็น",
 		"ทีมเราไหวครับ พี่พักบ้างก็ได้",
 	} },
+	{ from = "ฟ้าใส", unlockFollower = 60_000, -- ต้องตรงกับ Config.FaasaiParkFollower (Task 1) — hardcode ตาม convention entry อื่นในไฟล์นี้
+		lines = { "[placeholder] มาเจอกันที่สวนหน่อยสิ" } }, -- user แก้คำเอง — เนื้อหา DM จริงไม่ล็อก (design doc §6)
 }

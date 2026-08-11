@@ -224,7 +224,13 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 	local iconConns = {} -- ทุกตัว (ทั้ง instance จริง+clone) กัน connection ซ้อนตอนเปิดใหม่
 	local i = 0
 	for _, app in apps do
-		if not app.hidden then
+		if app.hidden then
+			-- app.hidden = true ตอน "ยังไม่ถึงเฟส" (bank/message) หรือถาวร (manage) — icon จริงที่ทีมแต่งไว้
+			-- ต้องถูกซ่อนตรงๆ ไม่ใช่แค่ "ไม่วาดใหม่" (skip เฉยๆ ปล่อยให้ Visible ค้างจาก Studio = บั๊ก 12 ส.ค.)
+			-- manage ไม่มี instance จริงอยู่แล้ว (ตั้งใจไม่แต่ง) — FindFirstChild คืน nil ก็ไม่ทำอะไร ปลอดภัย
+			local btn = app.id and iconBar:FindFirstChild("Icon_" .. app.id)
+			if btn then btn.Visible = false end
+		else
 			i += 1
 			local btn = iconBar:FindFirstChild("Icon_" .. (app.id or i))
 			if not btn then

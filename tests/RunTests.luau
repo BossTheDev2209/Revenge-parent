@@ -1603,34 +1603,31 @@ check("ซื้อกล้อง lv2 (2000)", MoneyService.buyUpgrade(bu, "cam
 	and bu.upgrades.camera == 2 and bu.money == 1_000)
 check("เงินไม่พอ (lv3 = 8000)", MoneyService.buyUpgrade(bu, "camera") == false and bu.upgrades.camera == 2)
 bu.money = 999_999
-bu.upgrades.storage = 15 -- ระดับสูงสุด (ขยายจาก 6 → 15 เมื่อ 28 ก.ค. — ดูหมวดร้านค้าท้ายไฟล์)
+bu.upgrades.storage = 6 -- ระดับสูงสุด (ตัดกลับ 15→6 เมื่อ 12 ส.ค. 2569 (user) — ดูหมวดร้านค้าท้ายไฟล์)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
-check("ladder 15 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 15
+-- ladder (resolution/storage/GB-ต่อคลิก) ยังยาว 15 ไว้เผื่อกลับมาใช้ — เกินระดับ 6 เป็น dead data ตอนนี้
+-- UpgradeCosts ตัดจริงเหลือ 5 ขั้น (6 ระดับ) ตาม Shop 12 ส.ค. 2569 (user)
+check("ladder ดิบยังยาว 15 ไว้เผื่อ (dead เกินระดับ 6)", #Config.ResolutionLadder == 15
 	and #Config.StorageLadderGB == 15 and #Config.Record.footagePerClickGB == 15
-	and #Config.UpgradeCosts.camera == 14 and #Config.UpgradeCosts.storage == 14)
+	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)
 check("เริ่มเกม = 480p/128GB", Config.ResolutionLadder[1] == "480p" and Config.StorageLadderGB[1] == 128)
 
--- ===== ร้านค้าในแมพ (Interact_Shop) — 3 หมวด หมวดละ 15 ระดับ =====
+-- ===== ร้านค้าในแมพ (Interact_Shop) — 2 หมวด หมวดละ 6 ระดับ (ตัด 7-15 ออก 12 ส.ค. 2569, user) =====
 local sk = GameState.newGame()
-check("upgrades มีสาย pc เริ่มที่ 1", sk.upgrades.pc == 1)
-check("catalog 3 หมวด", #Config.ShopCatalog == 3)
-
--- ทุกตารางต้องยาว 15 ระดับเท่ากัน ไม่งั้นบันไดขาดกลางคัน
-check("ladder ยาว 15 ระดับตรงกันทุกตาราง", #Config.ResolutionLadder == 15
-	and #Config.StorageLadderGB == 15 and #Config.Record.footagePerClickGB == 15)
+check("catalog 2 หมวด (pc ถอดแล้ว)", #Config.ShopCatalog == 2)
 
 for _, e in Config.ShopCatalog do
 	local costs = Config.UpgradeCosts[e.key]
-	check(("หมวด %s: 15 ระดับ (ของเริ่ม 1 + ซื้อได้ 14)"):format(e.key),
-		ShopKiosk.tierCount(e) == 15 and #e.names == 14)
+	check(("หมวด %s: 6 ระดับ (ของเริ่ม 1 + ซื้อได้ 5)"):format(e.key),
+		ShopKiosk.tierCount(e) == 6 and #e.names == 5)
 	check(("หมวด %s: ราคาครบทุกขั้นที่ขาย"):format(e.key), costs ~= nil and #costs == #e.names)
 	check(("หมวด %s: มีชื่อของเริ่มต้น (ระดับ 1 ไม่ได้ซื้อ)"):format(e.key), e.startName ~= nil)
 end
 
-local camEntry, stoEntry, pcEntry
+local camEntry, stoEntry
 for _, e in Config.ShopCatalog do
-	if e.key == "camera" then camEntry = e elseif e.key == "storage" then stoEntry = e else pcEntry = e end
+	if e.key == "camera" then camEntry = e elseif e.key == "storage" then stoEntry = e end
 end
 
 -- สเปคบนแถวต้องมาจาก ladder ไม่ใช่ข้อความที่พิมพ์ซ้ำใน catalog
@@ -1639,36 +1636,34 @@ check("spec กล้อง = resolution + GB/คลิก ของระดั
 check("spec storage < 1024 = GB", ShopKiosk.specFor("storage", 2) == "256 GB")
 check("spec storage ≥ 1024 = TB", ShopKiosk.specFor("storage", 4) == "1 TB")
 check("spec storage ≥ 1PB = PB", ShopKiosk.specFor("storage", 13) == "1 PB")
-check("spec storage ระดับ 15 = 16 PB", ShopKiosk.specFor("storage", 15) == "16 PB")
-check("spec pc = nil (ยังไม่มี ladder)", ShopKiosk.specFor("pc", 2) == nil)
+check("spec storage ระดับ 15 = 16 PB (ladder ดิบยังอยู่ แม้ Shop ขายไม่ถึง)", ShopKiosk.specFor("storage", 15) == "16 PB")
 
 -- ระดับ 1 = ของติดตัวตอนเริ่ม ไม่มีราคา · ระดับ 2+ = ของที่ซื้อ
 check("ระดับ 1 = ชื่อของเริ่มต้น", ShopKiosk.nameAt(camEntry, 1) == "มือถือเครื่องเก่า")
 check("ระดับ 2 = ของชิ้นแรกที่ซื้อ", ShopKiosk.nameAt(camEntry, 2) == "มือถือใหม่")
-check("ระดับ 15 = ชื่อสุดท้ายใน names", ShopKiosk.nameAt(camEntry, 15) == camEntry.names[14])
+check("ระดับ 6 = ชื่อสุดท้ายใน names (7-15 ถูกตัดออกจาก Shop)", ShopKiosk.nameAt(camEntry, 6) == camEntry.names[5])
 
 local camOffer = ShopKiosk.offerFor(camEntry, sk)
 check("ของชิ้นแรกหมวดกล้อง = มือถือใหม่ ราคา 2000 ได้ระดับ 2",
 	camOffer.name == "มือถือใหม่" and camOffer.price == 2_000 and camOffer.level == 2)
 check("ราคาตรงกับ UpgradeCosts ที่เดียว", camOffer.price == Config.UpgradeCosts.camera[1])
 check("offer storage ชิ้นแรกได้ 256 GB", ShopKiosk.offerFor(stoEntry, sk).spec == "256 GB")
-check("offer pc ชิ้นแรกไม่มี spec แต่ซื้อได้", ShopKiosk.offerFor(pcEntry, sk).price == Config.UpgradeCosts.pc[1])
 
 -- บันได: สถานะทุกขั้นต้องสอดคล้องกับระดับปัจจุบัน (ข้ามขั้นซื้อไม่ได้)
 local tiers = ShopKiosk.tiersFor(camEntry, sk)
-check("บันไดยาว 15 ขั้น", #tiers == 15)
+check("บันไดยาว 6 ขั้น (7-15 ถูกตัดออกจาก Shop 12 ส.ค. 2569)", #tiers == 6)
 check("ขั้น 1 = ใช้อยู่ ไม่มีราคา", tiers[1].status == "current" and tiers[1].price == nil)
 check("ขั้น 2 = ซื้อได้ถัดไป", tiers[2].status == "next" and tiers[2].price == 2_000)
-check("ขั้น 3+ = ล็อกไว้ก่อน", tiers[3].status == "locked" and tiers[15].status == "locked")
-sk.upgrades.camera = 6
-local t6 = ShopKiosk.tiersFor(camEntry, sk)
-check("อยู่ระดับ 6: ขั้นก่อนหน้าเป็น owned", t6[5].status == "owned" and t6[1].status == "owned")
-check("อยู่ระดับ 6: ขั้น 6 ใช้อยู่ / ขั้น 7 ซื้อได้", t6[6].status == "current" and t6[7].status == "next")
+check("ขั้น 3+ = ล็อกไว้ก่อน", tiers[3].status == "locked" and tiers[6].status == "locked")
+sk.upgrades.camera = 5
+local t5 = ShopKiosk.tiersFor(camEntry, sk)
+check("อยู่ระดับ 5: ขั้นก่อนหน้าเป็น owned", t5[4].status == "owned" and t5[1].status == "owned")
+check("อยู่ระดับ 5: ขั้น 5 ใช้อยู่ / ขั้น 6 (สูงสุด) ซื้อได้", t5[5].status == "current" and t5[6].status == "next")
 
--- ซื้อครบ 15 แล้วต้องหยุดขาย
-sk.upgrades.camera = 15
+-- ซื้อครบระดับสูงสุด (6) แล้วต้องหยุดขาย — 7-15 ไม่มีให้ซื้อต่อแล้ว
+sk.upgrades.camera = 6
 check("ระดับสูงสุดแล้ว = ไม่มีของขายต่อ", ShopKiosk.offerFor(camEntry, sk) == nil)
-check("ระดับสูงสุด: ขั้นสุดท้าย = ใช้อยู่", ShopKiosk.tiersFor(camEntry, sk)[15].status == "current")
+check("ระดับสูงสุด: ขั้นสุดท้าย = ใช้อยู่", ShopKiosk.tiersFor(camEntry, sk)[6].status == "current")
 
 -- ระดับ 1-6 ต้องเป็นค่าที่ล็อกใน docs/02 §9.5 เป๊ะ (ขยาย 15 ห้ามขยับของเดิม)
 check("[ล็อก] storage 1-6 ไม่ขยับ", Config.StorageLadderGB[1] == 128 and Config.StorageLadderGB[2] == 256
@@ -1865,18 +1860,14 @@ midLv.upgrades.camera = math.min(Config.CameraModelCount, Config.CameraCartLevel
 check("ระดับสูงสุดที่ยังถือ Tool = ใช้โมเดลที่มีจริง ไม่หลุดตาราง",
 	ToolService.desiredTools(midLv)[1] == "Camera_" .. midLv.upgrades.camera)
 
--- ซื้อผ่าน action เดิม (BuyUpgrade → MoneyService) ต้องขยับระดับ pc จริง
-local pcBuy = GameState.newGame()
-pcBuy.money = Config.UpgradeCosts.pc[1]
-check("ซื้อ pc ชิ้นแรกได้ เงินหมดพอดี", MoneyService.buyUpgrade(pcBuy, "pc") == true
-	and pcBuy.upgrades.pc == 2 and pcBuy.money == 0)
-check("เงินไม่พอซื้อ pc ชิ้นที่สองไม่ได้", MoneyService.buyUpgrade(pcBuy, "pc") == false
-	and pcBuy.upgrades.pc == 2)
+-- pc ถอดออกจากระบบทั้งหมด 11 ส.ค. 2569 (user) — ซื้อ/เก็บระดับไม่ได้อีกแล้ว
+check("ซื้อ pc ไม่ได้อีกแล้ว (สายถอดออกถาวร)", MoneyService.buyUpgrade(GameState.newGame(), "pc") == false)
+check("newGame ไม่มีสาย pc ใน upgrades", GameState.newGame().upgrades.pc == nil)
 
--- save เก่า (ไม่มี pc) โหลดกับโค้ดใหม่ต้องไม่พัง
-local oldSave = { upgrades = { camera = 2, storage = 1 } }
+-- save เก่า (ยุคที่ยังมีสาย pc) โหลดกับโค้ดใหม่ต้องไม่พัง — เอา field เกินทิ้งเงียบๆ ไม่ crash
+local oldSave = { upgrades = { camera = 2, storage = 1, pc = 3 } }
 GameState.mergeDefaults(oldSave, GameState.newGame())
-check("save เก่าไม่มี pc → เติมเป็น 1 ไม่ทับ camera", oldSave.upgrades.pc == 1 and oldSave.upgrades.camera == 2)
+check("save เก่ามี pc ค้าง → merge ไม่พัง ไม่ทับ camera", oldSave.upgrades.camera == 2 and oldSave.upgrades.storage == 1)
 
 -- ===== NPCIndicator: yaw + clamp (component หันตัว NPC — 10 ส.ค.) =====
 do

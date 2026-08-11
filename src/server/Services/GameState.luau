@@ -22,7 +22,7 @@ function GameState.newGame()
 		timeOfDay = Config.Time.dayStartHour,
 		clips = {},    -- {tier="B", uploaded=true, ...}
 		choices = { pos = 0, neu = 0, neg = 0 }, -- ชื่อตรงกับ Formulas.resolveEnding
-		upgrades = { camera = 1, storage = 1, pc = 1 }, -- ระดับสูงสุดที่ซื้อ (ขึ้นอย่างเดียว)
+		upgrades = { camera = 1, storage = 1 }, -- ระดับสูงสุดที่ซื้อ (ขึ้นอย่างเดียว) — pc ถอดออก 11 ส.ค. (user)
 		-- ระดับที่เลือกใช้อยู่ — ว่าง = ใช้ตัวสูงสุดที่ซื้อ (Formulas.activeLevel)
 		-- ปล่อยว่างไว้จงใจ: save เก่าที่ไม่มี field นี้ merge เข้ามาแล้วไม่โดนลดระดับเงียบๆ
 		equipped = {},

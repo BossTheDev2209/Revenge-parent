@@ -1185,6 +1185,8 @@ check("บทใส่ pose + actor ผ่าน", DialogueUI.validate({ { text 
 check("บรรทัดสั่งท่าล้วน (ไม่มี text) ผ่าน", DialogueUI.validate({ { pose = "Idle" } }) == true)
 check("anim ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", anim = 5 } }) == false)
 check("actor ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", pose = "A", actor = true } }) == false)
+check("lock=true ผ่าน", DialogueUI.validate({ { speaker = "ฟ้าใส", text = "ก", lock = true } }) == true)
+check("lock ไม่ใช่ boolean = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", lock = "yes" } }) == false)
 check("หาท่าเฉพาะตัวก่อนท่ากลาง",
 	AnimPlayer.candidates("Friend1", "Point")[1] == "Friend1/Point"
 	and AnimPlayer.candidates("Friend1", "Point")[2] == "Point")

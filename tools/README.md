@@ -24,6 +24,7 @@ python tools/mcp_driver.py <steps.json>
 | ไฟล์ | ทำอะไร | สถานะ |
 |---|---|---|
 | **`CutsceneCamTool.plugin.luau`** | **Studio plugin** วาง/ส่อง/พรีวิวมุมกล้อง cutscene (Place/Aim/Look Thru/Tour) · ติดตั้ง: copy ไป `%LOCALAPPDATA%\Roblox\Plugins\` (docs/engines/cutscene.md §3) | ✅ ใช้อยู่ |
+| **`NpcAnchorTool.plugin.luau`** | **Studio plugin** สร้าง/อัปเดต `NPCHome_<actor>_<loc>` (`StoryNPCPlacer.luau`) — เลือก rig/Part ท่าอ้างอิง ใส่ actor+loc กด Create ก๊อป CFrame ให้เอง (ไม่ต้องเดามือ) + ปุ่ม "Show Front" โผล่ลูกศรชี้ทิศ Front ของ Part ที่เลือก 5 วิ | ✅ ใช้อยู่ |
 | **`build_npc_template.luau`** | ก๊อป `Workspace.NPC.R6` เป็น NPC_Template + ตัวจริง — ใส่ Animator/Shirt/Pants/attachment/face/Interact/ป้ายชื่อ ครบ (docs/05 §4) | ✅ ใช้อยู่ |
 | **`rename_npc_interacts.luau`** | เปลี่ยนชื่อ Part `Interact_NPC_01` ในโมเดล NPC → `Interact_NPC_<ชื่อ>` unique (ผูกบทได้) · รันหลังเพิ่ม NPC ใหม่ | ✅ ใช้อยู่ |
 

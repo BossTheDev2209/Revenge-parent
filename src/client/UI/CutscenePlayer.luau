@@ -72,6 +72,14 @@ local VALID = {
 		return type(s.object) == "string" and type(s.name) == "string"
 			and (s.loop == nil or type(s.loop) == "boolean")
 	end,
+	-- หมุนโมเดลรอบ PrimaryPart (บานพับ) — ประตู/ฝากล่อง ที่ไม่คุ้มทำเป็น animation asset
+	-- deg = องศารวม (+ / − เลือกทิศ), t = กี่วินาที (ไม่ใส่ = 0.6) · ไม่หยุดรอ ใส่ wait เองถ้าอยากรอ
+	-- ใช้แทน objAnim สำหรับของที่ขยับแกนเดียว — Moon Animator export ได้เฉพาะ track ที่เป็น joint
+	-- ส่วน track ที่ animate CFrame ของ part ตรงๆ export ออกมาเป็น keyframe ว่าง (docs/17)
+	swing = function(s)
+		return type(s.target) == "string" and type(s.deg) == "number"
+			and (s.t == nil or type(s.t) == "number")
+	end,
 	-- ผูก prop ติดมือ actor (Weld) — ใช้ตอน "ถือของ" ระหว่างท่าทาง เช่น รับโล่รางวัล
 	hold = function(s)
 		return type(s.actor) == "string" and type(s.prop) == "string"
@@ -262,6 +270,27 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 				actionRemote:FireServer({ type = "SetFocus", target = step.target }) -- preload แมพจุดนั้น
 			elseif step.type == "objAnim" then
 				AnimPlayer.playObject(step.object, step.name, step.loop)
+			elseif step.type == "swing" then
+				local model = workspace:FindFirstChild(step.target, true)
+				local hinge = model and model:IsA("Model") and model.PrimaryPart
+				if hinge then
+					-- หมุนทีละนิดรอบบานพับแบบเดียวกับ DoorScript ของประตูจริง
+					-- คิด delta ในพิกัดโลกจาก hinge แล้วคูณเข้ากับ pivot ปัจจุบัน — ยกทั้งโมเดลแบบแข็ง
+					-- (ไม่ใช้ hinge.CFrame เป็น pivot ตรงๆ เพราะ WorldPivot ของโมเดลอาจไม่ได้อยู่ที่ hinge)
+					local steps_ = 24
+					local per = CFrame.Angles(0, math.rad(step.deg / steps_), 0)
+					local dt = (step.t or 0.6) / steps_
+					task.spawn(function()
+						for _ = 1, steps_ do
+							if skipped then break end
+							local delta = (hinge.CFrame * per) * hinge.CFrame:Inverse()
+							model:PivotTo(delta * model:GetPivot())
+							task.wait(dt)
+						end
+					end)
+				else
+					warn("[CutscenePlayer] swing: หาไม่เจอ/ไม่มี PrimaryPart", step.target)
+				end
 			elseif step.type == "hold" then
 				if AnimPlayer.hold(step.actor, step.prop, step.limb) and not step.persist then
 					heldProps[step.prop] = true -- auto-unhold ตอนจบฉาก เว้นแต่สั่ง persist=true (อยากให้ถือค้างต่อหลัง cutscene)

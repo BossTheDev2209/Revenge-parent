@@ -18,6 +18,8 @@
 --
 -- tag [slow] [fast] [normal] คุมความเร็วกลางบรรทัด — pure: parseTags/lineOf/validate | glue: show()
 local isStudio = script ~= nil
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
@@ -36,6 +38,14 @@ local InteractLock = if isStudio
 
 local DialogueUI = {}
 DialogueUI.running = false
+
+-- easing สำหรับ item.cam (นอกเหนือ zoom-หน้าอัตโนมัติของ CameraFocus) — ตรงกับ CutscenePlayer.EASE เป๊ะ
+local EASE = {
+	In = { Enum.EasingStyle.Quad, Enum.EasingDirection.In },
+	Out = { Enum.EasingStyle.Quad, Enum.EasingDirection.Out },
+	InOut = { Enum.EasingStyle.Quad, Enum.EasingDirection.InOut },
+	Linear = { Enum.EasingStyle.Linear, Enum.EasingDirection.InOut },
+}
 
 -- กล่องออกแบบไว้ที่ 900x176px (Config.Dialogue.box) — จอแคบ/เตี้ยกว่านี้ต้องหด ไม่งั้นล้นขอบจอ/ทะลุแถบดำ
 -- pure: รับ viewport {X,Y} คืน scale (≤1) ให้ UIScale ตัวเดียวหดทั้งกล่อง+ขอบ+ข้อความไปด้วยกัน
@@ -165,6 +175,8 @@ function DialogueUI.validate(lines)
 			return false, ("บรรทัด %d: face ต้องเป็นชื่อสีหน้า (string)"):format(i)
 		elseif item.actor ~= nil and type(item.actor) ~= "string" then
 			return false, ("บรรทัด %d: actor ต้องเป็นชื่อตัวละคร (string)"):format(i)
+		elseif item.cam ~= nil and type(item.cam) ~= "string" then
+			return false, ("บรรทัด %d: cam ต้องเป็นชื่อ Part ใน CutsceneCams (string)"):format(i)
 		elseif item.choices then
 			if type(item.choices) ~= "table" or #item.choices == 0 then
 				return false, ("บรรทัด %d: choices ว่าง"):format(i)
@@ -175,6 +187,9 @@ function DialogueUI.validate(lines)
 				end
 				if c.tone ~= nil and not TONES[c.tone] then
 					return false, ("บรรทัด %d ช้อย %d: tone ต้องเป็น plus/neutral/minus"):format(i, j)
+				end
+				if c.teleport ~= nil and type(c.teleport) ~= "string" then
+					return false, ("บรรทัด %d ช้อย %d: teleport ต้องเป็นชื่อ Part (string)"):format(i, j)
 				end
 				if c.reply ~= nil then
 					local ok, err = DialogueUI.validate(c.reply)
@@ -363,6 +378,34 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	local viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBox)
 
 	local picks = {}
+	local teleportTarget = nil
+	-- item.cam (นอกเหนือ zoom-หน้าอัตโนมัติของ CameraFocus) — วางมุมด้วย CutsceneCamTool เหมือน cutscene mode 1
+	-- ตัดกล้องตอนบรรทัดนั้นขึ้น (ไม่ใช่ timer) — caller ต้องไม่ส่ง head ให้ CameraFocus.focus (เดี๋ยวชนกัน) ดู docs/engines/dialogue.md
+	local camSaved = nil -- เก็บ CameraType/Subject เดิมไว้คืนตอนจบ — เซ็ตครั้งแรกที่เจอ item.cam เท่านั้น (ไม่ยุ่งบทที่ไม่ใช้)
+	local function cutTo(camName: string)
+		local folder = workspace:FindFirstChild("CutsceneCams")
+		local part = folder and folder:FindFirstChild(camName, true) or workspace:FindFirstChild(camName, true)
+		if not (part and part:IsA("BasePart")) then
+			warn("[DialogueUI] ไม่เจอ Part กล้อง:", camName)
+			return
+		end
+		if not camSaved then
+			camSaved = { type = camera.CameraType, subject = camera.CameraSubject }
+		end
+		camera.CameraType = Enum.CameraType.Scriptable
+		local ease = part:GetAttribute("Ease") or "InOut"
+		local t = part:GetAttribute("TweenTime") or 0
+		if ease == "Cut" then t = 0 end
+		local e = EASE[ease]
+		local fov = part:GetAttribute("FOV")
+		if t > 0 then
+			TweenService:Create(camera, TweenInfo.new(t, (e and e[1]) or Enum.EasingStyle.Quad, (e and e[2]) or Enum.EasingDirection.InOut),
+				{ CFrame = part.CFrame, FieldOfView = fov or camera.FieldOfView }):Play()
+		else
+			camera.CFrame = part.CFrame
+			if fov then camera.FieldOfView = fov end
+		end
+	end -- ช้อยไหนมี .teleport = จำชื่อ Part ปลายทางไว้ ยิงตอนบทจบจริง (ไม่ใช่ branching — เนื้อเรื่องเดินเส้นเดิม แค่จบแล้วไปคนละที่)
 
 	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
 	-- actor = ใช้หา rig สำหรับ portrait viewport (ไม่ส่ง = คนที่คุยอยู่)
@@ -372,9 +415,10 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		nameLabel.Text = speaker or ""
 
 		-- ไม่มีชื่อคนพูด = ไม่โชว์หน้าตัวละคร (bullet เฉยๆ) · มีชื่อ = เรนเดอร์ rig สดจากแมพ ณ ตอนนี้
+		-- speaker = "คุณ" (พูดคนเดียว ไม่ใช่คิดในใจแบบวงเล็บ) = โชว์หน้า player เอง ไม่ใช่ NPC ที่คุยด้วย
 		if portraitVP then
 			if speaker then
-				portraitVP.showBust(AnimPlayer.findRig(actor or voiceName))
+				portraitVP.showBust(AnimPlayer.findRig(speaker == "คุณ" and "player" or (actor or voiceName)))
 			else
 				portraitVP.clear()
 			end
@@ -487,6 +531,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			local i = 1
 			while i <= #queue and not quit do
 				local item = DialogueUI.lineOf(queue[i])
+				if item.cam then cutTo(item.cam) end -- ตัดกล้องตามบรรทัด ไม่ใช่ timer (ต่างจาก CutscenePlayer)
 				-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
 				local moved = AnimPlayer.applyLine(item, voiceName)
 				if moved then movedActors[moved] = true end
@@ -494,6 +539,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 					local c = ask(item.choices)
 					if c then -- nil = กดเลิกคุยระหว่างเลือก (quit)
 						table.insert(picks, c.tone or "neutral")
+						if c.teleport then teleportTarget = c.teleport end -- จำไว้ ยิงตอนจบบท ไม่ใช่ตอนนี้
 						-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
 						if c.reply then
 							for k = #c.reply, 1, -1 do
@@ -511,15 +557,21 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		if not ok then warn("[DialogueUI] บทพังกลางคัน:", err) end
 		-- cleanup เสมอ (แม้บทพัง)
 		for actor in movedActors do AnimPlayer.stop(actor) end
+		if camSaved then -- คืนกล้องที่ item.cam ยึดไป (CameraFocus ไม่รู้จักตัวนี้ ต้องคืนเอง)
+			camera.CameraType = camSaved.type
+			camera.CameraSubject = camSaved.subject
+				or (Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"))
+		end
 		viewportConn:Disconnect()
 		gui:Destroy()
 		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
 		DialogueUI.running = false
 		if InteractLock then InteractLock.unlock() end
 		Audio.duckBGM(false) -- คืนเสียงเพลงเต็ม
-		-- onDone(picks, quit) เรียกเสมอ — caller ต้องคืนกล้อง/unfreeze ทุกกรณี
+		-- onDone(picks, quit, teleportTarget) เรียกเสมอ — caller ต้องคืนกล้อง/unfreeze ทุกกรณี
 		-- quit=true (กดเลิกคุย) = ไม่นับว่าคุยจบ · caller เช็ค quit เองว่าจะยิง DialogueSeen ไหม
-		if onDone then onDone(picks, quit) end
+		-- teleportTarget = ไม่ nil ถ้า player เลือกช้อยที่มี .teleport (เช่น เมนูเลือกแมพปลายทาง) — caller เป็นคนยิง TeleportTo เอง
+		if onDone then onDone(picks, quit, teleportTarget) end
 	end)
 end
 

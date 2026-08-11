@@ -59,11 +59,26 @@ local NPC_DIALOGUE = {
 -- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด
 -- ไฟล์เก่าที่เป็น list ของ string ตรงๆ (ไม่มี key เฟส) ใช้ได้เหมือนเดิม
 -- seen = เคยคุยจบบทเต็มในเฟสนี้แล้ว → เล่นบท repeat (ถ้ามี) กันเล่นบทเดิมซ้ำ
-function InteractBinder.pickLines(mod, state, seen)
+-- loc (optional) = state.npcLoc[actor] ตอนคุย — ใช้แยกบทตามที่อยู่ (เช่น คุยที่สวนสาธารณะ ≠ คุยที่ห้อง)
+-- locSeen (optional) = เคยคุยจบบทเต็มที่ loc นี้แล้ว → ใช้ again ของ loc นี้ (แยกจาก seen/again เฟสปกติ)
+--   ⚠️ นอกเหนือ 5-key ที่ล็อกไว้ใน docs/engines/dialogue.md — เพิ่มเพราะ design doc พูดถึง "เดท/คุยกัน" หลายที่
+--   แบบไม่ระบุกลไก (docs/16 §L19,72) ตัดสินใจ 12 ส.ค. 2569: เก็บ p1-p3/after/again ไว้เป็นบทเริ่ม/ซ้ำปกติ
+--   byLoc[loc] ทับทันทีถ้า npcLoc ตรง key — รับได้ 2 แบบ:
+--     byLoc.X = { ... }                      ลิสต์ตรง ไม่แยกซ้ำ/ครั้งแรก (คุยซ้ำที่ loc นี้ได้บทเดิมซ้ำ)
+--     byLoc.X = { p = {...}, again = {...} } แยกครั้งแรก/คุยซ้ำในตัว (locSeen เป็นคนเลือก)
+function InteractBinder.pickLines(mod, state, seen, loc, locSeen)
 	if type(mod) ~= "table" then return nil end
 	if type(mod[1]) == "string" then return mod end -- format เก่า
-	if seen and mod.again then return mod.again end
 	if state and state.flags and state.flags.betrayed and mod.after then return mod.after end
+	if mod.byLoc and loc and mod.byLoc[loc] then
+		local byLoc = mod.byLoc[loc]
+		if byLoc[1] ~= nil then
+			return byLoc -- ลิสต์ตรง (มี index 1 = บรรทัดแรก ไม่ใช่ {p=,again=} ที่เป็น key ล้วน)
+		end
+		if locSeen and byLoc.again then return byLoc.again end
+		return byLoc.p or byLoc.again
+	end
+	if seen and mod.again then return mod.again end
 	local phase = state and state.phase or 1
 	for p = phase, 1, -1 do
 		if mod["p" .. p] then return mod["p" .. p] end

@@ -34,6 +34,8 @@ end
 --   cutscene = steps?,   -- CutscenePlayer step list (ไม่ใส่ = ข้ามช่วงหนัง)
 --   stage    = fn()?,    -- ทำใต้จอดำ "หลัง" cutscene "ก่อน" dialogue: จัดฉากรอบสอง (ยิง server ผ่าน caller)
 --   dialogue = lines?,   -- DialogueUI lines (ไม่ใส่ = ข้ามช่วงคุย)
+--   runDialogue = fn(lines, onDone)?, -- ตัวเล่นบท (ไม่ใส่ = DialogueUI.show เปล่าๆ ไม่มีกล้อง/เอฟเฟกต์)
+--     ส่ง runDialogue ของ Main.client มาถ้าอยากได้ชุดเดียวกับคุย NPC ปกติ (กล้องโฟกัส + player จางหาย)
 --   settle   = fn()?,    -- ทำใต้จอดำ "หลัง" dialogue: ตั้ง npcLoc/เก็บฉากท่าสุดท้าย
 --   preStageLines/stageLines/settleLines = {..}?, -- ข้อความบนจอดำแต่ละช่วง (ว่าง = ดำเฉยๆ)
 --   onDone = fn()?,      -- จบ beat คืนคุมแล้ว
@@ -61,7 +63,11 @@ function StoryBeat.play(playerGui, opts)
 			onBlack = opts.stage,
 			onDone = function()
 				if opts.dialogue then
-					DialogueUI.show(playerGui, opts.dialogue, afterDialogue)
+					if opts.runDialogue then
+						opts.runDialogue(opts.dialogue, afterDialogue)
+					else
+						DialogueUI.show(playerGui, opts.dialogue, afterDialogue)
+					end
 				else
 					afterDialogue()
 				end

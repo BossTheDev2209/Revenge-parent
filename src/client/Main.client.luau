@@ -30,6 +30,7 @@ local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
 local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
+local AnimPlayer = require(script.Parent.AnimPlayer) -- หา rig NPC ให้กล้องเล็งตอน StoryBeat คุยอัตโนมัติ
 local StoryBeat = require(script.Parent.StoryBeat)
 local Notify = require(script.Parent.Notify)
 local Config = require(RS.Shared.Config) -- ตัวคูณ buff sponsor ที่โชว์บน toast (ตัวเลขมาจาก Config ที่เดียว)
@@ -39,6 +40,9 @@ local actionRemote = RS.Shared.Remotes.Action
 local Content = RS.Shared.Content
 
 local latestState = nil
+-- ท่าปิดของ "Door Rig" ครั้งแรกที่เจอ — step swing หมุนสะสม ต้องคืนท่าปิดก่อนเริ่มฉากทุกรอบ
+-- ระดับ module ไม่ใช่ใน handler เพราะ handler รันใหม่ทุก state push (จะจับท่าเปิดค้างมาเป็น "ปิด")
+local closedDoorPivot = nil
 
 local function fireAction(action)
 	actionRemote:FireServer(action)
@@ -297,7 +301,28 @@ local function filterConds(lines, seenTbl)
 	return out
 end
 
--- คุย NPC: freeze เวลา → กล้องโฟกัส NPC + ตัวผู้เล่นจางหาย → typewriter → กลับมา + คืนกล้อง
+-- เล่นบทที่เตรียม lines มาแล้ว พร้อมชุดกล้อง/เอฟเฟกต์มาตรฐานของ engine คุย NPC
+-- (freeze เวลา → กล้องโฟกัสหัว NPC + ตัวผู้เล่นจางหาย → typewriter → คืนทุกอย่าง)
+-- แยกออกมาเพราะ StoryBeat ก็ต้องใช้ชุดเดียวกันเป๊ะ ตอนบทต่อท้าย cutscene (ไม่งั้น player ได้คุมกล้องเอง)
+-- head = Part ที่กล้องเล็ง (ไม่ส่ง = ไม่ขยับกล้อง) · voiceName = ชื่อเสียงพิมพ์ใน SoundService.Voice
+local function runDialogue(lines, head, voiceName, onDone)
+	fireAction({ type = "FreezeTime", on = true })
+	if head then CameraFocus.focus(head) end
+	fadePlayer(true, 0.3)
+	DialogueUI.show(playerGui, lines, function(_, quit, teleportTarget)
+		-- จบ/เลิกคุย: ตัวผู้เล่นกลับมาทึบ + คืนกล้อง + unfreeze (ทุกกรณี)
+		fadePlayer(false, 0.3)
+		if head then CameraFocus.release() end
+		fireAction({ type = "FreezeTime", on = false })
+		-- เลือกช้อยที่มี .teleport (เช่น เมนู "อยากไปแมพไหน") — วาปตอนบทจบจริงเท่านั้น (กดเลิกคุยกลางคัน = ไม่วาป)
+		if teleportTarget and not quit then
+			fireAction({ type = "TeleportTo", target = teleportTarget })
+		end
+		if onDone then onDone(quit) end
+	end, voiceName)
+end
+
+-- คุย NPC: หา/เลือกบทตามเฟส+สถานะ แล้วส่งให้ runDialogue เล่น
 -- interactPart = Part Interact_NPC ในโมเดล NPC (ใช้หา Head ให้กล้องเล็ง) — ไม่ส่งมา = ไม่ขยับกล้อง
 local function startDialogue(dialogueName, interactPart)
 	local mod = Content.Dialogue:FindFirstChild(dialogueName)
@@ -308,28 +333,31 @@ local function startDialogue(dialogueName, interactPart)
 	-- เคยคุยจบบทเต็มในเฟสนี้แล้ว → เล่นบท repeat (docs/02 §9.4)
 	local seen = latestState and latestState.seenDialogue
 		and latestState.seenDialogue[dialogueName] == latestState.phase
-	-- บทเปลี่ยนตามเฟส + หลังทรยศ + คุยซ้ำ
-	local lines = InteractBinder.pickLines(require(mod), latestState, seen)
+	-- บทเปลี่ยนตามเฟส + หลังทรยศ + คุยซ้ำ + ที่อยู่ปัจจุบัน (เช่น คุยสวนสาธารณะ ≠ คุยห้อง — mod.byLoc)
+	-- locSeen แยกจาก seen เฟสปกติ — คุยจบเต็มที่ loc นี้ครั้งแรกแล้วจำเป็นคีย์ผสม "<บท>@<loc>" (docs/engines/dialogue.md §byLoc)
+	local loc = latestState and latestState.npcLoc and latestState.npcLoc[dialogueName]
+	local locSeenKey = loc and (dialogueName .. "@" .. loc)
+	local locSeen = locSeenKey and latestState and latestState.seenDialogue
+		and latestState.seenDialogue[locSeenKey] == latestState.phase
+	local lines = InteractBinder.pickLines(require(mod), latestState, seen, loc, locSeen)
 	if not lines then
 		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
 		return
 	end
 	lines = filterConds(lines, latestState and latestState.seenDialogue) -- ตัดบรรทัด ifSeen/ifNotSeen ที่ไม่เข้าเงื่อนไข
 	local npc = interactPart and interactPart:FindFirstAncestorWhichIsA("Model")
-	local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
-	fireAction({ type = "FreezeTime", on = true })
-	-- กล้องโฟกัส NPC (tween ลื่นเอง) + ตัวผู้เล่นจางหายพร้อมกัน → เริ่มบท
-	if head then CameraFocus.focus(head) end
-	fadePlayer(true, 0.3)
+	-- มีบรรทัดไหนสั่ง cam เอง (Place Cam plugin) = ให้บทนั้นคุมกล้องเต็มที่ ไม่ต้อง zoom-หน้าอัตโนมัติชนกัน
+	local usesCustomCam = false
+	for _, item in lines do
+		if type(item) == "table" and item.cam then usesCustomCam = true break end
+	end
+	local head = not usesCustomCam and npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
 	-- เสียงพิมพ์ใช้ SoundService.Voice.<ชื่อบท> (เช่น Voice.Friend1) — ไม่มี = Voice.Default
-	DialogueUI.show(playerGui, lines, function(_, quit)
-		-- จบ/เลิกคุย: ตัวผู้เล่นกลับมาทึบ + คืนกล้อง + unfreeze (ทุกกรณี)
-		fadePlayer(false, 0.3)
-		if head then CameraFocus.release() end
-		fireAction({ type = "FreezeTime", on = false })
+	runDialogue(lines, head, dialogueName, function(quit)
+		if not quit and locSeenKey and not locSeen then fireAction({ type = "DialogueSeen", name = locSeenKey }) end
 		-- กดเลิกคุย (quit) = ไม่นับว่าคุยจบ · คุยจบเต็มครั้งแรกของเฟสนี้ → จำไว้ (คุยซ้ำได้บท repeat)
 		if not quit and not seen then fireAction({ type = "DialogueSeen", name = dialogueName }) end
-	end, dialogueName)
+	end)
 end
 
 -- state มาใหม่ทุกครั้ง: HUD + PC + menu + canon event + ending
@@ -518,10 +546,10 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		local FaasaiJoin = require(Content.Cutscenes.FaasaiJoin)
 		local Faasai = require(Content.Dialogue["ฟ้าใส"])
 
-		-- สลับประตูจริง (มี DoorScript/ProximityPrompt ใช้เล่นปกติ) กับ "Door Rig" (duplicate rig ไว้ animate ผ่าน objAnim)
-		-- ห้าม objAnim กับของจริงเด็ดขาด (script เดิมมี state จำ opened/closed ของมันเอง จะ desync — docs/engines/story-beat.md §7.3)
+		-- สลับประตูจริง (มี DoorScript/ProximityPrompt ใช้เล่นปกติ) กับ "Door Rig" (duplicate ไว้หมุนด้วย step swing)
+		-- ห้ามหมุนของจริงเด็ดขาด (script เดิมมี state จำ opened/closed ของมันเอง จะ desync — docs/engines/story-beat.md §7.3)
 		-- สลับค้างไว้ตลอดฉาก (ท่า+บทคุย) คืนของจริงตอน settle ใต้จอดำเหมือนกัน กันเห็นสลับโผล่ให้เห็น
-		-- หา "Door Rig" แบบ deep search (ไม่ fix path) — ตัวนี้ยังอาจถูกย้ายระหว่าง authoring ใน Moon Animator
+		-- หา "Door Rig" แบบ deep search (ไม่ fix path) — ตัวนี้ถูกย้าย/ลบ-สร้างใหม่มาหลายรอบระหว่าง authoring
 		local function swapDoor(showCutsceneDoor: boolean)
 			local realDoor = workspace.Map.Map_Phase2.Playerhouse.PlayerRoom:FindFirstChild("PlayerRoomDoor1")
 			local cutsceneDoor = workspace:FindFirstChild("Door Rig", true)
@@ -534,6 +562,11 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 				end
 			end
 			if cutsceneDoor then
+				-- คืนบานให้ปิดสนิททุกครั้งที่เริ่มฉาก — step swing หมุนสะสม ถ้าเล่นซ้ำ (dev retest) จะเปิดเกิน
+				if showCutsceneDoor then
+					closedDoorPivot = closedDoorPivot or cutsceneDoor:GetPivot()
+					cutsceneDoor:PivotTo(closedDoorPivot)
+				end
 				for _, p in cutsceneDoor:GetDescendants() do
 					if p:IsA("BasePart") then
 						p.Transparency = showCutsceneDoor and 0 or 1
@@ -545,16 +578,77 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 
 		StoryBeat.play(playerGui, {
 			-- จัดตำแหน่ง/ทิศทั้งคู่ก่อนคัตซีน ให้ตรงกับจุดเริ่ม root motion ของ KnockTalkWalkSit (NPCHome_*_room ที่ประตู)
+			-- วาป+รอ stream ก่อน SetNpcLoc เสมอ (เหมือน JiajiaJoin) — เผื่อ trigger ไกลจากห้อง ปกติ follower เข้าเกณฑ์
+			-- มักเกิดใกล้บ้าน (เช่นนอน) อยู่แล้วเสี่ยงต่ำ แต่กันไว้ไม่ให้พังถ้า trigger ยิงตอนอยู่ไกล
 			preStage = function()
-				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" })
 				fireAction({ type = "TeleportTo", target = "NPCHome_Player_room" })
+				waitStreamedAround(6)
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" })
 				swapDoor(true)
 			end,
 			cutscene = FaasaiJoin,
 			dialogue = Faasai.p2 or Faasai.p1, -- บทเฟส 2 (มาขอฝึกงาน)
+			-- ใช้ engine คุยชุดเดียวกับกด prompt คุย NPC ปกติเป๊ะ (กล้องโฟกัสหัว + player จางหาย + rich text)
+			-- ต่างแค่ไม่ต้องกด prompt เอง — เข้าอัตโนมัติหลัง cutscene จบ
+			-- ต้อง mark DialogueSeen เอง (ไม่ผ่าน startDialogue ปกติที่ mark ให้) ไม่งั้น prompt คุยซ้ำได้ p2 เต็มซ้ำตลอด
+			runDialogue = function(lines, done)
+				local npc = AnimPlayer.findRig("ฟ้าใส")
+				local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
+				runDialogue(lines, head, "ฟ้าใส", function(quit)
+					if not quit then fireAction({ type = "DialogueSeen", name = "ฟ้าใส" }) end
+					done()
+				end)
+			end,
 			settle = function()
 				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "bed" })
 				swapDoor(false)
+			end,
+			-- CutscenePlayer freeze เวลาไว้ตอนเริ่มแล้วให้ caller ปลดเอง — ย้ำตรงนี้กันค้างแช่แข็งหลังจบ beat
+			onDone = function()
+				fireAction({ type = "FreezeTime", on = false })
+			end,
+		})
+	end
+
+	-- เจียเจียเข้าร่วม: follower ถึง joinFollower ของ companion_2 ในเฟส 3 → StoryBeat ครั้งเดียว
+	-- threshold มาจาก Config.Staff.companions ที่เดียว (ตัวเดียวกับที่ StaffService ใช้ auto-add เพื่อนร่วมทาง)
+	-- ไม่ตั้งเลขซ้ำใน Config อีกตัว — ไม่งั้น cutscene กับ roster เพี้ยนคนละค่าได้
+	if state.phase == 3 and state.follower >= Config.Staff.companions[2].joinFollower
+		and not state.flags.jiajia_joined and not state.flags.ending
+		and #state.pendingEvents == 0
+		and not DialogueUI.running and not CutscenePlayer.running
+		and not ScreenTransition.running and not StoryBeat.running then
+		fireAction({ type = "SetFlag", name = "jiajia_joined" }) -- mark กันยิงซ้ำ
+		local JiajiaJoin = require(Content.Cutscenes.JiajiaJoin)
+		local Jiajia = require(Content.Dialogue["เจียเจีย"])
+
+		StoryBeat.play(playerGui, {
+			-- จัดทั้ง 3 ตัวให้ตรงจุดเริ่ม root motion ของ clip (anchor ก๊อปตำแหน่ง+ทิศจาก rig อ้างอิง Workspace.Animation["Jiajia join"])
+			-- ต้องวาปก่อน + รอ stream เข้าให้เสร็จก่อนค่อย SetNpcLoc — ฉากนี้อยู่เฟส 3 (Map_Phase3) ไกลจากที่ trigger ยิง
+			-- (follower ถึง threshold อาจอยู่แมพไหนก็ได้) ถ้า SetNpcLoc ไปก่อน anchor NPCHome_*_jiajiajoin ยังไม่ stream
+			-- เข้า client → StoryNPCPlacer หาไม่เจอ ("ไม่เจอ anchor") ไม่ retry เองจนกว่าจะมี state push อื่นมาบังเอิญ
+			preStage = function()
+				fireAction({ type = "TeleportTo", target = "NPCHome_Player_jiajiajoin" })
+				waitStreamedAround(6)
+				fireAction({ type = "SetNpcLoc", actor = "เจียเจีย", loc = "jiajiajoin" })
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "jiajiajoin" })
+			end,
+			cutscene = JiajiaJoin,
+			-- p3 = บทเต็มครั้งแรก (StoryBeat เล่นตรงนี้ ไม่ผ่าน pickLines) · คุยซ้ำทาง prompt ทีหลังตกไป again อัตโนมัติ
+			-- ต้อง mark DialogueSeen เอง (ไม่ผ่าน startDialogue ปกติที่ mark ให้) ไม่งั้น prompt คุยซ้ำได้ p3 เต็มซ้ำตลอด
+			dialogue = Jiajia.p3,
+			runDialogue = function(lines, done)
+				local npc = AnimPlayer.findRig("เจียเจีย")
+				local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
+				runDialogue(lines, head, "เจียเจีย", function(quit)
+					if not quit then fireAction({ type = "DialogueSeen", name = "เจียเจีย" }) end
+					done()
+				end)
+			end,
+			-- ⏳ ยังไม่มี anchor ที่อยู่ถาวรของทั้งคู่หลังฉากนี้ — ปล่อยค้างที่จุดจบ cutscene ไปก่อน
+			-- (ตั้ง loc ใหม่ได้ทันทีที่ทีมวาง NPCHome_<actor>_<loc> ของเฟส 3 ในแมพ)
+			onDone = function()
+				fireAction({ type = "FreezeTime", on = false })
 			end,
 		})
 	end

@@ -1263,6 +1263,27 @@ check("seen แต่ไม่มี again = ได้บทเฟสปกต�
 check("ไม่ seen = ได้บทเฟสเสมอ (ไม่แตะ again)",
 	InteractBinder.pickLines(seenSample, { phase = 1, flags = {} }, false)[1] == "เต็ม")
 
+-- byLoc (เพิ่ม 12 ส.ค. 2569): บทแยกตาม state.npcLoc[actor] — นอกเหนือ 5-key เดิม (docs/engines/dialogue.md §byLoc)
+local locSample = { p2 = { "ห้อง" }, again = { "ซ้ำห้อง" }, byLoc = { park = { "สวน" } } }
+check("byLoc.park ตรง loc = ได้บทสวน",
+	InteractBinder.pickLines(locSample, { phase = 2, flags = {} }, false, "park")[1] == "สวน")
+check("loc ไม่ตรง byLoc = บทเฟสปกติ",
+	InteractBinder.pickLines(locSample, { phase = 2, flags = {} }, false, "bed")[1] == "ห้อง")
+check("ไม่ส่ง loc = บทเฟสปกติ (byLoc ไม่ทำงานเอง)",
+	InteractBinder.pickLines(locSample, { phase = 2, flags = {} }, false)[1] == "ห้อง")
+check("seen แต่ loc ไม่ตรง byLoc = again (ไม่ใช่ p2)",
+	InteractBinder.pickLines(locSample, { phase = 2, flags = {} }, true, "bed")[1] == "ซ้ำห้อง")
+check("betrayed ชนะ byLoc เสมอ", InteractBinder.pickLines(
+	{ p2 = { "ห้อง" }, byLoc = { park = { "สวน" } }, after = { "หลัง" } },
+	{ phase = 2, flags = { betrayed = true } }, false, "park")[1] == "หลัง")
+
+-- byLoc แบบ { p=, again= } แยกครั้งแรก/ซ้ำในตัว (locSeen) — เพิ่ม 12 ส.ค. 2569 คู่กับ item.cam ใน DialogueUI
+local locFirstAgain = { p2 = { "ห้อง" }, byLoc = { park = { p = { "สวนครั้งแรก" }, again = { "สวนซ้ำ" } } } }
+check("byLoc {p=,again=} ครั้งแรก (locSeen=false) = p",
+	InteractBinder.pickLines(locFirstAgain, { phase = 2, flags = {} }, false, "park", false)[1] == "สวนครั้งแรก")
+check("byLoc {p=,again=} locSeen=true = again",
+	InteractBinder.pickLines(locFirstAgain, { phase = 2, flags = {} }, false, "park", true)[1] == "สวนซ้ำ")
+
 -- content จริง: ทุก NPC ที่ผูกใน binder ต้องมีบทให้ทุกเฟสที่เจอได้
 local DialogueFolder = if isStudio then game:GetService("ReplicatedStorage").Shared.Content.Dialogue else nil
 for _, name in { "ฟ้าใส", "เจียเจีย", "พี่เปิ้ล" } do

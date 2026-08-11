@@ -30,11 +30,12 @@ end
 
 -- เล่น 1 beat แบบ non-blocking (chain ผ่าน callback) — เรียกซ้ำระหว่างเล่นไม่ได้ (กันซ้อน)
 -- opts = {
+--   preStage = fn()?,    -- ทำใต้จอดำ "ก่อน" cutscene: จัดตำแหน่ง/ทิศตัวละครให้ตรงกับจุดเริ่ม root motion (ยิง server ผ่าน caller)
 --   cutscene = steps?,   -- CutscenePlayer step list (ไม่ใส่ = ข้ามช่วงหนัง)
---   stage    = fn()?,    -- ทำใต้จอดำ "ก่อน" dialogue: วาป player/จัดตัวละครเข้าฉาก (ยิง server ผ่าน caller)
+--   stage    = fn()?,    -- ทำใต้จอดำ "หลัง" cutscene "ก่อน" dialogue: จัดฉากรอบสอง (ยิง server ผ่าน caller)
 --   dialogue = lines?,   -- DialogueUI lines (ไม่ใส่ = ข้ามช่วงคุย)
 --   settle   = fn()?,    -- ทำใต้จอดำ "หลัง" dialogue: ตั้ง npcLoc/เก็บฉากท่าสุดท้าย
---   stageLines/settleLines = {..}?, -- ข้อความบนจอดำแต่ละช่วง (ว่าง = ดำเฉยๆ)
+--   preStageLines/stageLines/settleLines = {..}?, -- ข้อความบนจอดำแต่ละช่วง (ว่าง = ดำเฉยๆ)
 --   onDone = fn()?,      -- จบ beat คืนคุมแล้ว
 -- }
 function StoryBeat.play(playerGui, opts)
@@ -68,10 +69,18 @@ function StoryBeat.play(playerGui, opts)
 		})
 	end
 
-	if opts.cutscene then
-		CutscenePlayer.play(playerGui, opts.cutscene, afterCutscene)
+	local function startCutscene()
+		if opts.cutscene then
+			CutscenePlayer.play(playerGui, opts.cutscene, afterCutscene)
+		else
+			afterCutscene()
+		end
+	end
+
+	if opts.preStage then
+		ScreenTransition.play({ lines = opts.preStageLines, onBlack = opts.preStage, onDone = startCutscene })
 	else
-		afterCutscene()
+		startCutscene()
 	end
 end
 

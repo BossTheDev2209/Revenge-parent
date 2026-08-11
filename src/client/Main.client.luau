@@ -514,10 +514,45 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		fireAction({ type = "SetFlag", name = "faasai_joined" }) -- mark กันยิงซ้ำ (StoryBeat.running กันระหว่างเล่นด้วย)
 		local FaasaiJoin = require(Content.Cutscenes.FaasaiJoin)
 		local Faasai = require(Content.Dialogue["ฟ้าใส"])
+
+		-- สลับประตูจริง (มี DoorScript/ProximityPrompt ใช้เล่นปกติ) กับ "Door Rig" (duplicate rig ไว้ animate ผ่าน objAnim)
+		-- ห้าม objAnim กับของจริงเด็ดขาด (script เดิมมี state จำ opened/closed ของมันเอง จะ desync — docs/engines/story-beat.md §7.3)
+		-- สลับค้างไว้ตลอดฉาก (ท่า+บทคุย) คืนของจริงตอน settle ใต้จอดำเหมือนกัน กันเห็นสลับโผล่ให้เห็น
+		-- หา "Door Rig" แบบ deep search (ไม่ fix path) — ตัวนี้ยังอาจถูกย้ายระหว่าง authoring ใน Moon Animator
+		local function swapDoor(showCutsceneDoor: boolean)
+			local realDoor = workspace.Map.Map_Phase2.Playerhouse.PlayerRoom:FindFirstChild("PlayerRoomDoor1")
+			local cutsceneDoor = workspace:FindFirstChild("Door Rig", true)
+			if realDoor then
+				for _, p in realDoor:GetDescendants() do
+					if p:IsA("BasePart") then
+						p.Transparency = showCutsceneDoor and 1 or 0
+						p.CanCollide = not showCutsceneDoor
+					end
+				end
+			end
+			if cutsceneDoor then
+				for _, p in cutsceneDoor:GetDescendants() do
+					if p:IsA("BasePart") then
+						p.Transparency = showCutsceneDoor and 0 or 1
+						p.CanCollide = false -- duplicate ไม่มี logic ควบคุม ห้ามชนได้ตลอด กันติดกับ
+					end
+				end
+			end
+		end
+
 		StoryBeat.play(playerGui, {
+			-- จัดตำแหน่ง/ทิศทั้งคู่ก่อนคัตซีน ให้ตรงกับจุดเริ่ม root motion ของ KnockTalkWalkSit (NPCHome_*_room ที่ประตู)
+			preStage = function()
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" })
+				fireAction({ type = "TeleportTo", target = "NPCHome_Player_room" })
+				swapDoor(true)
+			end,
 			cutscene = FaasaiJoin,
 			dialogue = Faasai.p2 or Faasai.p1, -- บทเฟส 2 (มาขอฝึกงาน)
-			settle = function() fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" }) end,
+			settle = function()
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "bed" })
+				swapDoor(false)
+			end,
 		})
 	end
 

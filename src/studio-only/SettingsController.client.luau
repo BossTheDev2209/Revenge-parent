@@ -130,7 +130,16 @@ end, "เปิด", "ปิด")
 
 closeButton.MouseButton1Click:Connect(function() settingsMain.Visible = false end)
 
-local function refreshAll() for _, f in refreshers do f() end end
+-- ⚠️ AutomaticCanvasSize ของ ScrollingFrame เป็น bug ที่รู้กันของ Roblox: ไม่ recompute ตอนเพิ่ม/ลบแถว
+-- ระหว่างที่แผงยัง Visible=false (เจอจริง 12 ส.ค. — เพิ่มแถว FloatingLabels ตอนแผงซ่อนอยู่ แล้ว canvas ค้างสั้นเกิน
+-- เลื่อนไปไม่ถึงแถวท้ายๆ) → คำนวณ CanvasSize เองจาก UIListLayout.AbsoluteContentSize ทุกครั้งที่เปิดแผงกันเหนียว
+local listLayout = scrollingFrame:FindFirstChildOfClass("UIListLayout")
+local function refreshAll()
+	for _, f in refreshers do f() end
+	if listLayout then
+		scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+	end
+end
 settingsMain:GetPropertyChangedSignal("Visible"):Connect(function()
 	if settingsMain.Visible then refreshAll() end
 end)

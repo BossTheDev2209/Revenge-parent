@@ -171,4 +171,11 @@ function Formulas.qteZoneMult(state): (number, number)
 	return perfect, good
 end
 
+-- แอปบนจอคอม unlock ตามเฟสไหม (Config.AppMinPhase) — ไม่มีชื่อในตาราง = unlock เสมอ
+-- ใช้ทั้งฝั่ง client (ซ่อน icon) และ server (MoneyService.adjustSpending กันข้ามหัว)
+function Formulas.appUnlocked(phase: number, appId: string): boolean
+	local minPhase = Config.AppMinPhase[appId]
+	return not minPhase or phase >= minPhase
+end
+
 return Formulas

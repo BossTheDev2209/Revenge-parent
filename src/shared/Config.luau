@@ -18,6 +18,11 @@ Config.PhaseGates = {
 	{ phase = 2, min = 10_000, max = 100_000 },
 	{ phase = 3, min = 100_000, max = 1_000_000 },
 }
+
+-- แอปบนจอคอมที่ต้องรอเฟส (12 ส.ค. 2569, user) — เฟส 1 มีแค่ shop/edit/upload/feedback
+-- key = app.id ใน PC_APPS (Main.client.luau) · ไม่มีชื่ออยู่ในนี้ = เข้าได้ตั้งแต่เฟส 1 เสมอ
+-- Formulas.appUnlocked(phase, id) อ่านตารางนี้ · MoneyService.adjustSpending เช็คซ้ำฝั่ง server (Bank)
+Config.AppMinPhase = { bank = 2, message = 2 }
 -- Canon event ทั้งหมด (docs/02 §9.4 — ตาม timeline PDF หน้า 4 หลังตัดพ่อแม่โทรมา/งานเสริม)
 -- ทุกตัวยิง dialogue จาก Content.CanonEvents["milestone_"..เลข] + drain mod ×1.25 24 ชม.
 Config.StoryMilestones = {

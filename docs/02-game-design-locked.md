@@ -21,6 +21,12 @@
   (เก็บไว้เป็น reference ตอน playtest เท่านั้น ไม่เขียนลงเกม)
 - **ยกเลิกแล้ว:** limit คลิปต่อวัน (MAX_CLIPS_PER_DAY) — ไม่จำเป็นหลัง Bad End 1 เป็น optional
 
+**แอปบนจอคอมที่ต้องรอเฟส (lock 12 ส.ค. 2569, user):** เฟส 1 มีแค่ **Shop / Editor / Upload / Feedback** (4 ตัว) —
+**Bank กับ Message (Inbox) ซ่อนไอคอนไว้ก่อน** โผล่ตอนเข้าเฟส 2 พร้อมกัน (ครบ 6 ตัว)
+- `Config.AppMinPhase = { bank = 2, message = 2 }` — `Formulas.appUnlocked(phase, id)` อ่านค่านี้ ไอคอนที่ไม่มีชื่ออยู่ = เข้าได้ตั้งแต่เฟส 1 เสมอ
+- ซ่อนฝั่ง client (icon) + เช็คซ้ำฝั่ง server: `MoneyService.adjustSpending` (Bank ⊖⊕) ปฏิเสธถ้า `state.phase < 2` แม้ client จะพยายามยิง action ตรงๆ ก็ตาม (defense-in-depth เหมือน `MentalService.introducedInPhase`/`SponsorService.SponsorOfferMinPhase`)
+- Manage (จ้างพนักงาน, §9.8) ไม่ต้องเพิ่ม gate เอง — เข้าได้ทางเดียวคือปุ่มในแอป Bank ซึ่งซ่อนอยู่แล้ว และ roster ทุกแถวก็ล็อก `phase >= 2` อยู่แล้วเดิม (§9.8)
+
 ---
 
 ## 2. สูตร Follower ต่อคลิป
@@ -422,6 +428,8 @@ Good ① = เพื่อนคนแรกกลับมาขอโทษส
 **นับเข้า ending % (agent เสนอ ยังไม่ lock):** ใจ⊕/ยอมรับ→pos, ประชด→neu, ใจ⊖/ด่า→neg, ปล่อยผ่าน→ไม่นับ
 
 ## 9.7 Bank ⊖⊕ — ปรับงบจ่ายรายสัปดาห์ (lock 21 ก.ค. 2569 — PDF หน้า 9 บน)
+
+> ⚠️ **แอป Bank ทั้งแอปซ่อนจนถึงเฟส 2** (§1, lock 12 ส.ค. 2569) — เฟส 1 ปรับงบ ⊖⊕ ไม่ได้เลย ค่าใช้จ่ายรายสัปดาห์เก็บที่ offset เริ่มต้น (0) โดยอัตโนมัติ
 
 ⊖⊕ บนการ์ด = เพิ่ม/ลดยอดที่จะจ่ายต่อสัปดาห์ของการ์ดนั้น step ไม่เท่ากัน (step + ผลใจ agent เลือก):
 

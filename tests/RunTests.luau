@@ -653,8 +653,10 @@ mo.money = 1_000
 check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + คืน true",
 	MoneyService.onDay(mo) == true and mo.money == 0 and mo.flags.rentMissed == 1)
 
--- Bank ⊖⊕ (PDF หน้า 9)
+-- Bank ⊖⊕ (PDF หน้า 9) — Bank ทั้งแอปรอเฟส 2 (Config.AppMinPhase) เทสกลุ่มนี้ตั้ง phase=2 ไว้ก่อน
+-- เทส gate จริงแยกอยู่หัวข้อ "แอปรอเฟส" ท้ายไฟล์
 local spb = GameState.newGame()
+spb.phase = 2
 check("เพิ่มค่ากิน 1 step", MoneyService.adjustSpending(spb, "food", 1) == true and spb.spending.food == 1)
 check("weeklyTotal รวม offset: 2200+200", MoneyService.weeklyTotal(spb) == 2_400)
 spb.spending.food = 3
@@ -1868,6 +1870,27 @@ check("newGame ไม่มีสาย pc ใน upgrades", GameState.newGame()
 local oldSave = { upgrades = { camera = 2, storage = 1, pc = 3 } }
 GameState.mergeDefaults(oldSave, GameState.newGame())
 check("save เก่ามี pc ค้าง → merge ไม่พัง ไม่ทับ camera", oldSave.upgrades.camera == 2 and oldSave.upgrades.storage == 1)
+
+-- ===== แอปรอเฟส (Config.AppMinPhase — 12 ส.ค. 2569, user): bank/message ซ่อนถึงเฟส 2 =====
+check("bank ล็อกที่เฟส 1", Formulas.appUnlocked(1, "bank") == false)
+check("bank ปลดที่เฟส 2", Formulas.appUnlocked(2, "bank") == true)
+check("bank ยังปลดอยู่เฟส 3", Formulas.appUnlocked(3, "bank") == true)
+check("message ล็อกที่เฟส 1", Formulas.appUnlocked(1, "message") == false)
+check("message ปลดที่เฟส 2", Formulas.appUnlocked(2, "message") == true)
+check("shop ไม่มีใน AppMinPhase = ปลดตั้งแต่เฟส 1", Formulas.appUnlocked(1, "shop") == true)
+check("feedback ไม่มีใน AppMinPhase = ปลดตั้งแต่เฟส 1", Formulas.appUnlocked(1, "feedback") == true)
+check("edit/upload ก็ปลดตั้งแต่เฟส 1 เหมือนกัน",
+	Formulas.appUnlocked(1, "edit") == true and Formulas.appUnlocked(1, "upload") == true)
+
+-- server ต้องกันเองซ้ำ ไม่เชื่อว่า client ซ่อน icon แล้วพอ (AdjustSpending มาจากแอป Bank)
+local bg1 = GameState.newGame()
+bg1.phase = 1
+check("เฟส 1: AdjustSpending ถูกปฏิเสธแม้ card/dir ถูกต้อง",
+	MoneyService.adjustSpending(bg1, "food", 1) == false and bg1.spending.food == 0)
+local bg2 = GameState.newGame()
+bg2.phase = 2
+check("เฟส 2: AdjustSpending ทำงานปกติ",
+	MoneyService.adjustSpending(bg2, "food", 1) == true and bg2.spending.food == 1)
 
 -- ===== NPCIndicator: yaw + clamp (component หันตัว NPC — 10 ส.ค.) =====
 do

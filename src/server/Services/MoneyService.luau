@@ -11,7 +11,9 @@ local Formulas = if isStudio
 local MoneyService = {}
 
 -- ปรับงบ ⊖⊕ ต่อการ์ด (PDF หน้า 9 — user lock 21 ก.ค.) step/ขอบเขต/ผลใจอยู่ Config.Spending
+-- Bank ทั้งแอปรอเฟส 2 (Config.AppMinPhase — 12 ส.ค. 2569, user) — เช็คซ้ำฝั่ง server กัน client ข้ามหัว icon ที่ซ่อนไว้
 function MoneyService.adjustSpending(state, card: string, dir: number): boolean
+	if not Formulas.appUnlocked(state.phase, "bank") then return false end
 	local cfg = Config.Spending[card]
 	if not cfg or (dir ~= 1 and dir ~= -1) then return false end
 	local new = (state.spending[card] or 0) + dir

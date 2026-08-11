@@ -159,6 +159,8 @@
 
 ## 8. Bank + Manage app (PDF หน้า 9 บน)
 
+**⚠️ icon ซ่อนจนถึงเฟส 2** (`Config.AppMinPhase.bank`, lock 12 ส.ค. 2569 — docs/02 §1) — เฟส 1 ไม่มี icon นี้บน desktop เลย
+
 **ร่างใน PDF:** 3 กล่องบน: ยอดคงเหลือ / income per week / รายจ่ายรวม per week (แดง) / 3 การ์ด: ค่าอาหาร (⊖ 1K ⊕), ค่าพนักงาน (⊖ 10K ⊕), ค่าเช่า (⊖ 2K ⊕) / ปุ่ม "manage" → **หน้าจ้างพนักงาน:** ซ้าย: สรุปทีม "Video per day 10/20" + bar speed 36/100 + quality 100 + salary 40k / ขวา: การ์ดพนักงาน "Bob" (speed 18, quality 50, salary 20k) ปุ่ม hire — จ้างแล้วเป็น Active + ปุ่ม fire
 
 | ชิ้น | สถานะ | ต้องทำ |
@@ -168,6 +170,8 @@
 | **ระบบพนักงานทั้งหมด** | ✅ 21 ก.ค. | ทำครบแล้ว — StaffService + Manage app (สรุปทีม + การ์ด hire/fire) ตัวเลข docs/02 §9.8 |
 
 ## 9. Message app (PDF หน้า 9 กลาง)
+
+**⚠️ icon ซ่อนจนถึงเฟส 2** (`Config.AppMinPhase.message`, lock 12 ส.ค. 2569 — docs/02 §1) — เฟส 1 ไม่มี icon นี้บน desktop เลย
 
 **ร่างใน PDF:** HSR style — list คนซ้าย (พนักงาน1, sponsor) / แชทขวา bubble สองฝั่ง / **ช่องตอบ 3 ตัวเลือกล่าง** — เลือกได้แต่ไม่มีผล คำตอบ NPC fix ตาม set
 

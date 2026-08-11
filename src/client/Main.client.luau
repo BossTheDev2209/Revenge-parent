@@ -227,6 +227,8 @@ local pcDeps = {
 -- PC Screen (PDF หน้า 5 "UI PC") — id ตรง key ใน UIAssets ("app_"..id)
 -- ★ ลำดับนี้ = ลำดับไอคอนบน desktop ตามภาพร่าง `ui screenshot/PC ui.png`
 --   คอลัมน์ 1 (บนลงล่าง): upgrade(shop) · edit · upload · feedback · bank | คอลัมน์ 2: calendar · message
+-- ★ bank/message ซ่อนจนถึงเฟส 2 (Config.AppMinPhase — 12 ส.ค. 2569, user) — เฟส 1 เหลือ shop/edit/upload/feedback
+--   .hidden ของ 2 ตัวนี้ถูกคำนวณสดทุกครั้งที่เปิดจอคอม (ดู openPC ข้างล่าง) ไม่ใช่ค่าคงที่แบบ manage
 local PC_APPS = {
 	-- upgrade บนคอม = เปิดหน้าร้านตัวเดียวกับร้านในแมพ (layout ตามภาพร่าง PDF หน้า 9 อยู่ที่ ShopKiosk)
 	{ id = "shop", name = "upgrade", label = "🛒 Shop", external = function()
@@ -680,6 +682,13 @@ InteractBinder.init({
 	playerGui = playerGui,
 	getState = function() return latestState end, -- ประตูใช้เช็ค follower ก่อนปล่อยผ่าน (docs/02 §9.9)
 	openPC = function(screenPart) -- Interact_pcMonitor = zoom เข้าจอ | Interact_Camera เก่า = เปิดเฉยๆ
+		-- ซ่อน icon ที่ยังไม่ถึงเฟส (Config.AppMinPhase — 12 ส.ค. 2569, user) — เช็คสดทุกครั้งที่เปิดจอ
+		-- แตะเฉพาะแอปที่มีอยู่ใน AppMinPhase (bank/message) ไม่ยุ่ง hidden ถาวรของ manage
+		for _, app in PC_APPS do
+			if Config.AppMinPhase[app.id] then
+				app.hidden = not Formulas.appUnlocked(latestState.phase, app.id)
+			end
+		end
 		PCScreen.open(playerGui, pcDeps, PC_APPS, screenPart)
 	end,
 	openShop = function() -- ร้านในแมพ (Interact_Shop) — คนละอันกับแอป Shop บนจอคอม

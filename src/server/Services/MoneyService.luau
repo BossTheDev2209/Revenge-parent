@@ -4,6 +4,9 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+local Formulas = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
+	else require("../../shared/Formulas")
 
 local MoneyService = {}
 
@@ -69,6 +72,49 @@ function MoneyService.buyUpgrade(state, item: string): boolean
 	if state.equipped then state.equipped[item] = state.upgrades[item] end
 	return true
 end
+
+-- ===== ของกินใช้แล้วหมด (Config.Consumables) — ซื้อ = ดื่มทันที ไม่มีคลังของ =====
+
+-- ชั่วโมงสะสมของเกม (ตรงกับ MentalService.totalHours — ใช้หน่วยเดียวกันทั้งเกม)
+function MoneyService.totalHours(state): number
+	return state.day * 24 + state.timeOfDay
+end
+
+-- ⚠️ ตัว lookup + สูตรโซนอยู่ Formulas (shared) — client ต้องใช้ชุดเดียวกันตอนวาด/ตัดเกรด QTE
+--    ห้าม copy สูตรมาไว้ที่นี่ซ้ำ ไม่งั้นโซนที่เห็นกับที่ตัดเกรดจะหลุดจากกัน
+
+-- ซื้อ+ดื่มทันที — คืน false ถ้าไม่รู้จัก/เงินไม่พอ/ยังออกฤทธิ์อยู่ (ห้ามซ้อนเพื่อกันต่ออายุไม่รู้จบ)
+-- server ตัดสินเงินและเวลาหมดฤทธิ์เอง ไม่เชื่อ client
+function MoneyService.buyConsumable(state, key: string): boolean
+	local item = Formulas.consumableByKey(key)
+	if not item then return false end
+	state.buffs = state.buffs or {}
+	if state.buffs[key] then return false end -- ออกฤทธิ์อยู่แล้ว ซื้อซ้ำไม่ได้
+	if state.money < item.price then return false end
+	state.money -= item.price
+	state.buffs[key] = { expireHour = MoneyService.totalHours(state) + item.durationHours }
+	return true
+end
+
+-- เรียกทุกชั่วโมงเกม — คืน list ของ mental delta ที่ต้องหัก (Main เอาไป applyDelta ผ่าน MentalService)
+-- แยกคืนค่าแทนที่จะหักเอง = pure พอที่จะเทสได้ + ไม่ผูก MoneyService เข้ากับ MentalService
+function MoneyService.expireBuffs(state): { { key: string, mental: number } }
+	local out = {}
+	if not state.buffs then return out end
+	local now = MoneyService.totalHours(state)
+	for key, b in state.buffs do
+		if b.expireHour and now >= b.expireHour then
+			local item = Formulas.consumableByKey(key)
+			state.buffs[key] = nil
+			if item and item.mentalOnExpire and item.mentalOnExpire ~= 0 then
+				table.insert(out, { key = key, mental = item.mentalOnExpire })
+			end
+		end
+	end
+	return out
+end
+
+-- ตัวคูณโซน QTE = Formulas.qteZoneMult (shared) — ทั้ง client/server ใช้ตัวเดียวกัน ไม่มีสำเนาที่นี่
 
 -- เลือกย้อนกลับไปใช้ของที่ซื้อไว้แล้ว (ระดับเก่า) — ผลลดลงจริงตามตัวที่ถือ
 -- คืน false ถ้าสายมั่ว/ระดับยังไม่ได้ซื้อ/ระดับต่ำกว่า 1 — server เป็นคนตัดสิน ไม่เชื่อ client

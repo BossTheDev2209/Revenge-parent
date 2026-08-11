@@ -454,6 +454,70 @@ do
 	check("sweepSecondsFor idx ไกลมาก clamp ที่พื้น 0.5", RecordQTE.sweepSecondsFor(20, cfg) == 0.5)
 end
 
+-- ===== ของกินใช้แล้วหมด — เครื่องดื่มชูกำลัง (เพิ่ม 11 ส.ค. 2569 · docs/02 §9.5) =====
+do
+	local RecordQTE = if isStudio -- local ของบล็อกก่อนหน้า มองไม่เห็นจากตรงนี้ ต้อง require ใหม่
+		then require(game:GetService("StarterPlayer").StarterPlayerScripts.RecordQTE)
+		else require("../src/client/RecordQTE")
+
+	local energy = Formulas.consumableByKey("energy")
+	check("consumableByKey หา energy เจอ", energy ~= nil and energy.key == "energy")
+	check("consumableByKey key มั่ว = nil", Formulas.consumableByKey("zzz") == nil)
+
+	-- qteZoneMult: ไม่มี buff = 1,1 · มี = ตามที่ Config กำหนด
+	local s0 = GameState.newGame()
+	local p0, g0 = Formulas.qteZoneMult(s0)
+	check("qteZoneMult ไม่มี buff = 1,1", p0 == 1 and g0 == 1)
+
+	-- ซื้อ: เงินไม่พอ = ไม่ได้ (เริ่มเกมมี 2,500 · ราคา 12,000)
+	local sBuy = GameState.newGame()
+	check("buyConsumable เงินไม่พอ = false", MoneyService.buyConsumable(sBuy, "energy") == false)
+	check("buyConsumable เงินไม่พอ ไม่หักเงิน", sBuy.money == 2500)
+
+	-- ซื้อสำเร็จ: หักเงิน + ตั้ง expireHour + โซนกว้างขึ้น
+	sBuy.money = 50_000
+	sBuy.day, sBuy.timeOfDay = 3, 10 -- totalHours = 82
+	check("buyConsumable เงินพอ = true", MoneyService.buyConsumable(sBuy, "energy") == true)
+	check("buyConsumable หักเงินตามราคา", sBuy.money == 50_000 - energy.price)
+	check("buyConsumable ตั้ง expireHour = ตอนนี้ + durationHours",
+		sBuy.buffs.energy.expireHour == 3 * 24 + 10 + energy.durationHours)
+	local p1, g1 = Formulas.qteZoneMult(sBuy)
+	check("qteZoneMult ระหว่างออกฤทธิ์ = ตัวคูณใน Config", p1 == energy.qtePerfectMult and g1 == energy.qteGoodMult)
+
+	-- ซื้อซ้ำระหว่างออกฤทธิ์ไม่ได้ (กันต่ออายุไม่รู้จบ)
+	local moneyBefore = sBuy.money
+	check("buyConsumable ซื้อซ้ำระหว่างออกฤทธิ์ = false", MoneyService.buyConsumable(sBuy, "energy") == false)
+	check("buyConsumable ซื้อซ้ำไม่หักเงิน", sBuy.money == moneyBefore)
+	check("buyConsumable key มั่ว = false", MoneyService.buyConsumable(sBuy, "zzz") == false)
+
+	-- ยังไม่ถึงเวลา = ไม่หมดฤทธิ์
+	sBuy.day, sBuy.timeOfDay = 4, 0 -- totalHours = 96 < 106
+	check("expireBuffs ยังไม่ถึงเวลา = ไม่คืนอะไร", #MoneyService.expireBuffs(sBuy) == 0)
+	check("expireBuffs ยังไม่ถึงเวลา buff ยังอยู่", sBuy.buffs.energy ~= nil)
+
+	-- ถึงเวลา = หมดฤทธิ์ + คืน mental penalty ให้ Main หัก
+	sBuy.day, sBuy.timeOfDay = 4, 11 -- totalHours = 107 >= 106
+	local expired = MoneyService.expireBuffs(sBuy)
+	check("expireBuffs ถึงเวลา คืน 1 รายการ", #expired == 1 and expired[1].key == "energy")
+	check("expireBuffs คืน mental ตาม Config", expired[1].mental == energy.mentalOnExpire)
+	check("expireBuffs ล้าง buff ออกจาก state", sBuy.buffs.energy == nil)
+	local p2, g2 = Formulas.qteZoneMult(sBuy)
+	check("qteZoneMult หลังหมดฤทธิ์ กลับเป็น 1,1", p2 == 1 and g2 == 1)
+	check("expireBuffs เรียกซ้ำหลังหมดแล้ว ไม่คืนซ้ำ (ไม่หักใจซ้ำ)", #MoneyService.expireBuffs(sBuy) == 0)
+
+	-- โซนกว้างขึ้นแล้วต้องตัดเกรดง่ายขึ้นจริง: d=0.05 เดิม good → ดื่มแล้ว perfect (perfectHW 0.035→0.07)
+	local Q = Config.RecordQTE
+	check("gradeFor d=0.05 โซนปกติ = good",
+		RecordQTE.gradeFor(0.55, 0.5, Q.perfectHalfWidth, Q.goodHalfWidth) == "good")
+	check("gradeFor d=0.05 โซนที่ดื่มแล้ว = perfect",
+		RecordQTE.gradeFor(0.55, 0.5, Q.perfectHalfWidth * energy.qtePerfectMult, Q.goodHalfWidth * energy.qteGoodMult) == "perfect")
+
+	-- ⚠️ good ×1.5 ไม่ใช่ ×2 จงใจ: center สุ่มได้ถึง centerMax(0.80) — เข็มชนขอบขวา (1.0) ต้องยัง miss
+	local edgeDist = 1.0 - Q.centerMax -- = 0.20
+	check("โซน good ที่ดื่มแล้ว ยังแคบกว่าระยะขอบขวา (เข็มชนขอบไม่ได้แต้มฟรี)",
+		Q.goodHalfWidth * energy.qteGoodMult < edgeDist)
+end
+
 -- ===== เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค. — docs/02 §9.5) =====
 do
 	-- clipSizeMult = gb / 32 baseline (proportional)

@@ -47,6 +47,7 @@ function GameState.newGame()
 		pendingComments = {}, -- comment รอตอบ {id=} (CommentService)
 		pendingEvents = {},   -- canon event รอเล่นฝั่ง client เช่น "milestone_1000"
 		mentalMods = {},      -- modifier ที่ active: {id=, expireHour=?} (docs/02 §3)
+		buffs = {},           -- ของกินที่ออกฤทธิ์อยู่: [key] = { expireHour = } (Config.Consumables · หมดฤทธิ์ที่ MoneyService.expireBuffs)
 		streaks = { edit = 0, commentBad = 0, commentGood = 0 },
 		awakeHours = 0,       -- ตื่นต่อเนื่องกี่ชั่วโมงเกม (ครบ 20 → NoSleep)
 		lastViralDay = 0,     -- ไว้เช็ค viral 2 วันติด

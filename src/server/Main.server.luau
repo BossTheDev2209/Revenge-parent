@@ -152,6 +152,10 @@ end)
 ActionRouter.register("EquipLevel", function(s, a)
 	MoneyService.equipLevel(s, a.item, a.level)
 end)
+-- ซื้อของกินที่แอป Shop (Config.Consumables) — ซื้อ = ดื่มทันที · server ตัดเงิน/ตั้งเวลาหมดฤทธิ์เอง
+ActionRouter.register("BuyConsumable", function(s, a)
+	MoneyService.buyConsumable(s, a.item)
+end)
 ActionRouter.register("AdjustSpending", function(s, a) -- ⊖⊕ ใน Bank
 	MoneyService.adjustSpending(s, a.card, a.dir)
 end)
@@ -391,6 +395,10 @@ end)
 -- นาฬิกาเกม: เดินตลอด, ทุกชั่วโมง mental drain + push (client เห็นนาฬิกา/หลอดใจขยับ)
 TimeService.onHour(function(s)
 	MentalService.onHour(s)
+	-- ของกินหมดฤทธิ์ → หักใจตามที่ Config กำหนด (อาการ crash ของชูกำลัง)
+	for _, e in MoneyService.expireBuffs(s) do
+		MentalService.applyDelta(s, e.mental)
+	end
 	syncLighting(s)
 	GameState.push(s)
 end)

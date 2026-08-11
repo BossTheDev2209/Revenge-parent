@@ -147,4 +147,28 @@ function Formulas.activeLevel(state, key: string): number
 	return math.clamp(picked, 1, owned)
 end
 
+-- ===== ของกินใช้แล้วหมด (Config.Consumables) =====
+-- อยู่ shared เพราะทั้ง server (ตัดเงิน/หมดฤทธิ์) และ client (วาดโซน QTE) ต้องใช้สูตรเดียวกัน
+
+function Formulas.consumableByKey(key: string)
+	for _, c in Config.Consumables do
+		if c.key == key then return c end
+	end
+	return nil
+end
+
+-- ตัวคูณความกว้างโซน QTE จากของที่ออกฤทธิ์อยู่ — คืน (perfect, good) · ไม่มีของ = 1, 1
+-- คูณสะสมถ้ามีหลายชิ้นออกฤทธิ์พร้อมกัน (ตอนนี้มีชิ้นเดียว แต่รองรับไว้)
+function Formulas.qteZoneMult(state): (number, number)
+	local perfect, good = 1, 1
+	for key in (state and state.buffs) or {} do
+		local item = Formulas.consumableByKey(key)
+		if item then
+			perfect *= item.qtePerfectMult or 1
+			good *= item.qteGoodMult or 1
+		end
+	end
+	return perfect, good
+end
+
 return Formulas

@@ -174,7 +174,11 @@ function ShopKiosk.open(playerGui, deps)
 	local rowInner = CARD_W * perPage + GAP * (perPage - 1)
 	local panelW = 40 + 34 + 8 + rowInner + 8 + 34 -- margin + ลูกศรซ้าย + การ์ด + ลูกศรขวา
 	local rowH = 24 + CARD_H
+	-- แถวของกินใช้แล้วหมด (Config.Consumables) ต่อท้ายแถวอัปเกรด — ไม่มีของ = ไม่กินที่
+	local CONSUMABLE_ROW_H = 24 + CARD_H
+	local hasConsumables = #Config.Consumables > 0
 	local panelH = 56 + (#Config.ShopCatalog * (rowH + 12)) + 12
+		+ (hasConsumables and (CONSUMABLE_ROW_H + 12) or 0)
 
 	local gui = mk("ScreenGui", nil, { Name = "Gui_ShopKiosk", ResetOnSpawn = false, DisplayOrder = 5 })
 	local panel = mk("Frame", gui, {
@@ -318,6 +322,63 @@ function ShopKiosk.open(playerGui, deps)
 		rows[i] = { entry = entry, cards = cards, info = rowInfo, left = left, right = right }
 	end
 
+	-- ===== แถวของกินใช้แล้วหมด — คนละรูปแบบกับบันไดอัปเกรด =====
+	-- ไม่มีระดับ/ไม่มีหน้า/ไม่มี locked: ซื้อได้ตลอดถ้าเงินพอและยังไม่ออกฤทธิ์ (ซื้อ = ดื่มทันที)
+	local consumableCards = {}
+	if hasConsumables then
+		local cRow = mk("Frame", panel, {
+			Size = UDim2.new(1, -40, 0, CONSUMABLE_ROW_H),
+			Position = UDim2.new(0, 20, 0, 56 + #Config.ShopCatalog * (rowH + 12)),
+			BackgroundColor3 = COLORS.rowBg,
+		})
+		mk("UICorner", cRow, {})
+		mk("TextLabel", cRow, {
+			Size = UDim2.new(0, 320, 0, 22), Position = UDim2.new(0, 10, 0, 2),
+			BackgroundTransparency = 1, Text = "🥤 ของกิน (ใช้แล้วหมด)", TextColor3 = COLORS.text,
+			TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		local cInfo = mk("TextLabel", cRow, {
+			Size = UDim2.new(0, 300, 0, 20), Position = UDim2.new(1, -310, 0, 3),
+			BackgroundTransparency = 1, Text = "", TextColor3 = COLORS.dim,
+			TextSize = 13, TextXAlignment = Enum.TextXAlignment.Right,
+		})
+
+		for idx, item in Config.Consumables do
+			local card = mk("Frame", cRow, {
+				Size = UDim2.new(0, CARD_W, 0, CARD_H - 8),
+				Position = UDim2.new(0, 4 + 34 + 8 + (idx - 1) * (CARD_W + GAP), 0, 26),
+				BackgroundColor3 = COLORS.card,
+			})
+			mk("UICorner", card, {})
+			mk("TextLabel", card, { -- emoji ของชิ้นนั้น (ไม่มีรูป asset ให้ใช้ตอนนี้)
+				Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(0.5, -26, 0, 24),
+				BackgroundTransparency = 1, Text = item.icon or "🥤",
+				TextColor3 = COLORS.text, TextScaled = true,
+			})
+			mk("TextLabel", card, {
+				Size = UDim2.new(1, -12, 0, 32), Position = UDim2.new(0, 6, 0, 80),
+				BackgroundTransparency = 1, Text = item.label, TextColor3 = COLORS.text,
+				TextSize = 13, TextWrapped = true,
+			})
+			mk("TextLabel", card, {
+				Size = UDim2.new(1, -12, 0, 28), Position = UDim2.new(0, 6, 0, 108),
+				BackgroundTransparency = 1, Text = item.desc or "", TextColor3 = COLORS.dim,
+				TextSize = 11, TextWrapped = true,
+			})
+			local btn = mk("TextButton", card, {
+				Size = UDim2.new(1, -12, 0, 30), Position = UDim2.new(0, 6, 1, -36),
+				BackgroundColor3 = COLORS.buy, TextColor3 = COLORS.text, TextSize = 14, Text = "",
+			})
+			mk("UICorner", btn, {})
+			btn.Activated:Connect(function()
+				-- server เช็คซ้ำทุกอย่าง (เงิน/ออกฤทธิ์ซ้อน) — ปุ่มนี้แค่ยิงเจตนา
+				deps.fireAction({ type = "BuyConsumable", item = item.key })
+			end)
+			consumableCards[idx] = { item = item, btn = btn, card = card }
+		end
+		consumableCards.info = cInfo
+	end
+
 	local primed = false
 
 	function ShopKiosk.refresh(state)
@@ -386,6 +447,37 @@ function ShopKiosk.open(playerGui, deps)
 						ui.btn:SetAttribute("Sfx", "denied")
 					end
 				end
+			end
+		end
+
+		-- ของกิน: 3 สถานะ — ออกฤทธิ์อยู่ (ซื้อซ้ำไม่ได้) / ซื้อได้ / เงินไม่พอ
+		local activeBuff = nil
+		for _, ui in consumableCards do
+			if type(ui) == "table" and ui.item then
+				local buff = state.buffs and state.buffs[ui.item.key]
+				if buff then
+					activeBuff = ui.item
+					ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "⏳ ออกฤทธิ์อยู่", COLORS.current, false
+					ui.btn:SetAttribute("Sfx", "none")
+					ui.card.BackgroundColor3 = COLORS.cardNext
+				else
+					local can = state.money >= ui.item.price
+					ui.btn.Text = ("Buy ฿%s"):format(HUD.comma(ui.item.price))
+					ui.btn.BackgroundColor3 = can and COLORS.buy or COLORS.broke
+					ui.btn.Active = can
+					ui.btn:SetAttribute("Sfx", can and "buy" or "denied")
+					ui.card.BackgroundColor3 = COLORS.card
+				end
+			end
+		end
+		if consumableCards.info then
+			-- บอกเวลาที่เหลือเป็นชั่วโมงเกม (state.day/timeOfDay = หน่วยเดียวกับ expireHour)
+			if activeBuff then
+				local buff = state.buffs[activeBuff.key]
+				local left = math.max(0, (buff.expireHour or 0) - (state.day * 24 + state.timeOfDay))
+				consumableCards.info.Text = ("ออกฤทธิ์อยู่ · เหลือ %d ชม.ในเกม"):format(left)
+			else
+				consumableCards.info.Text = "ซื้อแล้วดื่มทันที · ครั้งละ 1 ขวด"
 			end
 		end
 		primed = true

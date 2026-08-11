@@ -34,12 +34,17 @@ end
 
 -- ===== Roblox glue =====
 -- hitsRequired: จำนวนครั้งที่ต้องกด (server สุ่มส่งมาผ่าน state.pendingRecordQTE.hits)
-function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
+-- zoneMult: { perfect, good } ตัวคูณความกว้างโซนจากของกินที่ออกฤทธิ์ (MoneyService.qteZoneMult)
+--   ไม่ส่ง = 1 เท่าเดิม · โซนที่กว้างขึ้นใช้ทั้ง "วาดบนจอ" และ "ตัดเกรด" ตัวเดียวกัน (เห็นตรงกับที่ได้จริง)
+function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 	if RecordQTE.running then return end
 	RecordQTE.running = true
 	hitsRequired = math.max(1, hitsRequired or 1)
 
 	local Q = Config.RecordQTE
+	-- โซนที่ใช้จริงรอบนี้ (คูณของกินแล้ว) — clamp กันโซน Good ล้นจนเข็มชนขอบก็ได้แต้มฟรี
+	local perfectHW = Q.perfectHalfWidth * ((zoneMult and zoneMult.perfect) or 1)
+	local goodHW = math.min(Q.goodHalfWidth * ((zoneMult and zoneMult.good) or 1), 0.19)
 	local RunService = game:GetService("RunService")
 	local CAS = game:GetService("ContextActionService")
 	local UIS = game:GetService("UserInputService")
@@ -120,8 +125,8 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 		c.Parent = z
 		return z
 	end
-	zone(Q.goodHalfWidth, Color3.fromRGB(70, 180, 120), 0.35)     -- Good = เขียว
-	zone(Q.perfectHalfWidth, Color3.fromRGB(245, 240, 180), 0.05) -- Perfect = ขาวนวล (เด่นสุด)
+	zone(goodHW, Color3.fromRGB(70, 180, 120), 0.35)     -- Good = เขียว
+	zone(perfectHW, Color3.fromRGB(245, 240, 180), 0.05) -- Perfect = ขาวนวล (เด่นสุด)
 
 	-- เข็มวิ่ง (ping-pong อิสระ ไม่หยุดจนกว่าจะกดครบ)
 	local NEEDLE_COLOR = Color3.fromRGB(255, 90, 90)
@@ -203,7 +208,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 	-- กด 1 ครั้ง = บันทึกเกรดจากตำแหน่งเข็มปัจจุบัน — ไม่แตะ pos/dir (เข็มเดินหน้าต่อตามเดิม)
 	local function press()
 		if resolved then return end
-		local grade = RecordQTE.gradeFor(pos, center, Q.perfectHalfWidth, Q.goodHalfWidth)
+		local grade = RecordQTE.gradeFor(pos, center, perfectHW, goodHW) -- โซนที่คูณของกินแล้ว (ตรงกับที่วาดบนจอ)
 		table.insert(grades, grade)
 		hitsDone += 1
 		flashGrade(grade)
@@ -234,7 +239,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number)
 			dir = 1
 		end
 		needle.Position = UDim2.new(pos, 0, 0.5, 0)
-		local nowInGoodBand = math.abs(pos - center) <= Q.goodHalfWidth
+		local nowInGoodBand = math.abs(pos - center) <= goodHW
 		if nowInGoodBand and not inGoodBand then Audio.sfx("qte_tick") end
 		inGoodBand = nowInGoodBand
 	end)

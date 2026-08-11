@@ -49,6 +49,9 @@
 | hotbar tool 3 ช่อง | 🔴 | ผูกกับ §4 (กล้อง/มือถือ/ไม้เซลฟี่ = Roblox Tool ใน Backpack — hotbar ได้ฟรี) |
 | ปุ่ม setting/เสียง | ✅ 8 ส.ค. | `SettingButton` เปิดแผงตั้งค่า · `MusicButton` mute เพลง (ไอคอนสลับ) — ดู §1.1 |
 
+> ⚠️ **`StarterGui.Gui_HUD.ResetOnSpawn` ต้องเป็น `false` เสมอ** (bug จริง 12 ส.ค. 2569 — เจอเป็น `true` ใน Studio, โค้ด `HUD.build` fallback ตั้ง `false` ให้เองแต่ instance จริงที่แต่งใน Studio ไม่มีใครตั้ง) — เป็น `true` แล้วผู้เล่นตาย/reset ตัวละคร Roblox จะทำลาย+โคลน `Gui_HUD` ใหม่จาก `StarterGui` (ค่า mockup ที่แต่งไว้ตอนออกแบบ เช่น "999+" โผล่แทนเลขจริง) เพราะ `HUD.bind()` cache reference ไว้ตัวเดียวตอน `HUD.init()` ไม่รู้ว่าโดนแทนที่ · ถ้าไปแก้ `Gui_HUD` ใหม่ใน Studio (ลบ-สร้างใหม่) ต้องเช็คค่านี้ซ้ำทุกครั้ง
+> **แก้คู่กับการปิดปุ่ม "Reset" ในเมนู Esc ของ Roblox เอง** (`StarterGui:SetCore("ResetButtonCallback", false)`, `Main.client.luau`) — เกมนี้ไม่มี fatal outcome ตามล็อกใน CLAUDE.md ผู้เล่นไม่ควรรีเซ็ตตัวละครได้เองอยู่แล้ว
+
 ## 1.1 Settings panel + เสียง (8 ส.ค.)
 
 **แผง:** ยืมหน้าตาจาก Toolbox "Cafe Settings System" (by Tigo) — สแกน backdoor แล้ว ใช้แค่ GUI + กลไก drag สไลเดอร์ (ไม่ใช้ IconHandler ของมัน) · logic เขียนเองต่อกับระบบเรา

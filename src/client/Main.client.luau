@@ -165,6 +165,10 @@ end
 -- ซ่อน backpack/hotbar เวลามีหน้าต่างเต็มจอบัง (cutscene/บทคุย/เมนู/คอม/ร้าน/ตัดคลิป/เตียง)
 -- ที่เดียวคุมรวม: เฝ้า ScreenGui ชื่อพวกนี้โผล่/หายใต้ playerGui แล้ว toggle CoreGui.Backpack
 local StarterGui = game:GetService("StarterGui")
+-- ปิดปุ่ม "Reset" ในเมนู Esc ของ Roblox เอง (12 ส.ค. 2569, user) — เกมนี้ไม่มี fatal outcome/ตัวละครตายจริง
+-- (CLAUDE.md: ตัดเนื้อหา fatal outcome ออกหมด) การรีเซ็ตเองทำให้ Gui_HUD โดน ResetOnSpawn ของ Roblox
+-- ทำลาย+โคลนใหม่จาก StarterGui (เจอบั๊กจริง 12 ส.ค.: เลขในจอกลับไปเป็นค่า mockup ที่แต่งไว้ตอนออกแบบ เช่น "999+")
+pcall(function() StarterGui:SetCore("ResetButtonCallback", false) end)
 local MODAL_GUIS = {
 	Gui_Cutscene = true, Gui_Dialogue = true, Gui_MainMenu = true,
 	Gui_ShopKiosk = true, Gui_EditQTE = true, Gui_BedMenu = true, Gui_PC = true,

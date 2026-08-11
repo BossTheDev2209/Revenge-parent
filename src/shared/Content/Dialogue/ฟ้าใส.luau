@@ -1,6 +1,7 @@
 -- ฟ้าใสBedroom — สร้างจาก tools/dialogue-editor.html (ดู docs/engines/dialogue.md)
--- ⚠️ p1/after กู้คืนโดย agent 12 ส.ค. — session export ล่าสุดไม่มี 2 แท็บนี้เปิดอยู่ ทับหายไป (เนื้อหายังเป็น placeholder เดิม ไม่มีอะไรเสีย)
---   เปิดไฟล์นี้ผ่าน dialogue-editor.html ครั้งหน้า เช็คว่าทุกแท็บ (รวม p1/after) มีข้อมูลก่อน export ทับ
+-- ⚠️⚠️ ไฟล์นี้มี key `byLoc` และ `parkFarewell` ที่ dialogue-editor.html **ไม่รู้จัก** (เครื่องมือรู้จักแค่ p1/p2/p3/after/again)
+--   เปิดไฟล์นี้ผ่านเครื่องมือแล้ว export ทับ = 2 key นี้หายเงียบๆ (เคยเกิดจริง 12 ส.ค. 2569 — กู้คืนแล้วดู commit "fix(dialogue): recover ฟ้าใส...")
+--   แก้ข้อความใน byLoc/parkFarewell ต้องแก้ตรงในไฟล์ `.luau` นี้เท่านั้น ห้ามผ่าน dialogue-editor.html
 return {
 	p1 = { "[placeholder] เจ เฟส 1 — มาขอช่วยงาน ยังทำอะไรไม่เป็น" },
 	p2 = {
@@ -327,7 +328,7 @@ return {
 	},
 
 	-- parkFarewell — บทส่งท้าย (ไม่ spicy) เด้งอัตโนมัติทันทีหลัง byLoc.park.p จบ (ดู StoryBeat chain ใน Main.client)
-	-- ไม่ผ่าน pickLines/byLoc (top-level key ตรงๆ เหมือน Jiajia.p3 ที่ StoryBeat เรียกตรง) ไม่ต้องมี lock (คุยจบ/เลิกคุยได้ปกติ)
+	-- ไม่ผ่าน pickLines/byLoc (top-level key ตรงๆ StoryBeat เรียกตรง เหมือนที่ Jiajia.p3 ถูกเรียกตรง — แต่ key นี้ dialogue-editor.html ไม่รู้จัก ต่าง p3 ดูคำเตือนบนสุดไฟล์) ไม่ต้องมี lock (คุยจบ/เลิกคุยได้ปกติ)
 	-- บรรทัดแรกต้องมี pose="Idle" — ลุกจากท่านั่ง loop (IdlePark) มายืนคุยปกติ (field มีอยู่แล้ว ดู docs/engines/dialogue.md §2.5)
 	parkFarewell = {
 		{ speaker = "ฟ้าใส", text = "[placeholder] ลุกจากม้านั่ง — บทส่งท้ายก่อนแยกย้ายกลับห้อง", pose = "Idle" },

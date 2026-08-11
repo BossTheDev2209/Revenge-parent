@@ -415,6 +415,31 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		refreshMuteIcon(appliedMusicMuted)
 	end
 
+	-- ของที่ขยับไม่ได้ (ไม่ joint-animate) — ล่องหน/โผล่ตาม flag ล้วนๆ แทน (Motor6D สร้างปัญหามาเยอะพอละวันนี้)
+	-- ฟ้าใสย้ายเข้า (join) = เอากระเป๋า+คอมมาด้วย ทั้งคู่ค้างจนทรยศ (betray) ถึงหายไปพร้อมกัน (ยกหนี)
+	-- เจียเจียไม่มี arc ทรยศ — โผล่ตอนร่วมทีมแล้วค้างตลอด ไม่มีเงื่อนไขหาย
+	if state.flags then
+		local faasaiJoined = state.flags.faasai_joined == true
+		local betrayed = state.flags.betrayed == true
+		local jiajiaJoined = state.flags.jiajia_joined == true
+		local function setVisible(name, show)
+			local inst = workspace:FindFirstChild(name, true)
+			if not inst then return end
+			for _, p in inst:GetDescendants() do
+				if p:IsA("BasePart") then
+					p.Transparency = show and 0 or 1
+					p.CanCollide = false
+				end
+			end
+			if inst:IsA("BasePart") then inst.Transparency = show and 0 or 1; inst.CanCollide = false end
+		end
+		setVisible("Handle1", faasaiJoined) -- กระเป๋าที่เตียง (เฟส 2) ค้างตลอดหลังร่วมทีม
+		setVisible("Handle2", faasaiJoined and not betrayed) -- กระเป๋าที่เก้าอี้ (เฟส 3) หายตอนทรยศ
+		setVisible("Notebook", faasaiJoined and not betrayed) -- คอมที่เตียง
+		setVisible("MacbookChair", faasaiJoined and not betrayed) -- คอมที่เก้าอี้ (เฟส 3)
+		setVisible("MacbookCouch", jiajiaJoined) -- คอมเจียเจีย ไม่มีทรยศ ค้างตลอด
+	end
+
 	-- โหลดเซฟ: วาปไปสปอว์นของเฟสนั้นตรงๆ + prime prevPhase กันเล่น cutscene ข้ามเฟส (bug #4/#7)
 	-- ทำก่อน phase logic ข้างล่าง (state เดียวกันถือทั้ง phase ใหม่ + spawnTarget → ไม่มี race)
 	if state.spawnTarget then
@@ -659,8 +684,11 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 					done()
 				end)
 			end,
-			-- ⏳ ยังไม่มี anchor ที่อยู่ถาวรของทั้งคู่หลังฉากนี้ — ปล่อยค้างที่จุดจบ cutscene ไปก่อน
-			-- (ตั้ง loc ใหม่ได้ทันทีที่ทีมวาง NPCHome_<actor>_<loc> ของเฟส 3 ในแมพ)
+			-- ที่อยู่ถาวรเฟส 3 (วางแล้วใน Workspace.cutscene_start_part.ที่อยู่) — เจียเจีย=couch, ฟ้าใส=chair
+			settle = function()
+				fireAction({ type = "SetNpcLoc", actor = "เจียเจีย", loc = "couch" })
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "chair" })
+			end,
 			onDone = function()
 				fireAction({ type = "FreezeTime", on = false })
 			end,

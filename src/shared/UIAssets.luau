@@ -81,7 +81,7 @@ return {
 
 	-- ===== Main Menu + Dialogue =====
 	-- menu_background ตัดทิ้งแล้ว 27 ก.ค. — เมนูเป็นฉากจริง 3D (docs/05 §3.7)
-	menu_logo = "",            -- 1024×256
+	menu_logo = "rbxassetid://107998150004166", -- 1024×256
 	book_page = "",            -- texture หน้าสมุด (หน้าโหลดเซฟ) 512×384
 	dialogue_box = "",         -- กรอบข้อความ 9-slice 512×160
 	cursor = "",               -- เคอร์เซอร์ในจอ (ถ้าอยากมี) 32×32

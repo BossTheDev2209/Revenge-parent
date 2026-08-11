@@ -12,6 +12,10 @@
 --   Moon Animator export ได้เฉพาะ track ที่เป็น joint — track ที่ animate CFrame ของ mesh ตรงๆ
 --   ออกมาเป็น KeyframeSequence ว่าง (เจอ 2 รอบ: 114525290542149, 114979935985238 = 0 keyframe)
 -- ⚠️ t ของ wait ท้ายสุด = ประมาณความยาว clip เดา — ยัง**ไม่ได้วัดจริง** ปรับตามที่เห็นตอน playtest
+-- ⚠️⚠️ root motion ใน clip ไม่ได้ขยับ HumanoidRootPart จริง (แค่ offset Torso ให้ดูเหมือนเดิน) — พอ CutscenePlayer
+--   จบฉากแล้ว AnimPlayer.stop() หยุด track, offset หาย, ตัวละครวาปกลับตำแหน่งจริง (ยังอยู่ที่ประตู ไม่ใช่เตียง)
+--   แก้ด้วย step "move" (t=0 = สแนปทันที ไม่เห็นรอยต่อ) ไปยังจุดที่ animation จบจริง ก่อนจบฉาก 1 step เสมอ
+--   (สืบจาก devforum: root motion ไม่ขยับ HRP เป็นพฤติกรรมปกติของ Roblox ไม่ใช่ bug export)
 return {
 	{ type = "focus", target = "Spawn_Phase2" },
 	{ type = "camera", cam = "FaasaiJoin_01" },
@@ -30,4 +34,6 @@ return {
 	{ type = "wait", t = 2 },
 	{ type = "text", text = "นะคะ" },
 	{ type = "wait", t = 2 }, -- คลิปเดียวกันชื่อ ท่าคนละไฟล์ (export แยก rig) -- ถือกล้อง 01 ไว้ให้เห็นเคาะประตู+เริ่มคุยก่อนตัด (ไม่มี wait คั่น = cam ไม่หยุดรอ ข้าม 01 ไปเลย — ปรับเวลาได้ตามที่เห็นจริงตอน playtest)
+	{ type = "move", actor = "ฟ้าใส", to = "NPCHome_ฟ้าใส_bed", t = 0 }, -- แก้ root motion snap-back (ดูคอมเมนต์บนสุดไฟล์) ก่อนจบฉาก
+	-- Notebook โผล่/หายตาม flags.faasai_joined/betrayed แล้ว (Main.client.luau) ไม่ต้องสั่ง visible ในคัตซีนนี้
 }

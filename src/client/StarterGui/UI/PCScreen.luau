@@ -178,9 +178,12 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 
 	-- ---- หน้าตาต่อเฟส ----
 	screen.BackgroundColor3 = style.wall
+	-- wallpaper: ทับเฉพาะตอน UIAssets มีรูปจริง — คีย์ที่ยังว่าง ("") ห้ามทับ
+	-- (11 ส.ค. เจอจริง: ทีมใส่ wallpaper ไว้ใน Studio แล้ว แต่ wallpaper_phase* ยังเป็น "" → โค้ดล้างรูปทิ้งทุกครั้งที่เปิดคอม)
 	local wall = screen:FindFirstChild("Wallpaper")
 	if wall and wall:IsA("ImageLabel") then
-		wall.Image = UIAssets[style.wallAsset] or ""
+		local wallAsset = UIAssets[style.wallAsset]
+		if wallAsset and wallAsset ~= "" then wall.Image = wallAsset end
 	end
 	local dev = screen:FindFirstChild("DeviceLabel")
 	if dev then dev.Text = style.deviceName end

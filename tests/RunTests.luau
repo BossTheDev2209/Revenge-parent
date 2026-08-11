@@ -1952,6 +1952,10 @@ do
 		math.abs(NPCIndicator.clampYawDelta(math.rad(179), math.rad(-179), 70) - math.rad(2)) < 0.001)
 end
 
+-- ===== Faasai Park Date — trigger threshold ใหม่ (12 ส.ค. 2569) =====
+check("FaasaiParkFollower อยู่ระหว่าง FaasaiJoinFollower กับเกทเฟส 3 (100K)",
+	Config.FaasaiParkFollower > Config.FaasaiJoinFollower and Config.FaasaiParkFollower < 100_000)
+
 print(("Tests: %d passed, %d failed"):format(pass, fail))
 -- คืน table ให้ execute_luau อ่านผลตรงๆ — ไม่ต้อง clone Source + patch print + pcall probe อีก
 return { pass = pass, fail = fail, failures = failures }

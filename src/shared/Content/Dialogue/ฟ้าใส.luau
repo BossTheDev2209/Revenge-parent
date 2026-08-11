@@ -325,4 +325,12 @@ return {
 			"(จากนั้นเธอก็ร้องไห้อยู่ตรงนั้นไม่หยุด สิ่งที่เยียวยาเธอได้คงเหลือแค่เวลาเท่านั้นแล้ว)",
 		},
 	},
+
+	-- parkFarewell — บทส่งท้าย (ไม่ spicy) เด้งอัตโนมัติทันทีหลัง byLoc.park.p จบ (ดู StoryBeat chain ใน Main.client)
+	-- ไม่ผ่าน pickLines/byLoc (top-level key ตรงๆ เหมือน Jiajia.p3 ที่ StoryBeat เรียกตรง) ไม่ต้องมี lock (คุยจบ/เลิกคุยได้ปกติ)
+	-- บรรทัดแรกต้องมี pose="Idle" — ลุกจากท่านั่ง loop (IdlePark) มายืนคุยปกติ (field มีอยู่แล้ว ดู docs/engines/dialogue.md §2.5)
+	parkFarewell = {
+		{ speaker = "ฟ้าใส", text = "[placeholder] ลุกจากม้านั่ง — บทส่งท้ายก่อนแยกย้ายกลับห้อง", pose = "Idle" },
+		"[placeholder] บทส่งท้ายต่อ ไม่ spicy",
+	},
 }

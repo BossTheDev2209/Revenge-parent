@@ -5,6 +5,9 @@
 -- ★ instance จริง: StarterGui.Gui_PC (แต่งได้) — ไม่มีก็ build() สร้างจากโค้ด (fallback + mirror git · แพทเทิร์นเดียวกับ HUD)
 -- ชื่อที่โค้ดอ้าง ห้ามเปลี่ยน (ที่เหลือย้าย/แต่ง/ลบได้):
 --   Screen · Screen.{Wallpaper, DeviceLabel, ExitButton, AppFrame} · Screen.IconBar.IconTemplate (มีลูก Name)
+-- ★ ไอคอนต่อแอป (11 ส.ค.): วาง ImageButton ชื่อ "Icon_<app.id>" ไว้ใต้ Screen.IconBar เอง (เช่น Icon_bank,
+--   Icon_shop) แต่งสี/รูป/ตำแหน่งอิสระใน Studio — โค้ดจะใช้ instance นั้นตรงๆ ไม่แตะ ไม่มี = fallback clone
+--   IconTemplate เหมือนเดิม (ดู PCScreen.open ท่อน "ไอคอน")
 -- ★ ตัวไฟล์นี้ย้ายมาอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอมรวมที่เดียว)
 local isStudio = script ~= nil
 local UIAssets = if isStudio
@@ -209,26 +212,31 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		if not silent then sfx("app_close") end
 	end
 
-	-- ---- ไอคอน: clone IconTemplate ต่อแอป (แต่ง template อันเดียวใน Studio) ----
-	local iconClones = {}
+	-- ---- ไอคอน: ใช้ instance จริงชื่อ "Icon_<id>" ถ้าทีมแต่งไว้ใน Studio (สี/รูป/ตำแหน่งเป็นของทีมล้วน โค้ดไม่แตะ)
+	--   ไม่มี = fallback clone IconTemplate เหมือนเดิม (ต้อง Destroy ตอนปิด — instance จริงไม่ Destroy)
+	local iconClones = {} -- เฉพาะตัวที่ fallback-clone มา
+	local iconConns = {} -- ทุกตัว (ทั้ง instance จริง+clone) กัน connection ซ้อนตอนเปิดใหม่
 	local i = 0
 	for _, app in apps do
 		if not app.hidden then
 			i += 1
-			local btn = template:Clone()
-			btn.Name = "Icon_" .. (app.id or i)
+			local btn = iconBar:FindFirstChild("Icon_" .. (app.id or i))
+			if not btn then
+				btn = template:Clone()
+				btn.Name = "Icon_" .. (app.id or i)
+				btn.LayoutOrder = i -- ใส่ UIGridLayout/UIListLayout ทับได้
+				btn.Position = UDim2.fromScale(0, (i - 1) * 0.17) -- fallback ถ้าไม่มี layout
+				local assetId = app.id and UIAssets["app_" .. app.id] or ""
+				if assetId ~= "" then btn.Image = assetId end
+				local nameLbl = btn:FindFirstChild("Name")
+				if nameLbl then nameLbl.Text = app.name or app.label end
+				btn.Parent = iconBar
+				table.insert(iconClones, btn)
+			end
 			btn.Visible = true
-			btn.LayoutOrder = i -- ใส่ UIGridLayout/UIListLayout ทับได้
-			btn.Position = UDim2.fromScale(0, (i - 1) * 0.17) -- fallback ถ้าไม่มี layout
-			local assetId = app.id and UIAssets["app_" .. app.id] or ""
-			if assetId ~= "" then btn.Image = assetId end
-			local nameLbl = btn:FindFirstChild("Name")
-			if nameLbl then nameLbl.Text = app.name or app.label end
-			btn.Parent = iconBar
-			btn.Activated:Connect(function()
+			table.insert(iconConns, btn.Activated:Connect(function()
 				if app.external then app.external() else openApp(app) end
-			end)
-			table.insert(iconClones, btn)
+			end))
 		end
 	end
 
@@ -243,7 +251,8 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		camera.CameraType = savedCam.type
 		gui.Enabled = false
 		closeApp(true)
-		for _, b in iconClones do b:Destroy() end -- ล้าง clone (instance ถาวร ไม่ Destroy ตัว gui)
+		for _, conn in iconConns do conn:Disconnect() end
+		for _, b in iconClones do b:Destroy() end -- เฉพาะ fallback clone — instance จริงที่ทีมแต่งไว้เก็บไว้ ไม่ Destroy
 		if exitConn then exitConn:Disconnect() end -- กัน handler ซ้อนตอนเปิดใหม่
 		PCScreen.running = false
 		PCScreen.forceClose = nil

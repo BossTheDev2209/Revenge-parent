@@ -214,6 +214,9 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 
 	-- ---- ไอคอน: ใช้ instance จริงชื่อ "Icon_<id>" ถ้าทีมแต่งไว้ใน Studio (สี/รูป/ตำแหน่งเป็นของทีมล้วน โค้ดไม่แตะ)
 	--   ไม่มี = fallback clone IconTemplate เหมือนเดิม (ต้อง Destroy ตอนปิด — instance จริงไม่ Destroy)
+	-- ⚠️ 11 ส.ค. เจอ IconBar เอง Visible=false ค้างมาจาก Studio (ไอคอนข้างในเป็น true หมดแต่โดนพ่อบัง) — บังคับ true
+	--   กันเผลอเซ็ต false ใน Studio อีกแล้วพังเงียบๆ (BackgroundTransparency=1 อยู่แล้ว ไม่กระทบภาพ)
+	iconBar.Visible = true
 	local iconClones = {} -- เฉพาะตัวที่ fallback-clone มา
 	local iconConns = {} -- ทุกตัว (ทั้ง instance จริง+clone) กัน connection ซ้อนตอนเปิดใหม่
 	local i = 0

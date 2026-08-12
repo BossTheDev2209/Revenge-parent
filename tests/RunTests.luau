@@ -1269,6 +1269,17 @@ check("ยิ่งไกลยิ่งจาง (ไม่กลับทา�
 	InteractBinder.labelAlpha(16) < InteractBinder.labelAlpha(20)
 	and InteractBinder.labelAlpha(20) < InteractBinder.labelAlpha(26))
 
+-- True Ending: waitReachPoint เทียบระยะผู้เล่น↔walkTarget (docs/02 §5 BCA)
+local EndingSequence = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.EndingSequence)
+	else require("../src/client/EndingSequence")
+check("อยู่ในระยะ (ห่างน้อยกว่า threshold) = ถึงแล้ว",
+	EndingSequence.reachedTarget(Vector3.new(0, 0, 0), Vector3.new(2, 0, 0), 5) == true)
+check("ระยะเท่า threshold พอดี (ขอบ) = ถึงแล้ว",
+	EndingSequence.reachedTarget(Vector3.new(0, 0, 0), Vector3.new(5, 0, 0), 5) == true)
+check("ห่างเกิน threshold นิดเดียว = ยังไม่ถึง",
+	EndingSequence.reachedTarget(Vector3.new(0, 0, 0), Vector3.new(5.01, 0, 0), 5) == false)
+
 -- ประตู (docs/02 §9.9): follower ถึงเกณฑ์ = ผ่าน, ไม่ถึง = ข้อความบอกเกณฑ์
 check("ประตูไม่มี MinFollower = เข้าได้เลย", (InteractBinder.doorCheck(0, nil)) == true)
 check("ประตู 10K: มี 9,999 = เข้าไม่ได้", (InteractBinder.doorCheck(9999, 10000)) == false)

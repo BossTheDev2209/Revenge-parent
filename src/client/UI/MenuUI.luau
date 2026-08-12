@@ -419,7 +419,11 @@ function MenuUI.open(playerGui, deps)
 	local root = scene()
 	-- ⚠️ StreamingEnabled: ห้องเมนูอยู่ไกลจากตัวผู้เล่น ถ้าไม่ตั้ง ModelStreamingMode = Persistent
 	-- client จะได้แต่ Model เปล่าๆ ไม่มี Part ข้างใน (docs/05 §3.7)
-	local home = root and root:WaitForChild("MenuCam_Home", 5)
+	-- ★ แก้ 12 ส.ค. (user เจอตกไป fallback ซ้ำหลายรอบ) — เดิมรอแค่ 5 วิ ห้อง MenuScreen อยู่ไกลมาก
+	--   (Y~2007) แม้ ModelStreamingMode = Persistent (ยืนยันตั้งถูกแล้ว) Play-test ใน Studio (server+client
+	--   เครื่องเดียว) อาจ stream ช้ากว่าเล่นจริงพอให้ 5 วิไม่พอ → เพิ่มเป็น 15 วิ กันหลุด fallback ผิดพลาด
+	--   ยังคง fallback ไว้ทำงานถ้าห้องหายจริง (เกมต้องเข้าได้เสมอ) แค่ให้เวลาพอสำหรับกรณี stream ช้า
+	local home = root and root:WaitForChild("MenuCam_Home", 15)
 	if not root or not home then
 		warn("[MenuUI] " .. (root and "ห้องเมนูไม่มี MenuCam_Home (ตั้ง ModelStreamingMode = Persistent หรือยัง?)"
 			or "ไม่มี Workspace.MenuScene / MenuScreen") .. " — ใช้เมนูปุ่มลอยแทน (docs/05 §3.7)")

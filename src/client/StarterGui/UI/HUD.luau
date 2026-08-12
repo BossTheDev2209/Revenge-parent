@@ -374,6 +374,9 @@ local BINDINGS = {
 	-- บาร์ใจ + หัวใจบน/ล่าง + ป้าย % อยู่ในกรอบ MentalGroup เดียวกัน (10 ส.ค.)
 	-- เพื่อให้ระยะห่างหัวใจกับบาร์คงที่ทุกขนาดจอ — หัวใจคือ indicator ของบาร์ ห่างออกไป = สื่อไม่ได้
 	{ field = "mentalFill", path = { "MentalGroup", "MentalTrack", "MentalFill" } },
+	-- ตัวกลุ่มทั้งก้อน (บาร์+หัวใจ+ป้าย%) เอาไว้ซ่อนทั้งชุดก่อน phase 2 (แก้ 10 ส.ค. — user: bar ยังไม่ควร
+	-- โผล่ก่อนระบบ introduce ตาม docs/02 §3 "ระบบ introduce ตอน: phase 2")
+	{ field = "mentalGroup", path = { "MentalGroup" } },
 }
 
 function HUD.bind(gui)
@@ -487,6 +490,10 @@ function HUD.update(state)
 	setStat(HUD.storageLabel, HUD.storageText(state))
 	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[Formulas.activeLevel(state, "camera")] or "?"))
 
+	-- ซ่อนทั้งกลุ่มก่อน phase 2 (ตรงกับ MentalService.effective — ระบบยังไม่ทำงานจริงช่วงนี้อยู่แล้ว)
+	if HUD.mentalGroup then
+		HUD.mentalGroup.Visible = state.phase >= Config.Mental.introducedInPhase
+	end
 	-- วาดจริงใน Heartbeat ด้านบน (exponential follow ให้ลื่น) — ที่นี่แค่บอกเป้าหมายล่าสุด
 	-- ครั้งแรก/หลัง respawn (mentalDisplay ยังไม่มีค่า) = snap ตรงไม่ไล่ กันวาดจากเลข nil/ค้างข้ามชีวิต
 	if HUD.mentalFill then

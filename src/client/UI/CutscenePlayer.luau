@@ -242,11 +242,36 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 	task.spawn(function()
 		for idx, step in steps do
 			if skipped then
-				-- กดข้าม: ยิง focus/preload ที่ยังไม่ถึงให้หมดก่อนออก ไม่งั้นแมพปลายทางไม่เริ่ม stream
-				-- (caller เล่น waitStreamedAround ใต้จอดำต่อ = รอโหลดเสร็จก่อน fade กลับ)
+				-- กดข้าม = กระโดดไปสถานะ "จบฉาก": apply ผลถาวรของทุก step ที่เหลือทันที (ไม่ tween/wait)
+				-- ★ แก้ 12 ส.ค. (user: กดข้ามคัตซีนฟ้าใสแล้วประตูกั้น) — เดิม fire แค่ focus step
+				--   step อื่นที่ยังไม่ถึงเลยค้างสถานะกลางฉาก: swing (ประตู) ไม่เปิด → Door Rig ค้างปิดบังกล้อง
+				--   ตอน dialogue ต่อมา · move (ตัวละครเข้าที่) ไม่ snap · visible (prop) ไม่อัปเดต
 				for j = idx, #steps do
-					if steps[j].type == "focus" then
-						actionRemote:FireServer({ type = "SetFocus", target = steps[j].target })
+					local s = steps[j]
+					if s.type == "focus" then
+						actionRemote:FireServer({ type = "SetFocus", target = s.target }) -- preload แมพปลายทาง (caller รอ stream ใต้จอดำ)
+					elseif s.type == "move" then
+						local rig = AnimPlayer.findRig(s.actor)
+						local target = workspace:FindFirstChild(s.to, true)
+						if rig and target and target:IsA("BasePart") then
+							rig:PivotTo(CutscenePlayer.moveGoal(rig:GetPivot(), target.Position)) -- snap ถึงปลายทางเลย
+						end
+					elseif s.type == "swing" then
+						-- เปิดประตูให้ครบองศาทันที (บานที่ยังไม่ถึง swing step) — กันค้างปิดบังฉากคุย
+						local model = workspace:FindFirstChild(s.target, true)
+						local hinge = model and model:IsA("Model") and model.PrimaryPart
+						if hinge then
+							local d = (hinge.CFrame * CFrame.Angles(0, math.rad(s.deg), 0)) * hinge.CFrame:Inverse()
+							model:PivotTo(d * model:GetPivot())
+						end
+					elseif s.type == "visible" then
+						local target = workspace:FindFirstChild(s.target, true)
+						if target then
+							local parts = target:IsA("BasePart") and { target } or target:GetDescendants()
+							for _, p in parts do
+								if p:IsA("BasePart") then p.Transparency = s.show and 0 or 1; p.CanCollide = s.show end
+							end
+						end
 					end
 				end
 				break
@@ -291,11 +316,18 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 					local per = CFrame.Angles(0, math.rad(step.deg / steps_), 0)
 					local dt = (step.t or 0.6) / steps_
 					task.spawn(function()
+						local applied = 0
 						for _ = 1, steps_ do
 							if skipped then break end
 							local delta = (hinge.CFrame * per) * hinge.CFrame:Inverse()
 							model:PivotTo(delta * model:GetPivot())
+							applied += step.deg / steps_
 							task.wait(dt)
+						end
+						-- โดนข้ามกลางหมุน = เปิดส่วนที่เหลือให้ครบทันที (ไม่ค้างครึ่งบาน — user เจอ 12 ส.ค.)
+						if skipped and applied < step.deg then
+							local d = (hinge.CFrame * CFrame.Angles(0, math.rad(step.deg - applied), 0)) * hinge.CFrame:Inverse()
+							model:PivotTo(d * model:GetPivot())
 						end
 					end)
 				else

@@ -222,6 +222,8 @@ Choices % = สัดส่วนของ choice ที่ตอบไปทั
 
 **Endgame flow (จาก timeline):** 1M follower → งาน **BCA (Best Creator Award)** → cutscene → กลับไปหาพ่อแม่
 
+**True Ending (Good1) implementation note (12 ส.ค. 2569):** ลำดับ BCA→cutscene→กลับไปหาพ่อแม่ข้างบน implement ผ่าน `EndingSequence.luau` (`src/client/EndingSequence.luau`) — intercept ที่ canon event "bca" (`Config.BCAEventId`) เฉพาะตอน `state.flags.ending == "Good1"` เท่านั้น (`Main.client.luau`) ไม่ผ่าน `Content/Endings/Good1.luau` แบบไฟล์ ending อื่น (ดูคอมเมนต์ในไฟล์นั้น) เนื้อหาจริงอยู่ `Content/Cutscenes/BCAWalk.luau` + `Reunite.luau` + `Content/Dialogue/SelfTalkBCA.luau` — ทุกไฟล์ยังเป็น `[placeholder]` รอ user เขียนบทจริง + ทีมวาง Part กล้อง/anchor ใน Studio (ดู `plans/2026-08-12-true-ending-bca-reunite.md` ท้ายไฟล์สำหรับรายการที่ต้องวาง)
+
 ---
 
 ## 6. ที่มาของ Choice (นับ %)

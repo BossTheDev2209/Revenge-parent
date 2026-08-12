@@ -71,18 +71,22 @@
   3. แถว `FloatingLabels` ที่เพิ่มใหม่ **โดน `ScrollingFrame.AutomaticCanvasSize` ไม่ recompute** (bug ที่รู้กันของ Roblox — ไม่อัปเดตตอนเพิ่ม/ลบ child ระหว่างที่ตัว ScrollingFrame ยัง `Visible=false`, ตรงกับตอนที่เพิ่มแถวนี้ผ่าน Studio) → เลื่อนลงไปสุดแล้วยังไม่เจอแถวใหม่ แก้โดยคำนวณ `CanvasSize` เองจาก `UIListLayout.AbsoluteContentSize` ทุกครั้งที่เปิดแผง (`refreshAll()` ใน `SettingsController.client.luau`)
 - **เซฟ:** `SetSetting` keys `volume/bgmVol/sfxVol/ambientVol` (0-1) + `shadow/musicMuted/hideBillboards` (bool) → persist ในเซฟ · quality ให้ platform จำเอง · apply ตอนโหลด (apply เสียงก่อน mute เสมอ)
 
-## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ ครบ (เปลี่ยนเป็น SurfaceGui 21 ก.ค.)
+## 2. Desktop PC (PDF หน้า 5 ล่าง) — ✅ ครบ
 
-**UI อยู่บนหน้าจอ part จริงในโลก (SurfaceGui) ไม่ใช่ overlay เต็มจอ** — ตาม ref ที่ user ส่ง (จอคอมในเกมมี UI อยู่บนจอ + ปุ่ม RETURN ลอยข้างบน)
+> ⚠️ **แก้ 12 ส.ค. 2569: ตารางนี้เก่า พูดถึง SurfaceGui ที่เลิกใช้ไปแล้ว** — โค้ดจริง (`PCScreen.luau` บรรทัด 2)
+> เขียนไว้ชัดว่า **"เปลี่ยนจาก SurfaceGui (gen จากโค้ด แก้หน้าตาไม่ได้) → ScreenGui instance ใน StarterGui (แต่งได้)"**
+> ของจริงตอนนี้คือ **`Gui_PC` เป็น `ScreenGui` เต็มจอ** (ไม่ใช่ SurfaceGui ติดบน part) — กล้องแค่ zoom เข้าหา `Interact_pcMonitor`
+> เป็นเอฟเฟกต์ ไม่ได้ render UI ลงบน part จริง · เนื้อหาด้านล่างเก็บไว้เป็น reference ของ "ตั้งใจแบบไหน" เท่านั้น ไม่ใช่ค่าจริงที่ใช้แล้ว
+
+**UI overlay เต็มจอ (ScreenGui) ไม่ใช่ SurfaceGui บน part** — เดิมตั้งใจแบบ SurfaceGui ตาม ref ที่ user ส่ง แต่ทีมเปลี่ยนแนวทางเพราะแก้หน้าตาใน Studio ไม่ได้ตอนเป็นโค้ดล้วน
 
 | ค่า | รายละเอียด |
 |-----|------------|
-| Part จอ | `Interact_pcMonitor` **ขนาด 4 × 2.6 studs** (ทุกเครื่องเท่ากัน) หน้าจอ = ด้าน **Front** |
-| SurfaceGui | อยู่ใน PlayerGui, `Adornee` = part นั้น, `Active = true` (ปุ่มกดได้), `LightInfluence = 0` (จอเรืองแสงเอง) |
-| **Canvas** | `PixelsPerStud = 250` → **1000 × 650 px** |
+| Part จอ | `Interact_pcMonitor` — ใช้แค่จุดอ้างกล้อง zoom เข้า ไม่ใช่ที่ render UI |
+| Gui_PC | `ScreenGui` เต็มจอใน `StarterGui` (แต่งใน Studio ได้เลย) — `Screen` (Frame เต็มจอ) → `AppFrame` (74%×90% ของจอ, ขวา, ARC 1.32:1) + `AppTemplates` (Frame ขนาด/ตำแหน่ง/ARC ตรงกับ `AppFrame` เป๊ะ, `Visible=false` — เก็บ template แต่ละแอปไว้ข้างใน ดู docs/05) |
 | กล้อง | zoom เข้าหน้าจอ 0.4 วิ (คำนวณระยะจาก FOV) แล้วคืนตำแหน่งเดิมตอนออก |
-| ปุ่มออก | **ScreenGui แยก** ลอยกลางบนจอผู้เล่น (ตาม ref ปุ่ม RETURN) |
-| icon แอป | คอลัมน์ซ้าย 5 แถว/คอลัมน์ แสดง **80×80** + ชื่อใต้ |
+| ปุ่มออก | `ExitButton` ใน `Screen` เอง |
+| icon แอป | `IconBar` ฝั่งซ้ายของ `Screen` — instance จริงชื่อ `Icon_<id>` ต่อแอป (§0 audit) |
 
 → ขนาดรูปทุกใบที่อยู่บนจอคอมต้องอิง canvas 1000×650 นี้ (docs/13 §ที่มาของขนาด)
 

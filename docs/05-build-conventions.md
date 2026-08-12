@@ -313,6 +313,8 @@ Dialogue engine (design doc §7) เป็น **ทางเดียว ไม�
 | เปิด Studio พร้อมกันสองคน | MCP ต่อ instance ที่เปิดอยู่ save ทับกัน = งานหาย |
 | แก้เกมหลัง 12 ส.ค. 18:00 | กรรมการเช็ค Last Updated → ปิดงานจริง **11 ส.ค.** |
 
+**PC app template ต้องนอนใน `Frame` ที่ขนาด/ตำแหน่ง/ARC ตรงกับ `AppFrame` เป๊ะ ห้ามเป็น `Folder`** (เจอจริง 12 ส.ค. — `AppTemplates` เคยเป็น `Folder`, ไม่มี bounds ของตัวเอง เลยทำให้ template ข้างในที่ตั้ง `Size = {1,0},{1,0}` ไปยึดเต็มจอแทนที่จะยึด `AppFrame` จริง แต่งใน Studio แล้วขนาดที่เห็นกับตอนเปิดจริงไม่ตรงกัน — แก้แล้วโดยเปลี่ยน `AppTemplates` เป็น `Frame` ก็อปปี้ `Size`/`Position`/`AnchorPoint`/`UIAspectRatioConstraint` จาก `AppFrame` ตรงๆ, `Visible = false`) เพิ่มแอปใหม่ = วาง template ใต้ `Screen.AppTemplates` เหมือนเดิม ไม่ต้องทำอะไรเพิ่ม
+
 ## 5.5 Responsive UI — HUD/แผง ไม่เพี้ยนข้ามอุปกรณ์ (มือถือ/แท็บเล็ต/PC)
 
 เกมเล่นทั้งมือถือ+PC → GUI ต้อง scale ตามจอ ไม่ใช่ pixel ตายตัว

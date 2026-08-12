@@ -110,7 +110,15 @@ Config.Mental = {
 	activityCutscenes = {
 		Bed = {},
 		Kitchen = {},
-		Exercise = {},
+		-- ★ เพิ่ม 12 ส.ค. (user) — anim จริง ReplicatedStorage.Animations.player.PushUp
+		--   (id 131382246842697 ยืนยันโหลดผ่านจริงแล้ว Length=0.3 — ต้อง grant permission แท็บ
+		--   Experiences ก่อนถึงเล่นได้ ดู docs/17) ไม่มี camera step = กล้องอยู่มุมเดิม (ยังไม่มี Part เฉพาะ)
+		--   คลิปสั้น (0.3วิ ท่าเดียว) ตั้ง loop=true ให้ดูต่อเนื่องตลอด 6 วิ — CutscenePlayer หยุด track ให้เองตอนจบฉาก
+		Exercise = {
+			{ type = "anim", actor = "player", name = "PushUp", loop = true },
+			{ type = "text", text = "วิดพื้นสักหน่อย ผ่อนคลายๆ..." },
+			{ type = "wait", t = 6 },
+		},
 	},
 
 	-- Drain/Recovery modifiers (lock 19 ก.ค. — docs/02 §3)

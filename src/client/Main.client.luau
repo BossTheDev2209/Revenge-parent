@@ -33,6 +33,7 @@ local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
 local NPCIndicator = require(script.Parent.NPCIndicator) -- วงใต้เท้า + หันมองผู้เล่น (12 ส.ค. เปิดใช้)
 local AnimPlayer = require(script.Parent.AnimPlayer) -- หา rig NPC ให้กล้องเล็งตอน StoryBeat คุยอัตโนมัติ
 local StoryBeat = require(script.Parent.StoryBeat)
+local EndingSequence = require(script.Parent.EndingSequence)
 local Notify = require(script.Parent.Notify)
 local Config = require(RS.Shared.Config) -- ตัวคูณ buff sponsor ที่โชว์บน toast (ตัวเลขมาจาก Config ที่เดียว)
 local Formulas = require(RS.Shared.Formulas) -- qteZoneMult: ของกินที่ออกฤทธิ์ทำให้โซน QTE กว้างขึ้น
@@ -593,14 +594,20 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 	-- canon event ค้างคิว → เล่นบทจาก CanonEvents แล้วแจ้ง server ว่าดูแล้ว
 	local eventId = state.pendingEvents[1]
 	if eventId and not DialogueUI.running and not CutscenePlayer.running then
-		local events = require(Content.CanonEvents)
-		local ev = events[eventId]
-		if ev then
-			DialogueUI.show(playerGui, ev.dialogue, function()
-				fireAction({ type = "EventSeen", id = eventId })
-			end)
-		else
+		if eventId == Config.BCAEventId and state.flags.ending == "Good1" and not EndingSequence.running then
+			endingPlayed = true
 			fireAction({ type = "EventSeen", id = eventId })
+			EndingSequence.playTrueEnding(playerGui, { fireAction = fireAction, getState = function() return latestState end, menuDeps = menuDeps })
+		else
+			local events = require(Content.CanonEvents)
+			local ev = events[eventId]
+			if ev then
+				DialogueUI.show(playerGui, ev.dialogue, function()
+					fireAction({ type = "EventSeen", id = eventId })
+				end)
+			else
+				fireAction({ type = "EventSeen", id = eventId })
+			end
 		end
 	end
 

@@ -1305,6 +1305,15 @@ check("betrayed ชนะ byLoc เสมอ", InteractBinder.pickLines(
 	{ p2 = { "ห้อง" }, byLoc = { park = { "สวน" } }, after = { "หลัง" } },
 	{ phase = 2, flags = { betrayed = true } }, false, "park")[1] == "หลัง")
 
+-- byLoc.siam ชนะ after (สถานที่เดินทาง — เพิ่ม 12 ส.ค. 2569: ไปสยามหลังทรยศต้องได้บทสยาม+ช้อยกลับบ้าน)
+local siamSample = { p2 = { "ห้อง" }, byLoc = { couch = { "บ้าน" }, siam = { "สยาม" } }, after = { "หลัง" } }
+check("byLoc.siam ชนะ after (ก่อนทรยศ)",
+	InteractBinder.pickLines(siamSample, { phase = 3, flags = {} }, false, "siam")[1] == "สยาม")
+check("byLoc.siam ชนะ after (หลังทรยศ) — กลับบ้านได้",
+	InteractBinder.pickLines(siamSample, { phase = 3, flags = { betrayed = true } }, false, "siam")[1] == "สยาม")
+check("couch ยังโดน after ทับหลังทรยศ (siam ไม่กระทบ loc อื่น)",
+	InteractBinder.pickLines(siamSample, { phase = 3, flags = { betrayed = true } }, false, "couch")[1] == "หลัง")
+
 -- byLoc แบบ { p=, again= } แยกครั้งแรก/ซ้ำในตัว (locSeen) — เพิ่ม 12 ส.ค. 2569 คู่กับ item.cam ใน DialogueUI
 local locFirstAgain = { p2 = { "ห้อง" }, byLoc = { park = { p = { "สวนครั้งแรก" }, again = { "สวนซ้ำ" } } } }
 check("byLoc {p=,again=} ครั้งแรก (locSeen=false) = p",

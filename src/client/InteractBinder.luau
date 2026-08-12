@@ -75,17 +75,29 @@ local function pickAfter(after, afterSeen)
 	return after.p or after.again
 end
 
+-- byLoc[loc] = { ... } ตรง | หรือ { p=, again= } แยกครั้งแรก/ซ้ำ — คืนลิสต์ที่ควรเล่น
+local function resolveByLoc(byLoc, locSeen)
+	if byLoc[1] ~= nil then
+		return byLoc -- ลิสต์ตรง (มี index 1 = บรรทัดแรก ไม่ใช่ {p=,again=} ที่เป็น key ล้วน)
+	end
+	if locSeen and byLoc.again then return byLoc.again end
+	return byLoc.p or byLoc.again
+end
+
+-- loc ที่เป็น "สถานที่เดินทาง" (คนละที่กับบ้าน) — byLoc ของ loc นี้ชนะแม้ after (บท after เป็นปฏิกิริยา "ที่บ้าน")
+-- เช่น สยาม: ต้องได้บทสยาม+ช้อยกลับบ้านเสมอ ไม่งั้นหลังทรยศไปสยามแล้ว after ทับ = กลับบ้านไม่ได้ (user เจอ 12 ส.ค.)
+local AFTER_OVERRIDE_LOC = { siam = true }
+
 function InteractBinder.pickLines(mod, state, seen, loc, locSeen, afterSeen)
 	if type(mod) ~= "table" then return nil end
 	if type(mod[1]) == "string" then return mod end -- format เก่า
+	-- byLoc ของสถานที่เดินทาง ชนะทุกอย่าง (รวม after) — เช็คก่อนสุด
+	if loc and AFTER_OVERRIDE_LOC[loc] and mod.byLoc and mod.byLoc[loc] then
+		return resolveByLoc(mod.byLoc[loc], locSeen)
+	end
 	if state and state.flags and state.flags.betrayed and mod.after then return pickAfter(mod.after, afterSeen) end
 	if mod.byLoc and loc and mod.byLoc[loc] then
-		local byLoc = mod.byLoc[loc]
-		if byLoc[1] ~= nil then
-			return byLoc -- ลิสต์ตรง (มี index 1 = บรรทัดแรก ไม่ใช่ {p=,again=} ที่เป็น key ล้วน)
-		end
-		if locSeen and byLoc.again then return byLoc.again end
-		return byLoc.p or byLoc.again
+		return resolveByLoc(mod.byLoc[loc], locSeen)
 	end
 	if seen and mod.again then return mod.again end
 	local phase = state and state.phase or 1

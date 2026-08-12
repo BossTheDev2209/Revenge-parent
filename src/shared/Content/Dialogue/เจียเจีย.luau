@@ -125,6 +125,20 @@ return {
 				},
 			},
 		},
+
+		-- คุยกับเจียเจียตัว traveller ที่สยาม (Map_phase3-1) — มีช้อย "กลับบ้าน" teleport = "Spawn_Phase3"
+		-- ★ เพิ่ม 12 ส.ค. (user: ไปสยามแล้วกลับไม่ได้) — loc "siam" ถูกบังคับตอนคุยตัว _traveller (Main.client.startDialogue)
+		--   และ pickLines ให้ byLoc.siam ชนะ after เสมอ (บท after เป็นปฏิกิริยาที่บ้าน ไม่ใช่ที่สยาม) — ใช้ได้ทั้งก่อน/หลังทรยศ
+		--   ⚠️ [placeholder] ยังไม่มีบทจริง — โครง+ช้อยกลับบ้านพร้อมใช้ รอ user เขียนเนื้อหา
+		siam = {
+			"[placeholder] เจียเจีย ที่สยาม (รอ user เขียนบท)",
+			{
+				choices = {
+					{ text = "กลับบ้านกัน", teleport = "Spawn_Phase3" },
+					{ text = "ขออยู่ถ่ายคลิปต่อ", tone = "neutral" },
+				},
+			},
+		},
 	},
 
 	-- หลังทรยศ คุยที่บ้าน (couch) — pickLines เลือกทุกครั้งที่คุย prompt หลังทรยศ (ชนะ byLoc ข้างบนตลอด — docs/engines/dialogue.md §after)

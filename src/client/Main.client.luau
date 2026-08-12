@@ -372,6 +372,12 @@ local function startDialogue(dialogueName, interactPart)
 	-- บทเปลี่ยนตามเฟส + หลังทรยศ + คุยซ้ำ + ที่อยู่ปัจจุบัน (เช่น คุยสวนสาธารณะ ≠ คุยห้อง — mod.byLoc)
 	-- locSeen แยกจาก seen เฟสปกติ — คุยจบเต็มที่ loc นี้ครั้งแรกแล้วจำเป็นคีย์ผสม "<บท>@<loc>" (docs/engines/dialogue.md §byLoc)
 	local loc = latestState and latestState.npcLoc and latestState.npcLoc[dialogueName]
+	-- ★ แก้ 12 ส.ค. (user: ไปสยามแล้วกลับไม่ได้) — เจียเจียมี 2 ตัวจริง: บ้าน (couch) + traveller ที่สยาม
+	--   ทั้งคู่ใช้ Interact_NPC_เจียเจีย เหมือนกัน แต่คุยตัว traveller (ชื่อโมเดลลงท้าย _traveller) = บังคับ loc "siam"
+	--   → ได้ byLoc.siam (มีช้อยกลับบ้าน) แทนบทบ้านที่ค้าง loc couch (เดิมโชว์บทบ้าน placeholder ที่สยาม = บั๊ก)
+	if interactPart and interactPart.Parent and string.find(interactPart.Parent.Name, "traveller") then
+		loc = "siam"
+	end
 	local locSeenKey = loc and (dialogueName .. "@" .. loc)
 	local locSeen = locSeenKey and latestState and latestState.seenDialogue
 		and latestState.seenDialogue[locSeenKey] == latestState.phase

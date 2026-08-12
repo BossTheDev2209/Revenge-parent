@@ -176,6 +176,12 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		return
 	end
 
+	-- ⚠️ 12 ส.ค. เจอจริง: Screen.Visible=false ค้างมาจาก template (.rbxl) → เปิดคอมมาจอไม่โผล่เลย
+	--   ทั้งเฟส (กด E ได้ prompt ขึ้น zoom เข้า แต่จอว่าง) · ไม่มีสคริปต์ไหนตั้ง false = property ค้างใน place
+	--   PCScreen คุมการโชว์ด้วย gui.Enabled (เปิด/ปิด) — Screen ต้อง Visible เสมอ บังคับตรงนี้กันดริฟต์
+	--   (แพทเทิร์นเดียวกับ iconBar.Visible=true ด้านล่าง — property ค้างจาก Studio แก้ที่โค้ดให้จบ)
+	screen.Visible = true
+
 	-- ---- หน้าตาต่อเฟส ----
 	screen.BackgroundColor3 = style.wall
 	-- wallpaper: ทับเฉพาะตอน UIAssets มีรูปจริง — คีย์ที่ยังว่าง ("") ห้ามทับ

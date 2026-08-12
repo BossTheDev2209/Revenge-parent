@@ -410,6 +410,13 @@ function HUD.bind(gui)
 		warn("[HUD] ไม่เจอชิ้นส่วนตาม path (ช่องนั้นจะไม่อัปเดต — แก้ตาราง BINDINGS ใน HUD.luau ให้ตรงของจริง):\n  "
 			.. table.concat(missing, "\n  "))
 	end
+	-- ★ แก้ 12 ส.ค. (user: หลอด phase ไม่ขยับ) — ProgressFill ห้ามมี UIAspectRatioConstraint
+	--   มันล็อกความกว้างตามอัตราส่วน (เจอ 0.0333 → กว้างแค่ ~1px) ทับ Size.X ที่โค้ด set ตาม follower
+	--   fill เป็นตัวชี้ progress ต้องยืดกว้างอิสระ — ลบทิ้งตอน bind กันเพื่อน author/copy constraint ติดมา
+	if HUD.progressFill then
+		local arc = HUD.progressFill:FindFirstChildOfClass("UIAspectRatioConstraint")
+		if arc then arc:Destroy() end
+	end
 end
 
 -- ใช้ของจริงใน StarterGui ถ้ามี (ทีมแก้หน้าตาใน Studio ได้เลย) ไม่มีค่อยสร้างจากโค้ด

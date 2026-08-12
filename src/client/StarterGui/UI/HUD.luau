@@ -489,6 +489,13 @@ function HUD.update(state)
 	setStat(HUD.followerLabel, HUD.comma(state.follower))
 	setStat(HUD.moneyLabel, ("฿%s"):format(HUD.comma(state.money)))
 	if HUD.progressFill then
+		-- ★ แก้ 12 ส.ค. (user: หลอด phase ไม่เคยเพิ่ม) — fill ต้อง anchor ซ้าย (โตซ้าย→ขวา) เสมอ
+		--   เพื่อน author เป็น AnchorPoint กึ่งกลาง (0.5) → พอ set Size.X มันโตออกสองข้าง ครึ่งหลุดขอบซ้าย
+		--   เลยดูเหมือนไม่ขยับ · บังคับ anchor.X=0 / pos.X=0 ในโค้ด (คง Y เดิม) กัน re-author ผิดซ้ำ
+		local ap = HUD.progressFill.AnchorPoint
+		HUD.progressFill.AnchorPoint = Vector2.new(0, ap.Y)
+		local posY = HUD.progressFill.Position.Y
+		HUD.progressFill.Position = UDim2.new(0, 0, posY.Scale, posY.Offset)
 		HUD.progressFill.Size = UDim2.new(HUD.progressPct(state.follower), -6, 1, -6)
 	end
 	-- นาฬิกา: sync ชั่วโมงกับ server (snap เมื่อ tick ชั่วโมงใหม่) แล้วปล่อย Heartbeat เดินนาทีเอง

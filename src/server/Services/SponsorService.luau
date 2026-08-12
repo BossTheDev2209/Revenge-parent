@@ -13,6 +13,11 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../shared/Config")
+-- DM content — server ต้องอ่านเองเพื่อรู้ว่า payoutId แต่ละตัวผูกกับ milestone เท่าไหร่
+-- (ห้ามให้ client ส่ง milestone/จำนวนเงินมาเอง — นี่คือ action แรกของ DM ที่จ่ายเงินจริง)
+local DMs = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
+	else require("../../shared/Content/DMs")
 
 local SponsorService = {}
 
@@ -50,6 +55,49 @@ end
 -- buff ยังทำงานอยู่ไหม (ให้ HUD/UI ถามได้ — ตัวคูณจริงอยู่ที่ Formulas.sponsorMult)
 function SponsorService.buffActive(state): boolean
 	return state.day < (state.sponsorBuffUntilDay or 0)
+end
+
+-- ===== เงินก้อน sponsor ตาม milestone (12 ส.ค. 2569, user) =====
+-- ต่างจาก buff ด้านบน: buff = สุ่มรายวัน ×2 ชั่วคราว · อันนี้ = ก้อนเดียว ครั้งเดียวถาวรต่อ payoutId
+--
+-- ⚠️ นี่คือ action แรกที่ให้เงินจาก DM (DM เป็น cosmetic ล้วนมาตลอด) → ตรวจฝั่ง server ทุกชั้น
+--    ห้ามเชื่อ client เลยแม้แต่ตัวเดียว: client ส่งมาแค่ `id` เท่านั้น จำนวนเงิน/milestone อ่านจากของเราเอง
+--    1) id ต้องเป็น string และมีอยู่จริงใน Config.DMPayouts (ยิง id มั่ว = ไม่ได้เงิน)
+--    2) ต้องมีก้อน DM ที่ผูก payoutId นั้นจริง (กัน Config กับ content หลุดจากกัน)
+--    3) follower ต้องถึง milestone ของ DM ก้อนนั้นจริง (กดก่อนถึงยอด = ไม่ได้)
+--    4) ยังไม่เคยรับ (state.dmClaimed) — กันกดรัวซ้ำ
+-- คืน (สำเร็จไหม, จำนวนเงินที่จ่าย)
+function SponsorService.claimDM(state, id): (boolean, number)
+	if type(id) ~= "string" then return false, 0 end
+	local amount = Config.DMPayouts[id]
+	if type(amount) ~= "number" or amount <= 0 then return false, 0 end
+
+	state.dmClaimed = state.dmClaimed or {} -- save เก่าไม่มี field นี้ (mergeDefaults เติมให้อยู่แล้ว แต่กันไว้)
+	if state.dmClaimed[id] then return false, 0 end
+
+	local need = nil
+	for _, dm in DMs do
+		if dm.payoutId == id then
+			need = dm.unlockFollower or 0
+			break
+		end
+	end
+	if need == nil then return false, 0 end -- Config มี แต่ไม่มี DM ผูก = ของเสีย ไม่จ่าย
+	if (state.follower or 0) < need then return false, 0 end
+
+	state.dmClaimed[id] = true
+	state.money += amount
+	return true, amount
+end
+
+-- DM ก้อนนี้กดรับเงินได้ไหมตอนนี้ (client ใช้ตัดสินว่าจะโชว์ปุ่มไหม — server ตัดสินซ้ำตอนกดอยู่ดี)
+function SponsorService.canClaimDM(state, id): boolean
+	if type(id) ~= "string" or not Config.DMPayouts[id] then return false end
+	if state.dmClaimed and state.dmClaimed[id] then return false end
+	for _, dm in DMs do
+		if dm.payoutId == id then return (state.follower or 0) >= (dm.unlockFollower or 0) end
+	end
+	return false
 end
 
 return SponsorService

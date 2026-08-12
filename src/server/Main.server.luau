@@ -193,6 +193,15 @@ end)
 ActionRouter.register("AcceptSponsor", function(s)
 	SponsorService.accept(s)
 end)
+-- กดรับเงินก้อน sponsor ตาม milestone จากแอป Inbox (12 ส.ค. 2569, user)
+-- client ส่งมาแค่ id — จำนวนเงิน/milestone/กันกดซ้ำ ตัดสินฝั่ง server ทั้งหมด (SponsorService.claimDM)
+-- ⚠️ ห้าม push ลง s.pendingEvents — คิวนั้นเก็บ "string id ของ canon event" เท่านั้น
+--    ยัด table ลงไป = client หา CanonEvents[table] ไม่เจอ → ยิง EventSeen กลับด้วย table ซึ่ง
+--    เทียบ id ไม่ติดข้าม remote → คิวไม่มีวันว่าง → ข้ามเฟส/ฟ้าใสเข้า/เจียเจียเข้า/ending ค้างถาวร
+--    ไม่ต้องมีคิว: state ที่ push กลับมี money + dmClaimed อยู่แล้ว client เห็นเองแล้ว toast ได้เลย
+ActionRouter.register("ClaimDMPayout", function(s, a)
+	SponsorService.claimDM(s, a.id)
+end)
 ActionRouter.register("FreezeTime", function(s, a)
 	TimeService.setFrozen(a.on == true)
 	s.frozen = a.on == true -- ให้ HUD หยุดนาฬิกานาทีตอน cutscene/คุย

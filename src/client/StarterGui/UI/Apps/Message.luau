@@ -24,6 +24,12 @@ local isStudio = script ~= nil
 local DMs = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
 	else require("../../../../shared/Content/DMs")
+-- จำนวนเงินก้อนต่อ payoutId (โชว์บนปุ่มเฉยๆ — server ตัดสินจ่ายจริงที่ SponsorService.claimDM)
+local Config = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Config)
+	else require("../../../../shared/Config")
+-- ตัวจัดรูปตัวเลข 1,024 ใช้ตัวเดียวกับ HUD (อย่าเขียนซ้ำ — รูปแบบต้องตรงกันทั้งเกม)
+local comma = (if isStudio then require(script.Parent.Parent.HUD) else require("../HUD")).comma
 
 local Message = {}
 
@@ -143,6 +149,57 @@ function Message.create(frame, deps)
 		return b
 	end
 
+	-- ===== เงินก้อน sponsor ตาม milestone (12 ส.ค. 2569, user) =====
+	-- ปุ่มโผล่ท้ายแชทเฉพาะ DM ที่มี payoutId · 3 สถานะ: รับได้ / ยังไม่ถึงยอด / รับแล้ว
+	-- client แค่โชว์กับยิง action — เงื่อนไขจริง (ถึง milestone ไหม, รับไปแล้วยัง) server ตัดสินซ้ำเสมอ
+	-- ดึง state ทันทีตั้งแต่แรก — PCScreen เรียก create() ก่อน refresh() ถ้าไม่ดึงเอง
+	-- ปุ่มรอบแรกจะวาดด้วยข้อมูลว่าง (ขึ้น "ยังไม่ถึงยอด" ทั้งที่ถึงแล้ว) แล้วค่อยกระพริบแก้ทีหลัง
+	local latestState = deps.getState and deps.getState() or nil
+	local function payoutButton(dm)
+		local id = dm.payoutId
+		local amount = id and Config.DMPayouts[id]
+		if not amount then return end
+
+		local claimed = latestState and latestState.dmClaimed and latestState.dmClaimed[id]
+		local follower = (latestState and latestState.follower) or 0
+		local reached = follower >= (dm.unlockFollower or 0)
+
+		local b = Instance.new("TextButton")
+		b.Name = "999_payout" -- SortOrder = Name → ท้ายสุดของแชทเสมอ
+		b.LayoutOrder = 999
+		b.Size = UDim2.new(0.6, 0, 0, 0)
+		b.AutomaticSize = Enum.AutomaticSize.Y
+		b.TextWrapped = true
+		b.TextXAlignment = Enum.TextXAlignment.Center
+		b.AutoButtonColor = claimed ~= true and reached
+		if claimed then
+			b.Text = ("✓ รับค่าจ้างแล้ว  ฿%s"):format(comma(amount))
+			b.BackgroundColor3 = Color3.fromRGB(205, 208, 215)
+			b.TextColor3 = Color3.fromRGB(95, 98, 108)
+		elseif reached then
+			b.Text = ("💰 กดรับค่าจ้าง  ฿%s"):format(comma(amount))
+			b.BackgroundColor3 = Color3.fromRGB(70, 165, 85)
+			b.TextColor3 = Color3.new(1, 1, 1)
+		else
+			b.Text = ("🔒 ถึง %s ผู้ติดตามก่อน"):format(comma(dm.unlockFollower or 0))
+			b.BackgroundColor3 = Color3.fromRGB(205, 208, 215)
+			b.TextColor3 = Color3.fromRGB(95, 98, 108)
+		end
+		b.Parent = chat
+		corner(b, 10)
+		padding(b, 14, 10)
+		track(b, "size", TEXT.bubble)
+
+		if claimed or not reached then return end
+		b.Activated:Connect(function()
+			if b:GetAttribute("sent") then return end -- กันกดรัวระหว่างรอ state รอบใหม่
+			b:SetAttribute("sent", true)
+			b.Text = "กำลังรับ..."
+			b.BackgroundColor3 = Color3.fromRGB(150, 155, 165)
+			deps.fireAction({ type = "ClaimDMPayout", id = id })
+		end)
+	end
+
 	local renderChat -- forward declare — body เรียก renderChat ซ้ำตอนกดช้อย
 	local function renderChatBody(dm)
 		-- ล้างทั้ง row (Frame) ไม่ใช่แค่ TextLabel — UIListLayout ไม่ใช่ GuiObject จึงรอด
@@ -208,16 +265,30 @@ function Message.create(frame, deps)
 	end
 
 	-- ห่อ body ไว้ เพราะ body มี early return 2 จุด (format เก่า / คุยจบแล้ว)
-	-- ถ้าเรียก applyTextSizes ท้าย body ตรงๆ สองเส้นทางนั้นจะข้ามไป = บับเบิลได้ TextSize ดีฟอลต์
+	-- ถ้าเรียก applyTextSizes/payoutButton ท้าย body ตรงๆ สองเส้นทางนั้นจะข้ามไป
 	renderChat = function(dm)
 		renderChatBody(dm)
+		payoutButton(dm) -- ต่อท้ายแชทเสมอ (ไม่มี payoutId = ฟังก์ชันคืนเลย)
 		applyTextSizes() -- ของที่เพิ่ง track เข้ามารอบนี้ ต้องได้ขนาดทันที ไม่ใช่รอ resize
 	end
 
+	-- ลายเซ็นสถานะปุ่มเงินของ DM ที่เปิดอยู่ — ใช้ตัดสินว่า refresh ต้องวาดใหม่ไหม
+	-- (state ถูก push บ่อยมากตามเวลาในเกม วาดใหม่ทุกครั้ง = แชทกระพริบ + เปลืองเปล่า)
+	local function payoutSig(dm): string
+		local id = dm and dm.payoutId
+		if not id then return "none" end
+		local claimed = (latestState and latestState.dmClaimed and latestState.dmClaimed[id]) == true
+		local reached = ((latestState and latestState.follower) or 0) >= (dm.unlockFollower or 0)
+		return tostring(claimed) .. "|" .. tostring(reached)
+	end
+
+	local currentDM, lastPayoutSig = nil, nil
 	openDM = function(dm)
 		progress[dm] = progress[dm] or 0
 		picked[dm] = picked[dm] or {}
+		currentDM = dm
 		renderChat(dm)
+		lastPayoutSig = payoutSig(dm)
 	end
 
 	-- รายชื่อคนซ้าย — สูงเป็น scale ของ People (เดิม 44px ตายตัว) + ขอบมน + เพดานตัวอักษร
@@ -242,7 +313,19 @@ function Message.create(frame, deps)
 
 	applyTextSizes()
 	if DMs[1] then openDM(DMs[1]) end
-	return {}
+
+	local app = {}
+	-- state ใหม่จาก server → อัปเดตปุ่มเงินก้อน (กดรับสำเร็จ = server ตั้ง dmClaimed แล้ว push กลับมา)
+	-- วาดใหม่เฉพาะตอนสถานะปุ่มเปลี่ยนจริง ไม่ใช่ทุก push
+	function app.refresh(state)
+		latestState = state
+		local sig = payoutSig(currentDM)
+		if sig ~= lastPayoutSig then
+			lastPayoutSig = sig
+			if currentDM then renderChat(currentDM) end
+		end
+	end
+	return app
 end
 
 return Message

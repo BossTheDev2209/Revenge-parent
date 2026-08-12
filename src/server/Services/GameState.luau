@@ -35,6 +35,7 @@ function GameState.newGame()
 		calendar = {}, -- [day] = {type=..., id=...} — ★ ปฏิทินถูกพับไว้ 9 ส.ค. (ดู SponsorService) เก็บ field ไว้เผื่อรื้อกลับ
 		sponsorOffer = false, -- มี offer ค้างรอกดรับไหม (สุ่มรายวัน — SponsorService.rollOffer · หมดอายุเมื่อขึ้นวันใหม่)
 		sponsorBuffUntilDay = 0, -- กดรับงานแล้ว → เงินจากคลิป ×Config.SponsorBuffMult จนถึงวันนี้ (Formulas.sponsorMult)
+		dmClaimed = {}, -- [payoutId] = true — เงินก้อน sponsor ตาม milestone ที่กดรับไปแล้ว (SponsorService.claimDM)
 		-- ระบบพนักงาน (docs/02 §9.8)
 		staff = {},          -- พนักงานจ้าง {id=, speed=, quality=, salary=}
 		companions = {},     -- เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง ไม่มี salary)

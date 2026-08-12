@@ -4,6 +4,9 @@
 local isStudio = script ~= nil
 
 local EndingSequence = {}
+-- .running เหมือน DialogueUI/CutscenePlayer/ScreenTransition/MenuUI — ให้ trigger site เช็คกันยิงซ้ำระหว่าง
+-- ฉากยาวช่วง waitReachPoint (ตอนนั้น sub-engine ทุกตัวว่าง .running=false พร้อมกันหมด ต้องมี flag ระดับนี้เอง)
+EndingSequence.running = false
 
 -- ===== pure (เทสด้วย lune) =====
 
@@ -28,13 +31,12 @@ local MenuUI = require(script.Parent.UI.MenuUI)
 
 local WALK_REACH_THRESHOLD = 5 -- studs — ระยะถือว่า "เดินถึง" walkTarget แล้ว
 
-local savedShirtTemplate, savedPantsTemplate = nil, nil
-
 -- ใส่ชุดสูทก่อน cutscene BCA เริ่ม — ใส่ค้างตลอด BCA cutscene + เดิน + self-talk จนกว่า restoreSuit()
 -- Shirt/Pants ไม่มีอยู่แล้ว (rig บางตัวไม่ใส่ default) = สร้างให้ (มาตรฐาน R6/R15 accessory)
-local function applySuit()
+-- คืนค่าเดิมกลับ (ไม่เก็บลง module state) กัน playTrueEnding สองรอบซ้อนแล้ว capture ชุดสูทเป็น "ของเดิม" ผิด
+local function applySuit(): (string?, string?)
 	local char = Players.LocalPlayer.Character
-	if not char then return end
+	if not char then return nil, nil end
 	local shirt = char:FindFirstChildOfClass("Shirt")
 	if not shirt then
 		shirt = Instance.new("Shirt")
@@ -45,30 +47,31 @@ local function applySuit()
 		pants = Instance.new("Pants")
 		pants.Parent = char
 	end
-	savedShirtTemplate = shirt.ShirtTemplate
-	savedPantsTemplate = pants.PantsTemplate
+	local savedShirt, savedPants = shirt.ShirtTemplate, pants.PantsTemplate
 	-- ⏳ suitShirtId/suitPantsId ยังว่างใน Config (รอ user ให้ rbxassetid) — assign ตรงๆ ไม่ guard เคสว่าง
 	shirt.ShirtTemplate = Config.TrueEnding.suitShirtId
 	pants.PantsTemplate = Config.TrueEnding.suitPantsId
+	return savedShirt, savedPants
 end
 
--- คืนชุดเดิมหลัง cutscene เจอพ่อแม่จบ
-local function restoreSuit()
+-- คืนชุดเดิมหลัง cutscene เจอพ่อแม่จบ — savedShirt/savedPants มาจาก applySuit() ตรงๆ (per-call ไม่แชร์ state)
+local function restoreSuit(savedShirt: string?, savedPants: string?)
 	local char = Players.LocalPlayer.Character
 	if not char then return end
 	local shirt = char:FindFirstChildOfClass("Shirt")
 	local pants = char:FindFirstChildOfClass("Pants")
-	if shirt then shirt.ShirtTemplate = savedShirtTemplate or "" end
-	if pants then pants.PantsTemplate = savedPantsTemplate or "" end
+	if shirt then shirt.ShirtTemplate = savedShirt or "" end
+	if pants then pants.PantsTemplate = savedPants or "" end
 end
 
 -- รอผู้เล่นเดิน (คุมเองหลังปลด FreezeTime) ไปถึง Part ชื่อ targetName ใน Workspace
 -- ไม่ anchor HumanoidRootPart (ต่างจาก waitStreamedAround) — ต้องเดินได้ระหว่างรอ
+-- หา target ใหม่ทุกรอบ (ไม่ cache ก่อน loop) กัน Part สตรีมเข้าช้ากว่า loop เริ่ม
 local function waitReachPoint(targetName: string, timeout: number?): boolean
-	local target = workspace:FindFirstChild(targetName, true)
 	local limit = timeout or Config.TrueEnding.walkTimeout
 	local t0 = os.clock()
 	repeat
+		local target = workspace:FindFirstChild(targetName, true)
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		if root and target and target:IsA("BasePart")
@@ -77,12 +80,16 @@ local function waitReachPoint(targetName: string, timeout: number?): boolean
 		end
 		task.wait(0.1)
 	until os.clock() - t0 > limit
+	warn("[EndingSequence] waitReachPoint timeout: หา/เดินไม่ถึง", targetName)
 	return false
 end
 
 -- ลำดับเต็ม True Ending (Good1) — deps = { fireAction, getState, menuDeps } จาก Main.client.luau
 function EndingSequence.playTrueEnding(playerGui, deps)
-	applySuit()
+	if EndingSequence.running then return end
+	EndingSequence.running = true
+
+	local savedShirt, savedPants = applySuit()
 
 	deps.fireAction({ type = "FreezeTime", on = true })
 	CutscenePlayer.play(playerGui, require(Content.Cutscenes.BCAWalk), function()
@@ -100,10 +107,11 @@ function EndingSequence.playTrueEnding(playerGui, deps)
 						onBlack = function() end,
 						onDone = function()
 							CutscenePlayer.play(playerGui, require(Content.Cutscenes.Reunite), function()
-								restoreSuit()
+								restoreSuit(savedShirt, savedPants)
 								ScreenTransition.play({
 									lines = { "[slow]— จบ — [normal](Good1)" },
 									onDone = function()
+										EndingSequence.running = false
 										deps.fireAction({ type = "FreezeTime", on = false })
 										MenuUI.open(playerGui, deps.menuDeps)
 									end,

@@ -47,6 +47,7 @@ return {
 | `hold` | `actor` + `prop` | Weld prop ติดมือ actor (`limb` ไม่ใส่ = `"Right Arm"`) — แขนขยับตามท่า prop ติดตามไปเอง · auto-unhold ตอนจบฉาก (ใส่ `persist=true` ถ้าอยากให้ค้างถือต่อ) → [story-beat.md §7](story-beat.md) |
 | `unhold` | `prop` | ปลด prop ออกจากมือก่อนฉากจบ (ปกติไม่ต้องเรียกเอง ระบบ auto-unhold ให้) |
 | `visible` | `target` (ชื่อ Part/Model) + `show` (boolean) | โชว์/ซ่อน object (Transparency+CanCollide) — ใช้สลับของจริงกับ duplicate สำหรับ animate → [story-beat.md §7](story-beat.md) |
+| `time` | `hour` (0-24) | ล็อกตำแหน่งดวงอาทิตย์/แสงให้ฉาก (ไม่เดินเวลาเกมจริง) — เช่น `{ type="time", hour=0 }` BCA กลางคืน, `hour=8` Ending เช้า · ตั้งครั้งเดียวค้างทั้งฉาก จบฉากคืนเวลาจริงอัตโนมัติ |
 
 **ไม่ใส่ step `camera` เลยก็ได้** — กล้องอยู่ที่เดิมที่ player ยืน แล้วขึ้นแถบดำ+ข้อความ (ใช้ได้จริงสำหรับ ending แบบย่อ)
 

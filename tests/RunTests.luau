@@ -1187,6 +1187,8 @@ check("anim ไม่ใช่ string = ไม่ผ่าน", DialogueUI.valid
 check("actor ไม่ใช่ string = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", pose = "A", actor = true } }) == false)
 check("lock=true ผ่าน", DialogueUI.validate({ { speaker = "ฟ้าใส", text = "ก", lock = true } }) == true)
 check("lock ไม่ใช่ boolean = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", lock = "yes" } }) == false)
+check("time=number ผ่าน (ล็อกดวงอาทิตย์)", DialogueUI.validate({ { text = "ก", time = 17 } }) == true)
+check("time ไม่ใช่ number = ไม่ผ่าน", DialogueUI.validate({ { text = "ก", time = "17" } }) == false)
 check("หาท่าเฉพาะตัวก่อนท่ากลาง",
 	AnimPlayer.candidates("Friend1", "Point")[1] == "Friend1/Point"
 	and AnimPlayer.candidates("Friend1", "Point")[2] == "Point")
@@ -1542,6 +1544,8 @@ check("Config.Dialogue.box มีสีครบ (bg/text)",
 	typeof(DB.bgColor) == "Color3" and typeof(DB.textColor) == "Color3")
 -- cutscene step เสียงต้อง validate ผ่าน
 check("cutscene step bgm ผ่าน", CutscenePlayer.validate({ { type = "bgm", name = "Street" } }) == true)
+check("cutscene step time ผ่าน (ล็อกดวงอาทิตย์)", CutscenePlayer.validate({ { type = "time", hour = 8 } }) == true)
+check("cutscene step time ไม่มี hour = ไม่ผ่าน", CutscenePlayer.validate({ { type = "time" } }) == false)
 check("cutscene step bgm ไม่ใส่ชื่อ = เงียบ ผ่าน", CutscenePlayer.validate({ { type = "bgm" } }) == true)
 check("cutscene step sound ต้องมีชื่อ", CutscenePlayer.validate({ { type = "sound" } }) == false)
 

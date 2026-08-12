@@ -154,7 +154,7 @@ function normalizeScene(sc) {
   for (const p of PHASES) if (!Array.isArray(sc.phases[p.key])) sc.phases[p.key] = [];
   return sc;
 }
-function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'', cam:'', lock:false }; }
+function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'', cam:'', lock:false, time:'' }; }
 function newChoiceOption() { return { text:'', tone:'neutral', teleport:'', reply: [] }; }
 function newChoice() { return { kind:'choice', options: [ newChoiceOption() ] }; }
 function uid() { return Math.random().toString(36).slice(2,9); }
@@ -317,7 +317,7 @@ function renderLineFields(block) {
   wrap.appendChild(textField);
 
   const details = document.createElement('details');
-  const hasExtra = block.anim || block.pose || block.face || block.actor || block.cam || block.lock;
+  const hasExtra = block.anim || block.pose || block.face || block.actor || block.cam || block.lock || block.time;
   details.open = !!hasExtra;
   const summary = document.createElement('summary');
   summary.textContent = 'ท่าทาง / สีหน้า / actor / กล้อง / ล็อก (ไม่บังคับ)';
@@ -330,6 +330,8 @@ function renderLineFields(block) {
   pf.appendChild(miniField('actor (ให้ตัวอื่นขยับแทน)', block, 'actor', 'เช่น Dad / player'));
   // cam = ตัดกล้องไป Part ใน Workspace.CutsceneCams "ตอนบรรทัดนี้ขึ้น" — ไม่ใส่ = กล้องค้างมุมเดิม (ไม่ต้องใส่ทุกบรรทัด)
   pf.appendChild(miniField('cam (ตัดกล้อง — ใส่เฉพาะจุดที่อยากตัด)', block, 'cam', 'เช่น FaasaiPark_01'));
+  // time = ล็อกดวงอาทิตย์ให้ฉาก (ชั่วโมง 0-24) ใส่บรรทัดเดียวพอ ค้างทั้งบท คืนเวลาจริงตอนจบ — เช่น park=17
+  pf.appendChild(miniField('time (ล็อกดวงอาทิตย์ 0-24 — ใส่บรรทัดเดียวพอ)', block, 'time', 'เช่น 17'));
   details.appendChild(pf);
   // lock = ปิดปุ่ม "เลิกคุย" ทั้งบท (ใส่ true ที่บรรทัดใดบรรทัดหนึ่งพอ) — บทบังคับเล่นจนจบ
   const lockRow = document.createElement('div');
@@ -460,7 +462,7 @@ function luauEscape(s) {
 }
 
 function isPlainTextLine(b) {
-  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor && !b.cam && !b.lock;
+  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor && !b.cam && !b.lock && !b.time;
 }
 
 function genLine(b, indent) {
@@ -479,6 +481,7 @@ function genLine(b, indent) {
   if (b.actor) parts.push(`actor = "${luauEscape(b.actor)}"`);
   if (b.cam) parts.push(`cam = "${luauEscape(b.cam)}"`);
   if (b.lock) parts.push(`lock = true`);
+  if (b.time !== '' && b.time != null) parts.push(`time = ${Number(b.time)}`); // ล็อกดวงอาทิตย์ของฉาก (number 0-24) ไม่ใส่ quote
   return `${pad}{ ${parts.join(', ')} },`;
 }
 
@@ -727,6 +730,7 @@ function mapItem(v) {
     const l=newLine();
     for (const k of ['speaker','text','anim','pose','face','actor','cam']) if (v[k]!=null) l[k]=String(v[k]);
     l.lock = v.lock===true;
+    if (v.time!=null) l.time = String(v.time);
     return l;
   }
   return newLine();

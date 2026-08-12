@@ -43,6 +43,12 @@ Config.FaasaiParkFollower = 60_000 -- เดทที่สวน เฟส 2 (1
 -- ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี follower ไม่มีทางเกิน
 Config.BCAEventId = "bca"
 Config.BCAAfterMilestone = 1_000_000
+Config.TrueEnding = {
+	suitShirtId = "", -- ⏳ รอ user ให้ rbxassetid
+	suitPantsId = "", -- ⏳ รอ user ให้ rbxassetid
+	walkTarget = "BCA_PodiumMark", -- Part ใน Workspace ที่ผู้เล่นต้องเดินไปถึง (ทีมวางในแมพ)
+	walkTimeout = 30, -- กันค้างถ้าเดินหลงทาง
+}
 
 -- §2 Follower ต่อคลิป = base(สุ่ม) × VidQ × mental, มีโอกาส viral
 -- ★ ปรับ 12 ส.ค. 2569 (user, pacing pass): เดิม 400-900/1,400-2,600/9,000-15,000 → หารครึ่งทุกเฟส

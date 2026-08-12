@@ -415,7 +415,9 @@ local function startDialogue(dialogueName, interactPart)
 			local farewellNpc = AnimPlayer.findRig("ฟ้าใส")
 			local farewellHead = farewellNpc and (farewellNpc:FindFirstChild("Head") or farewellNpc:FindFirstChild("HumanoidRootPart"))
 			runDialogue(Faasai.parkFarewell, farewellHead, "ฟ้าใส", function()
-				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" })
+				-- ★ แก้ 12 ส.ค. (user) — จบเดทสวนแล้วฟ้าใส "หายไป" (away) ไม่ใช่กลับมาโผล่หน้าห้อง (room) จุดเดิม
+				--   เธอโผล่อีกทีตอนเข้าเฟส 3 (JiajiaJoin settle ตั้ง loc = "chair") — ระหว่างนี้ซ่อนใต้แมพ
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "away" })
 				fireAction({ type = "SetFlag", name = "faasai_park_dated" })
 			end)
 		end

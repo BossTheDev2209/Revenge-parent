@@ -1,6 +1,6 @@
 -- StoryNPCPlacer.luau — วาง/ย้าย StoryNPC ตาม state.npcLoc (client render · server เป็นเจ้าของ npcLoc)
 -- ที่อยู่ NPC = อนุพันธ์ของ state ไม่ใช่วางตายในแมพ — instance เดียวย้ายไปมา ไม่ duplicate/ไม่ Destroy
--- anchor = Part ชื่อ NPCHome_<actor>_<loc> ใน workspace · "away" = วาง anchor ไว้นอกจอ/ใต้แมพเอา
+-- anchor = Part ชื่อ NPCHome_<actor>_<loc> ใน workspace · loc "away" = ซ่อนตัวละคร (ไม่ต้องมี anchor — ย้ายใต้แมพให้เอง)
 -- วาง anchor ตรงไหนก็ได้ตรงจุด X/Z ที่อยากได้ (สูง/ต่ำ/หนาแค่ไหนไม่สำคัญ) — โค้ด raycast หาพื้นจริงข้างล่างเอง
 -- แล้วยืนบนพื้นจริง (ไม่ใช่ยืนบนตัว anchor) กันทั้งจมพื้นและลอยเหนือ anchor
 -- ย้ายเฉพาะตอน loc เปลี่ยน (ไม่ restart idle ทุก push) · reuse AnimPlayer.findRig (หาใน Workspace.NPC)
@@ -41,7 +41,13 @@ function StoryNPCPlacer.apply(state)
 	for actor, loc in state.npcLoc do
 		if applied[actor] ~= loc then
 			local rig = AnimPlayer.findRig(actor)
-			if rig then -- rig ยังไม่ spawn/stream = ข้ามไว้ก่อน ไม่ mark → push หน้าลองใหม่
+			if rig and loc == "away" then
+				-- ★ "away" = ซ่อนตัวละคร ไม่ต้องมี anchor (แก้ 12 ส.ค. — ฟ้าใสหลังเดทสวนต้องหายไป รอโผล่เฟส 3)
+				--   ย้ายไปไกลใต้แมพ (HRP anchored อยู่แล้วเลยค้างที่นั่น มองไม่เห็น) + ปล่อย prop ที่ถืออยู่
+				rig:PivotTo(CFrame.new(0, -10000, 0))
+				AnimPlayer.unhold("NotebookBed")
+				applied[actor] = loc
+			elseif rig then -- rig ยังไม่ spawn/stream = ข้ามไว้ก่อน ไม่ mark → push หน้าลองใหม่
 				local anchor = workspace:FindFirstChild(StoryNPCPlacer.anchorName(actor, loc), true)
 				if anchor and anchor:IsA("BasePart") then
 					local facing = anchor.CFrame - anchor.CFrame.Position -- ทิศหันอย่างเดียว ตัดตำแหน่งทิ้ง

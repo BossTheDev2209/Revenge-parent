@@ -253,7 +253,8 @@ function Message.create(frame, deps)
 			track(capText(b), "cap", TEXT.choice)
 			local bs = Instance.new("UIStroke")
 			bs.Color = Color3.fromRGB(30, 60, 160)
-			bs.Thickness = 2
+			bs.Thickness = 1 -- เดิม 2 หนาไป (user 12 ส.ค.)
+			bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- ขอบปุ่มเท่านั้น ไม่ stroke ตัวหนังสือให้ดูหนา
 			bs.Parent = b
 			b.Activated:Connect(function()
 				-- เลือกอะไรก็ได้ NPC ตอบเหมือนเดิม (design §6)

@@ -14,6 +14,9 @@ local isStudio = script ~= nil
 local ClipTitles = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.ClipTitles)
 	else require("../../../../shared/Content/ClipTitles")
+local UIAssets = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
+	else require("../../../../shared/UIAssets")
 
 -- สุ่ม n รายการไม่ซ้ำจาก pool (pool สั้นกว่า n = คืนเท่าที่มี ไม่ crash)
 local function pickRandom(pool, n)
@@ -55,6 +58,48 @@ function Upload.create(frame, deps)
 	local list = content:FindFirstChild("List")
 	local preview = content:FindFirstChild("Preview")
 	local previewText = preview and preview:FindFirstChild("PreviewText")
+
+	-- ★ 12 ส.ค. (user) — โชว์ปกคลิปจริง (UIAssets.clip_cover_1..6) ในกรอบ preview
+	--   ก่อนหน้านี้กรอบนี้มีแค่ PreviewText เฉยๆ ไม่เคยสร้าง ImageLabel เลย (เว้นว่างรอตลอด)
+	--   คลิปแต่ละอันไม่มีคีย์ cover ผูกไว้ (ไม่ใช่ balance data) เลยเลือกแบบ deterministic ตาม index
+	--   ในลิสต์ (clip 1→cover_1, clip 2→cover_2, ... วน 6) ให้แต่ละคลิปคงที่ ไม่สุ่มใหม่ทุก refresh
+	local coverImage, coverOverlay
+	if preview then
+		coverImage = Instance.new("ImageLabel")
+		coverImage.Name = "CoverImage"
+		coverImage.Size = UDim2.fromScale(1, 1)
+		coverImage.BackgroundTransparency = 1
+		coverImage.ScaleType = Enum.ScaleType.Crop
+		coverImage.ZIndex = 0
+		coverImage.Visible = false
+		coverImage.Parent = preview
+
+		coverOverlay = Instance.new("Frame") -- มืดคลุมครึ่งนึงกัน PreviewText อ่านไม่ออกบนรูปสว่าง
+		coverOverlay.Name = "CoverOverlay"
+		coverOverlay.Size = UDim2.fromScale(1, 1)
+		coverOverlay.BackgroundColor3 = Color3.new(0, 0, 0)
+		coverOverlay.BackgroundTransparency = 0.55
+		coverOverlay.BorderSizePixel = 0
+		coverOverlay.ZIndex = 1
+		coverOverlay.Visible = false
+		coverOverlay.Parent = preview
+
+		if previewText then previewText.ZIndex = 2 end
+	end
+
+	local function showCover(clipIndex)
+		if not coverImage then return end
+		local key = "clip_cover_" .. (((clipIndex - 1) % 6) + 1)
+		local img = UIAssets[key]
+		if img and img ~= "" then
+			coverImage.Image = img
+			coverImage.Visible = true
+			coverOverlay.Visible = true
+		else
+			coverImage.Visible = false
+			coverOverlay.Visible = false
+		end
+	end
 
 	local titleBtns, descBtns = {}, {}
 	for i = 1, 3 do
@@ -155,6 +200,7 @@ function Upload.create(frame, deps)
 					cap.Parent = thumb
 					thumb.Activated:Connect(function()
 						selectClip(i, thumb)
+						showCover(i)
 						if previewText then
 							previewText.Text = ("คลิป #%d — tier %s (%d/200)"):format(i, clip.tier, clip.score)
 						end
@@ -165,6 +211,8 @@ function Upload.create(frame, deps)
 		if not any then
 			if previewText then previewText.Text = "ไม่มีคลิปค้าง — ไปตัดคลิปก่อน (แอป ✂️)" end
 			selectedClip = nil
+			if coverImage then coverImage.Visible = false end
+			if coverOverlay then coverOverlay.Visible = false end
 		end
 	end
 	return app

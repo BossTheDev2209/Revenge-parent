@@ -470,7 +470,9 @@ function genLine(b, indent) {
   }
   const parts = [];
   if (b.speaker) parts.push(`speaker = "${luauEscape(b.speaker)}"`);
-  parts.push(`text = "${luauEscape(b.text)}"`);
+  // stage-direction line (มี anim/pose/face แต่ไม่มี text/speaker) = ไม่ใส่ text เลย → ไม่ขึ้นกล่องข้อความ (เช่น player pose loop ใน park)
+  const stageDir = !b.text && !b.speaker && (b.anim || b.pose || b.face);
+  if (!stageDir) parts.push(`text = "${luauEscape(b.text)}"`);
   if (b.anim) parts.push(`anim = "${luauEscape(b.anim)}"`);
   if (b.pose) parts.push(`pose = "${luauEscape(b.pose)}"`);
   if (b.face) parts.push(`face = "${luauEscape(b.face)}"`);

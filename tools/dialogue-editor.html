@@ -83,7 +83,7 @@
 
 <footer>
   dialogue-editor.html — เครื่องมือช่วยเขียนบท ไม่ต้องพิมพ์ Luau เอง · ทำงาน 100% ในเบราว์เซอร์ ไม่ส่งข้อมูลไปไหน<br>
-  ตรงกับ docs/engines/dialogue.md — p1/p2/p3/after/again/parkFarewell + byLoc (bed/park), choices+tone+reply+teleport, anim/pose/face/actor/cam/lock, tag [slow]/[fast]/[normal]
+  ตรงกับ docs/engines/dialogue.md — p1/p2/p3/again/parkFarewell/betrayReact + after (p/again) + byLoc (bed/park/couch, p/again), choices+tone+reply+teleport, anim/pose/face/actor/cam/lock, tag [slow]/[fast]/[normal]
 </footer>
 
 <div id="importPane" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center;">
@@ -115,28 +115,33 @@
 <script>
 // ===================== data model =====================
 // scene = { phases: { <sectionKey>: [block], ... } }
-//   sectionKey = p1/p2/p3/after/again/parkFarewell (top-level list keys)
-//              + byLoc.<loc>.p / byLoc.<loc>.again (คุยตามที่อยู่ npcLoc — bed/park)
+//   sectionKey = p1/p2/p3/again/parkFarewell/betrayReact (top-level list keys ธรรมดา)
+//              + after.p / after.again (บทหลังทรยศ — แยกครั้งแรก/ซ้ำในตัวเหมือน byLoc)
+//              + byLoc.<loc>.p / byLoc.<loc>.again (คุยตามที่อยู่ npcLoc — bed/park/couch)
 // block (line)   = { kind:'line', speaker, text, anim, pose, face, actor, cam, lock }
 // block (choice) = { kind:'choice', options:[ { text, tone, teleport, reply:[block,...] } ] }
 //
-// ⚠️ เครื่องมือนี้รองรับ byLoc เฉพาะ loc = bed, park (ที่ใช้จริงตอนนี้) — import ไฟล์ที่มี byLoc.<loc อื่น> จะเตือน ไม่ทับเงียบ
+// ⚠️ เครื่องมือนี้รองรับ byLoc เฉพาะ loc = bed, park, couch (ที่ใช้จริงตอนนี้) — import ไฟล์ที่มี byLoc.<loc อื่น> จะเตือน ไม่ทับเงียบ
 
 // byLoc = แต่ละ loc มี 2 ช่อง: p (คุยครั้งแรก) / again (คุยซ้ำที่ loc นั้น)
 // export: again ว่าง → เขียนเป็น list ตรง (loc = {...}) · again มีของ → เขียน { p = {...}, again = {...} }
-const BYLOC_LOCS = ['bed', 'park'];
+const BYLOC_LOCS = ['bed', 'park', 'couch'];
 
 const PHASES = [
   { key: 'p1', label: 'p1 — เฟส 1', hint: 'บทตอนเฟส 1 (Homeless)' },
   { key: 'p2', label: 'p2 — เฟส 2', hint: 'บทตอนเฟส 2 (ห้องเช่า)' },
   { key: 'p3', label: 'p3 — เฟส 3', hint: 'บทตอนเฟส 3 (บ้าน) — ไม่มี p3 = ระบบถอยไปใช้ p2 อัตโนมัติ' },
-  { key: 'after', label: 'after — หลังทรยศ', hint: 'บทหลังเพื่อนทรยศ (follower ≥ 500K) — เฉพาะ NPC ที่เกี่ยวข้อง เช่น แม่/ฟ้าใส' },
+  { key: 'after.p', label: 'after — หลังทรยศ (แรก)', hint: 'บทหลังเพื่อนทรยศ (follower ≥ 500K) ครั้งแรกที่คุย prompt — ชนะ byLoc เสมอ (เช็คก่อน) · ไม่เขียน after.again = export เป็น list ตรง (แบบเดิม ไม่แยกครั้งแรก/ซ้ำ)', afterPart: 'p' },
+  { key: 'after.again', label: 'after — หลังทรยศ (ซ้ำ)', hint: 'คุยซ้ำหลังทรยศ (ไม่บังคับ — ว่าง = คุยซ้ำได้บท after.p เต็มซ้ำเหมือนเดิม)', afterPart: 'again' },
   { key: 'again', label: 'again — คุยซ้ำ', hint: 'บทตอนคุยซ้ำในเฟสเดิม (คุยจบบทเต็มแล้วรอบนึง) — ไม่เขียน = คุยซ้ำเล่นบทเต็มเหมือนเดิม · ไม่ควรใส่ choices' },
   { key: 'parkFarewell', label: 'parkFarewell — ส่งท้ายสวน', hint: 'บทส่งท้ายหลัง byLoc.park.p จบ (เด้งอัตโนมัติ · ฟ้าใส) — บรรทัดแรกใส่ pose = Idle ให้ลุกจากท่านั่ง' },
+  { key: 'betrayReact', label: 'betrayReact — ปฏิกิริยาคัตซีนทรยศ', hint: 'เล่นครั้งเดียวต่อจาก cutscene FaasaiBetray ตรงๆ (ไม่ผ่าน pickLines/prompt เลย) — wire เองใน Main.client.luau (StoryBeat.play dialogue=Jiajia.betrayReact) · ตอนนี้ใช้เฉพาะเจียเจีย' },
   { key: 'byLoc.bed.p', label: 'byLoc.bed — เตียง (แรก)', hint: 'คุยตอน npcLoc=bed (ฟ้าใสนั่งเตียง เฟส 2 หลัง join)', byLoc: { loc: 'bed', part: 'p' } },
   { key: 'byLoc.bed.again', label: 'byLoc.bed — เตียง (ซ้ำ)', hint: 'คุยซ้ำที่เตียง (ว่าง = ใช้บท p ซ้ำ)', byLoc: { loc: 'bed', part: 'again' } },
   { key: 'byLoc.park.p', label: 'byLoc.park — สวน (แรก)', hint: 'คุยตอน npcLoc=park · ใส่ cam ต่อบรรทัด (ตัดกล้อง) + lock=true ที่บรรทัดใดบรรทัดหนึ่งเพื่อกันเลิกคุยกลางคัน · เจียเจียใส่ teleport ในช้อยเพื่อวาปไปแมพอื่น', byLoc: { loc: 'park', part: 'p' } },
   { key: 'byLoc.park.again', label: 'byLoc.park — สวน (ซ้ำ)', hint: 'คุยซ้ำที่สวน (ว่าง = ใช้บท p ซ้ำ)', byLoc: { loc: 'park', part: 'again' } },
+  { key: 'byLoc.couch.p', label: 'byLoc.couch — บ้าน (แรก)', hint: 'คุยตอน npcLoc=couch (เจียเจียนั่งโซฟา เฟส 3 ตลอด ทั้งก่อน/หลังทรยศ) · ใส่ teleport ในช้อยพาไปแมพอื่นได้ (เช่น ชวนไปสยาม)', byLoc: { loc: 'couch', part: 'p' } },
+  { key: 'byLoc.couch.again', label: 'byLoc.couch — บ้าน (ซ้ำ)', hint: 'คุยซ้ำที่บ้าน (ว่าง = ใช้บท p ซ้ำ)', byLoc: { loc: 'couch', part: 'again' } },
 ];
 
 let scene = emptyScene();
@@ -535,14 +540,30 @@ function generateLuau() {
   const name = (npcNameInput.value || 'NewNPC').trim();
   let out = `-- ${name} — สร้างจาก tools/dialogue-editor.html (ดู docs/engines/dialogue.md)\n`;
   out += `return {\n`;
-  // top-level list keys (ไม่ใช่ byLoc): p1/p2/p3/after/again/parkFarewell
+  // top-level list keys ธรรมดา (ไม่ใช่ byLoc, ไม่ใช่ after.p/again): p1/p2/p3/again/parkFarewell/betrayReact
   for (const p of PHASES) {
-    if (p.byLoc) continue;
+    if (p.byLoc || p.afterPart) continue;
     const list = scene.phases[p.key] || [];
     if (list.length === 0) continue;
     out += `\t${p.key} = {\n`;
     for (const b of list) out += genBlock(b, 2) + '\n';
     out += `\t},\n\n`;
+  }
+  // after = list ตรง (again ว่าง — แบบเดิม) หรือ { p =, again = } (again มีของ) — เหมือน byLoc
+  const afterP = scene.phases['after.p'] || [];
+  const afterAgain = scene.phases['after.again'] || [];
+  if (afterP.length > 0 || afterAgain.length > 0) {
+    if (afterAgain.length === 0) {
+      out += `\tafter = {\n`;
+      for (const b of afterP) out += genBlock(b, 2) + '\n';
+      out += `\t},\n\n`;
+    } else {
+      out += `\tafter = {\n\t\tp = {\n`;
+      for (const b of afterP) out += genBlock(b, 3) + '\n';
+      out += `\t\t},\n\t\tagain = {\n`;
+      for (const b of afterAgain) out += genBlock(b, 3) + '\n';
+      out += `\t\t},\n\t},\n\n`;
+    }
   }
   // byLoc = { <loc> = ... } — รวมทุก loc ที่มีบท (again ว่าง = list ตรง, again มีของ = { p =, again = })
   const locsWithContent = BYLOC_LOCS.filter(loc =>
@@ -740,10 +761,18 @@ function luauToScene(parsed) {
   if (Array.isArray(parsed)) { phases.p1 = parsed.map(mapItem); return { phases }; }
   if (parsed && typeof parsed==='object') {
     let any=false;
-    // top-level list keys (ข้าม byLoc — จัดแยกด้านล่าง)
+    // top-level list keys ธรรมดา (ข้าม byLoc + after.p/again — จัดแยกด้านล่าง)
     for (const p of PHASES) {
-      if (p.byLoc) continue;
+      if (p.byLoc || p.afterPart) continue;
       if (Array.isArray(parsed[p.key])) { phases[p.key]=parsed[p.key].map(mapItem); any=true; }
+    }
+    // after = list ตรง (แบบเดิม → after.p) หรือ { p=, again= } → after.p / after.again
+    if (parsed.after != null) {
+      if (Array.isArray(parsed.after)) { phases['after.p'] = parsed.after.map(mapItem); any=true; }
+      else if (typeof parsed.after==='object') {
+        if (Array.isArray(parsed.after.p)) { phases['after.p']=parsed.after.p.map(mapItem); any=true; }
+        if (Array.isArray(parsed.after.again)) { phases['after.again']=parsed.after.again.map(mapItem); any=true; }
+      }
     }
     // byLoc.<loc> = list ตรง (→ .p) หรือ { p=, again= }
     if (parsed.byLoc && typeof parsed.byLoc==='object' && !Array.isArray(parsed.byLoc)) {

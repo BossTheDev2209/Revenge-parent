@@ -1325,6 +1325,15 @@ check("byLoc {p=,again=} ครั้งแรก (locSeen=false) = p",
 check("byLoc {p=,again=} locSeen=true = again",
 	InteractBinder.pickLines(locFirstAgain, { phase = 2, flags = {} }, false, "park", true)[1] == "สวนซ้ำ")
 
+-- after แบบ { p=, again= } แยกครั้งแรก/ซ้ำในตัว (afterSeen) — เพิ่ม 12 ส.ค. 2569 เหมือน byLoc ข้างบน แต่คนละคีย์
+local afterFirstAgain = { p2 = { "ห้อง" }, byLoc = { park = { "สวน" } }, after = { p = { "ทรยศครั้งแรก" }, again = { "ทรยศซ้ำ" } } }
+check("after {p=,again=} ครั้งแรก (afterSeen=false) = p ชนะ byLoc",
+	InteractBinder.pickLines(afterFirstAgain, { phase = 2, flags = { betrayed = true } }, false, "park", false, false)[1] == "ทรยศครั้งแรก")
+check("after {p=,again=} afterSeen=true = again",
+	InteractBinder.pickLines(afterFirstAgain, { phase = 2, flags = { betrayed = true } }, false, "park", false, true)[1] == "ทรยศซ้ำ")
+check("after {p=,again=} ไม่ betrayed = ไม่แตะ after เลย (ได้ byLoc ปกติ)",
+	InteractBinder.pickLines(afterFirstAgain, { phase = 2, flags = {} }, false, "park", false, true)[1] == "สวน")
+
 -- content จริง: ทุก NPC ที่ผูกใน binder ต้องมีบทให้ทุกเฟสที่เจอได้
 local DialogueFolder = if isStudio then game:GetService("ReplicatedStorage").Shared.Content.Dialogue else nil
 for _, name in { "ฟ้าใส", "เจียเจีย", "พี่เปิ้ล" } do

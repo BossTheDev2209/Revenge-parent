@@ -700,6 +700,7 @@ function MenuUI.open(playerGui, deps)
 		if MenuUI.busy then return end
 		screen = name
 		homePanel.Visible = name == "home"
+		title.Visible = name == "home" -- โลโก้เกมโชว์เฉพาะหน้า home — เข้า save/setting/credit ต้องหายด้วย (parent = gui ไม่ใช่ homePanel เลยไม่หายตาม)
 		back.Visible = name ~= "home"
 		showSurface(name)
 		tweenCamTo(camHolder, camCFFor(name), CAM_TIME)
@@ -712,6 +713,7 @@ function MenuUI.open(playerGui, deps)
 		MenuUI.busy = true
 		local isNewGame = action ~= nil and action.type == "NewGame"
 		homePanel.Visible = false
+		title.Visible = false -- เข้าเกม = ซ่อนโลโก้ด้วย (goto_ ไม่ได้ถูกเรียกทางนี้)
 		back.Visible = false
 		showSurface(nil)
 		tweenCamTo(camHolder, camCFFor("launching"), CAM_TIME)

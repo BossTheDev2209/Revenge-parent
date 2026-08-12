@@ -38,16 +38,22 @@ Config.BetrayalMilestone = 500_000
 Config.BetrayalMentalPenalty = -25
 -- faasai เข้าร่วม (StoryBeat เคาะประตู→นั่งเตียง) — ยิงตอน follower ถึงค่านี้ในเฟส 2 (ปรับได้)
 Config.FaasaiJoinFollower = 30_000
+Config.FaasaiParkFollower = 60_000 -- เดทที่สวน เฟส 2 (12 ส.ค.) — ตัวเลขชั่วคราว ไม่ใช่ค่าที่ล็อกใน docs/02, ปรับได้อิสระ
 -- BCA (Bangkok Creator Award) — คิวต่อท้ายทันทีหลัง milestone 1M ก่อน ending cutscene
 -- ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี follower ไม่มีทางเกิน
 Config.BCAEventId = "bca"
 Config.BCAAfterMilestone = 1_000_000
 
 -- §2 Follower ต่อคลิป = base(สุ่ม) × VidQ × mental, มีโอกาส viral
+-- ★ ปรับ 12 ส.ค. 2569 (user, pacing pass): เดิม 400-900/1,400-2,600/9,000-15,000 → หารครึ่งทุกเฟส
+--   เหตุผล: เพดานเงิน/phase gate ผูกกับ follower สะสมต่อเฟส (คงที่) ไม่ใช่จำนวนคลิป (§1, บทเรียนท้ายเอกสาร)
+--   → ลด base ต่อคลิปครึ่งหนึ่ง = clip ต่อรอบเกมเพิ่มเป็น ~2 เท่า (~78→~156 คลิปทั้งเกม)
+--   ยาวขึ้นจาก ~34 นาที (ของเดิม) → ~67 นาที ทั้งเกม โดย**ไม่แตะเพดานเงิน 1.47M เลย**
+--   (เพดานเงิน = Σ follower ต่อเฟส(คงที่จาก PhaseGates) × rate(คงที่) — ไม่ขึ้นกับ FollowerBase)
 Config.FollowerBase = {
-	[1] = { min = 400, max = 900 },
-	[2] = { min = 1_400, max = 2_600 },
-	[3] = { min = 9_000, max = 15_000 },
+	[1] = { min = 200, max = 450 },
+	[2] = { min = 700, max = 1_300 },
+	[3] = { min = 4_500, max = 7_500 },
 }
 
 Config.MaxClipAccuracy = 200

@@ -127,19 +127,19 @@ check("mental 0 → 0 (Bad End 2 เป็นหน้าที่ service)", Fo
 -- ===== followerGain (design doc §2: base(สุ่ม) × VidQ × mental, viral 12% ×4–8) =====
 -- ลำดับเรียก rng (implementation ต้องตรง): ① base ② mentalZone ③ viralChance ④ viralMult
 local n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0, 0, 0.5 }))
-check("phase1 B mental กลาง ไม่ viral = base ต่ำสุด 400", n == 400 and viral == false)
+check("phase1 B mental กลาง ไม่ viral = base ต่ำสุด 200", n == 200 and viral == false)
 
 n, viral = Formulas.followerGain(1, "S", 50, rngQueue({ 0, 0, 0.5 }))
-check("tier S คูณ 2 → 800", n == 800 and viral == false)
+check("tier S คูณ 2 → 400", n == 400 and viral == false)
 
 n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0, 0, 0.05, 0 }))
-check("viral ติด (0.05 < 0.12) คูณต่ำสุด 4 → 1600", n == 1600 and viral == true)
+check("viral ติด (0.05 < 0.12) คูณต่ำสุด 4 → 800", n == 800 and viral == true)
 
 n, viral = Formulas.followerGain(1, "B", 50, rngQueue({ 0.999, 0, 0.5 }))
-check("base สุ่มบนสุด phase1 ≈ 900", n >= 898 and n <= 900)
+check("base สุ่มบนสุด phase1 ≈ 450", n >= 448 and n <= 450)
 
 n, viral = Formulas.followerGain(3, "B", 50, rngQueue({ 0, 0, 0.5 }))
-check("phase3 base ต่ำสุด 9000", n == 9000)
+check("phase3 base ต่ำสุด 4500", n == 4500)
 
 -- ===== moneyGain (design doc §4: follower × rate เฟส) =====
 check("rate phase1 0.8", Formulas.moneyGain(1000, 1) == 800)
@@ -306,8 +306,8 @@ check("finishEdit: clamp คะแนน 0-200", fs.clips[2].score == 200)
 FollowerService.finishEdit(fs, { score = 70 })
 
 local upOk, upViral = FollowerService.uploadClip(fs, { clip = 3 }, 50, rngQueue({ 0, 0, 0.5 }))
-check("upload clip B: +400 follower", upOk == true and fs.follower == 400)
-check("เงินเข้า 400×0.8 = 320", fs.money == 2500 + 320)
+check("upload clip B: +200 follower", upOk == true and fs.follower == 200)
+check("เงินเข้า 200×0.8 = 160", fs.money == 2500 + 160)
 check("clip ถูก mark uploaded", fs.clips[3].uploaded == true)
 check("ไม่ viral", upViral == false)
 check("อัปซ้ำไม่ได้", FollowerService.uploadClip(fs, { clip = 3 }, 50, rngQueue({ 0, 0, 0.5 })) == false)
@@ -315,7 +315,7 @@ check("index มั่วไม่ crash", FollowerService.uploadClip(fs, { clip
 
 fs.follower = 9_900
 local upOk2, upViral2 = FollowerService.uploadClip(fs, { clip = 1 }, 50, rngQueue({ 0, 0, 0.05, 0 }))
-check("clip S viral: base 400 ×2 ×4 = 3200", upOk2 and upViral2 and fs.follower == 9_900 + 3_200)
+check("clip S viral: base 200 ×2 ×4 = 1600", upOk2 and upViral2 and fs.follower == 9_900 + 1_600)
 check("ข้าม gate → phase 2", fs.phase == 2)
 
 -- Edit more = ตัดคลิปใหม่ต่อเลย: ทุกรอบ QTE ได้คลิปใหม่ 1 อัน (mental -20 ต่อรอบ Main จัดการ)
@@ -569,12 +569,12 @@ do
 	FollowerService.finishEdit(cz, { score = 100 })
 	check("finishEdit ไม่ใส่ขนาด = 32 baseline mult 1", cz.clips[2].footageGB == 32 and cz.clips[2].sizeMult == 1)
 
-	-- uploadClip คูณ sizeMult: 64GB(S) เฟส1 base=400 × VidQ2.0 × mental1.0 = 800 × sizeMult2 = 1600
+	-- uploadClip คูณ sizeMult: 64GB(S) เฟส1 base=200 × VidQ2.0 × mental1.0 = 400 × sizeMult2 = 800
 	local up = GameState.newGame()
 	FollowerService.finishEdit(up, { score = 200, footageGB = 64 })
 	local before = up.follower
 	local ok = FollowerService.uploadClip(up, { clip = 1 }, 50, rngQueue({ 0, 0, 0.5 }))
-	check("uploadClip คูณ sizeMult (64GB = 1600 follower)", ok == true and (up.follower - before) == 1600)
+	check("uploadClip คูณ sizeMult (64GB = 800 follower)", ok == true and (up.follower - before) == 800)
 end
 
 -- Tool ในมือต้องตรง state (กล้อง 6 ระดับ 6 โมเดล, โน้ตบุ๊คเฉพาะเฟส 1)

@@ -92,7 +92,8 @@ function TimeService.sleep(state, hours) ... end                -- ข้าม�
 | `onDay` | MoneyService: `day % 7 == 0` → หักรายจ่าย |
 | `onDay` | CalendarService: เช็ค block วันนี้ → trigger canon/select event |
 | `onDay` | MentalService: ลด cooldown activity / หมดอายุ modifier |
-| `onHour` | HUD (ผ่าน StateChanged): อัปเดตนาฬิกา · MentalService drain · `Lighting.ClockTime` (server) |
+| `onHour` | HUD (ผ่าน StateChanged): อัปเดตนาฬิกา · MentalService bookkeeping (mod หมดอายุ/นับตื่น) · `Lighting.ClockTime` (server) |
+| *(แยกลูปเอง)* | MentalService natural drain — `tickDrain(state, 1)` ทุก 1 วิจริงใน `Main.server.luau` ไม่ผูกกับ `onHour` แล้ว (แก้ 10 ส.ค. — เดิมยิงทีเดียว 1.667%+ ทุก 7.5 วิจริง ไม่สมูท) อัตราเฉลี่ยเท่าเดิม (1%/4.5วิ ตาม docs/02 §3) แค่ก้อนเล็กลง ถี่ขึ้น
 
 **Calendar = แค่ตารางใน state:** `state.calendar[day] = {type="Canon", id="Hater"}`
 วาง block = เขียนตาราง | ถึงวัน = TimeService ปลุก CalendarService อ่านตาราง | จบ

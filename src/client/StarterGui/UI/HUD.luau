@@ -26,6 +26,13 @@ local SPGH = Config.Time.secondsPerGameHour
 HUD.gameHour = nil -- ชั่วโมงเกมแบบ float (ชั่วโมง+เศษนาที)
 HUD.serverHour = nil -- ชั่วโมง integer ล่าสุดจาก server
 HUD.frozen = false
+-- หลอดใจ: server ผลัก state.mental มาทุก 1 วิ (MentalService.tickDrain) แต่ยัง "ก้อน" อยู่ดี (network tick)
+-- ★ แก้ 10 ส.ค. (user: "guiหลอดก็ไม่ค่อยสมูท") — ไล่ตาม server แบบ exponential follow ทุกเฟรมแทนการ snap ตรงๆ
+-- (เทคนิคเดียวกับ HUD.gameHour ด้านบน — client interpolate ระหว่าง server tick ให้ลื่นตา)
+HUD.mentalDisplay = nil -- ค่าที่ GUI วาดจริง (float, ไล่ตาม HUD.mentalServer)
+HUD.mentalServer = nil -- ค่าจริงล่าสุดจาก server
+local MENTAL_FOLLOW_SPEED = 6 -- ต่อวิ — ไล่ทัน gap ปกติ (~0.67%/วิ) ภายใน <1 วิ แต่ยังเห็นเป็นการไหล ไม่ใช่กระตุก
+
 game:GetService("RunService").Heartbeat:Connect(function(dt)
 	if HUD.serverHour == nil then return end
 	if not HUD.frozen then
@@ -39,6 +46,17 @@ game:GetService("RunService").Heartbeat:Connect(function(dt)
 		local h = math.floor(HUD.gameHour) % 24
 		local m = math.floor((HUD.gameHour - math.floor(HUD.gameHour)) * 60)
 		HUD.clockLabel.Text = ("%02d:%02d"):format(h, m)
+	end
+
+	if HUD.mentalServer and HUD.mentalFill then
+		HUD.mentalDisplay = HUD.mentalDisplay
+			+ (HUD.mentalServer - HUD.mentalDisplay) * math.min(dt * MENTAL_FOLLOW_SPEED, 1)
+		local pct = math.clamp(HUD.mentalDisplay, 0, 100) / 100
+		local w = HUD.mentalFill.Size.X
+		HUD.mentalFill.Size = UDim2.new(w.Scale, w.Offset, pct, 0)
+		HUD.mentalFill.BackgroundColor3 = HUD.mentalDisplay >= 70 and Color3.fromRGB(80, 220, 120)
+			or HUD.mentalDisplay >= 40 and Color3.fromRGB(240, 200, 80)
+			or Color3.fromRGB(230, 80, 80)
 	end
 end)
 
@@ -469,15 +487,11 @@ function HUD.update(state)
 	setStat(HUD.storageLabel, HUD.storageText(state))
 	setStat(HUD.cameraLabel, tostring(Config.ResolutionLadder[Formulas.activeLevel(state, "camera")] or "?"))
 
+	-- วาดจริงใน Heartbeat ด้านบน (exponential follow ให้ลื่น) — ที่นี่แค่บอกเป้าหมายล่าสุด
+	-- ครั้งแรก/หลัง respawn (mentalDisplay ยังไม่มีค่า) = snap ตรงไม่ไล่ กันวาดจากเลข nil/ค้างข้ามชีวิต
 	if HUD.mentalFill then
-		local pct = math.clamp(state.mental, 0, 100) / 100
-		-- คุมแค่ความสูง (โซนตาม mental) — คงความกว้างที่คนแต่ง GUI ตั้งไว้ ไม่ทับ
-		local w = HUD.mentalFill.Size.X
-		HUD.mentalFill.Size = UDim2.new(w.Scale, w.Offset, pct, 0)
-		-- สีตามโซน (design doc §3): เขียว ≥70 / เหลือง 40-69 / แดง <40
-		HUD.mentalFill.BackgroundColor3 = state.mental >= 70 and Color3.fromRGB(80, 220, 120)
-			or state.mental >= 40 and Color3.fromRGB(240, 200, 80)
-			or Color3.fromRGB(230, 80, 80)
+		HUD.mentalDisplay = HUD.mentalDisplay or state.mental
+		HUD.mentalServer = state.mental
 	end
 end
 

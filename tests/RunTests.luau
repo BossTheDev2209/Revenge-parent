@@ -254,22 +254,26 @@ check("นอนยิง callback ครบทุกชั่วโมงที
 check("นอนจบแล้ว flag sleeping ถูกปิด", ts.sleeping == false)
 
 -- ชั่วโมงที่หลับต้องไม่ drain ใจ (fix 29 ก.ค. — เดิมนอน 8 ชม. เสียใจ 13%)
+-- ★ แก้ 10 ส.ค. (user: "ลดฮวบๆ ไม่สมูท") — natural drain ย้ายจาก onHour (ก้อนเดียวทุก 7.5 วิจริง)
+--   ไปเป็น tickDrain(state, realSeconds) เรียกถี่ทุก 1 วิจริงแทน (Main.server.luau) อัตราเฉลี่ยเท่าเดิม
+--   onHour เหลือแค่ bookkeeping: expireMods + นับชั่วโมงตื่น (ไม่ drain แล้ว)
 local slp = GameState.newGame()
 slp.phase = 2
 slp.mental = 80
 slp.timeOfDay = 22
-MentalService.onHour(slp) -- ตื่นอยู่ = drain ปกติ
+MentalService.tickDrain(slp, 7.5) -- ตื่นอยู่ = drain ปกติ เทียบเท่า 1 ชั่วโมงเกม (secondsPerGameHour = 7.5)
 local awakeDrain = 80 - slp.mental
 slp.mental = 80
 slp.sleeping = true
-for _ = 1, 8 do MentalService.onHour(slp) end
+MentalService.tickDrain(slp, 8 * 7.5) -- เทียบเท่านอน 8 ชม.เกม
+for _ = 1, 8 do MentalService.onHour(slp) end -- bookkeeping ล้วนๆ ตอนนี้ ไม่ drain
 slp.sleeping = false
 check("ตื่น 1 ชม. เสียใจ ≈ 1.667", math.abs(awakeDrain - 5 / 3) < 0.001)
 check("หลับ 8 ชม. ใจไม่ลด", slp.mental == 80)
 check("หลับไม่นับชั่วโมงตื่น (ไม่ติด NoSleep เอง)", slp.awakeHours == 1)
 
 -- ===== MentalService (design doc §3 — ไม่มี modifiers ตาม option ข) =====
-check("drain ต่อชั่วโมงเกม = 1% × 7.5/4.5 ≈ 1.667",
+check("drain ต่อชั่วโมงเกม (ค่าอ้างอิง) = 1% × 7.5/4.5 ≈ 1.667",
 	math.abs(MentalService.drainPerHour - 5 / 3) < 0.001)
 local ms = GameState.newGame() -- phase 1, mental 80
 check("phase 1: effective = 50 (โซนกลาง มัลติ 1.0 — bar ยังไม่เข้าระบบ)",
@@ -287,8 +291,11 @@ ms.mental = 10
 MentalService.apply(ms, "clipEdit")
 check("ลงถึง 0 + ตั้ง flag Bad End 2", ms.mental == 0 and ms.flags.mentalZero == true)
 ms.mental = 50
+MentalService.tickDrain(ms, 7.5)
+check("tickDrain 7.5 วิ (=1 ชม.เกม) หัก drain เท่าเดิม", math.abs(ms.mental - (50 - 5 / 3)) < 0.001)
+ms.mental = 50
 MentalService.onHour(ms)
-check("onHour หัก drain", math.abs(ms.mental - (50 - 5 / 3)) < 0.001)
+check("onHour ไม่ drain อีกแล้ว (ย้ายไป tickDrain หมด)", ms.mental == 50)
 
 -- ===== FollowerService (docs/07 §3.4 ฝั่ง server + §4) =====
 local fs = GameState.newGame()

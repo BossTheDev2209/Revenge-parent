@@ -8,9 +8,22 @@ local Config = if isStudio
 
 local MentalService = {}
 
--- 1%/4.5 วิจริง แปลงเป็นต่อชั่วโมงเกม (7.5 วิจริง)
+-- 1%/4.5 วิจริง แปลงเป็นต่อชั่วโมงเกม (7.5 วิจริง) — เก็บไว้เป็นค่าอ้างอิง/relate กับเวลาเกม
+-- (ตัว drain จริงไม่ได้ใช้เลขนี้ยิงทีเดียวอีกแล้ว ดู tickDrain ด้านล่าง)
 MentalService.drainPerHour = Config.Mental.drainPercent
 	* (Config.Time.secondsPerGameHour / Config.Mental.drainEverySeconds)
+
+-- ★ แก้ 10 ส.ค. (user: "ลดฮวบๆ ไม่สมูท") — เดิม onHour ยิง drain ทีเดียว 1.667%+ ทุก 7.5 วิจริง
+--   (เท่ากับ onHour เป็นตัวเดียวที่ set ทั้งเวลาเกมกับใจพร้อมกัน) → ผู้เล่นเห็นหลอดกระตุกเป็นก้อนใหญ่
+--   ทีนี้แยก natural drain ออกมาเป็น pure function ตามเวลาจริง (dt วินาที) เรียกถี่กว่ามาก (ทุก 1 วิจริง
+--   ใน Main.server.luau) ได้อัตราเฉลี่ยเท่าเดิมเป๊ะ (1%/4.5วิ ตาม design doc §3) แค่ก้อนเล็กลง ถี่ขึ้น
+--   ไม่กระทบ onHour ที่เหลือ (expireMods/onHourAwake ยังผูกกับ "ชั่วโมงเกม" เหมือนเดิม)
+function MentalService.tickDrain(state, realSeconds: number)
+	if state.phase < Config.Mental.introducedInPhase then return end
+	if state.sleeping then return end
+	local perSecond = Config.Mental.drainPercent / Config.Mental.drainEverySeconds
+	MentalService.applyDelta(state, -perSecond * realSeconds * MentalService.drainMultiplier(state))
+end
 
 -- ค่า mental ที่สูตรควรใช้: ก่อน phase 2 คืน 50 (โซนกลาง ×1.0 — ไม่มีโบนัส/โทษ)
 function MentalService.effective(state): number
@@ -40,11 +53,12 @@ end
 -- เดิม: TimeService.sleep เดินเวลาทีละชั่วโมงผ่าน tick → นอน 8 ชม. เสียใจ −13% ทั้งที่ไม่ได้ทำอะไร
 -- = นอนกลายเป็นการกระทำที่ "แย่กว่าไม่นอน" ซึ่งขัดกับ modifier "อดนอน" (docs/02 §3) ที่ลงโทษการไม่นอน
 -- mod ยังหมดอายุตามเวลาปกติ (Canon event/streak) — แค่ตัว drain กับ awakeHours ที่หยุด
+-- ★ ไม่ drain ใจตรงนี้อีกแล้ว (ย้ายไป tickDrain — ดู comment ที่ drainPerHour ด้านบน)
+--   onHour เหลือแค่ bookkeeping ที่ผูกกับ "ชั่วโมงเกม" จริงๆ: mod หมดอายุ + นับชั่วโมงตื่น
 function MentalService.onHour(state)
 	MentalService.expireMods(state)
 	if state.sleeping then return end
 	MentalService.onHourAwake(state)
-	MentalService.applyDelta(state, -MentalService.drainPerHour * MentalService.drainMultiplier(state))
 end
 
 -- ===== Drain/Recovery Modifiers (docs/02 §3 lock 19 ก.ค.) =====

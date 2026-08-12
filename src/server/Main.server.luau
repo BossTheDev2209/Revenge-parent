@@ -401,7 +401,8 @@ task.spawn(function()
 	end
 end)
 
--- นาฬิกาเกม: เดินตลอด, ทุกชั่วโมง mental drain + push (client เห็นนาฬิกา/หลอดใจขยับ)
+-- นาฬิกาเกม: เดินตลอด, ทุกชั่วโมง mod หมดอายุ/นับตื่น + push (client เห็นนาฬิกาขยับ)
+-- ★ mental natural drain ไม่อยู่ตรงนี้แล้ว (แก้ 10 ส.ค. — ดู loop ท้ายไฟล์ "หลอดใจไหลลื่นทุกวิ")
 TimeService.onHour(function(s)
 	MentalService.onHour(s)
 	-- ของกินหมดฤทธิ์ → หักใจตามที่ Config กำหนด (อาการ crash ของชูกำลัง)
@@ -452,6 +453,22 @@ task.spawn(function()
 			GameState.push(state)
 		end
 		task.wait(2)
+	end
+end)
+
+-- หลอดใจไหลลื่นทุกวิ (แก้ 10 ส.ค. — user: "ลดไวเกินขนาด...ลดฮวบๆ ไม่สมูท")
+-- เดิม natural drain ผูกกับ TimeService.onHour → ยิงทีเดียว 1.667%+ ทุก 7.5 วิจริง (ก้อนใหญ่ ไม่สมูท)
+-- ย้ายมา tick ทุก 1 วิจริงแทน อัตราเฉลี่ยเท่าเดิมเป๊ะ (1%/4.5วิ ตาม design doc §3) แค่ก้อนเล็กลง ~7 เท่า
+-- เว้นตอน dialogue/cutscene freeze เวลา (TimeService.isFrozen) ให้ตรงกับที่ TimeService.tick หยุดเหมือนกัน
+task.spawn(function()
+	while true do
+		task.wait(1)
+		-- ก่อนเฟส 2 / กำลังหลับ / กำลัง freeze (dialogue-cutscene) = tickDrain no-op อยู่แล้ว
+		-- เช็คซ้ำตรงนี้กัน push เปล่าทุกวิทั้งที่ใจไม่ขยับ (ประหยัด remote traffic)
+		if not TimeService.isFrozen() and state.phase >= Config.Mental.introducedInPhase and not state.sleeping then
+			MentalService.tickDrain(state, 1)
+			GameState.push(state)
+		end
 	end
 end)
 

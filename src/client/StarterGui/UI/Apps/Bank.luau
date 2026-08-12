@@ -40,20 +40,26 @@ function Bank.create(frame, deps)
 		heads[i] = col and col:FindFirstChild("Value")
 	end
 
+	-- ★ 12 ส.ค. 2569 (user) "ตัดความไม่ makesense ออก":
+	--   ปรับได้เฉพาะ "ค่าอาหาร" — ค่าเช่า fixed ตามเฟส · ค่าพนักงานเลิกเป็น "งบโบนัส" ที่ไม่เคยมีผลจริง
+	--   การ์ดที่ปรับไม่ได้ = ซ่อนปุ่ม ⊖⊕ ไปเลย (โชว์ปุ่มที่กดแล้วไม่เกิดอะไร = ความไม่ makesense ที่ถูกสั่งให้ตัด)
+	local ADJUSTABLE = { food = true }
 	local rows = {}
 	for _, def in CARDS do
 		local card = content:FindFirstChild(def.cardName)
 		if card then
 			local amount = card:FindFirstChild("Amount")
 			local hint = content:FindFirstChild(def.cardName .. "Hint")
-			rows[def.key] = { amount = amount, hint = hint }
+			rows[def.key] = { amount = amount, hint = hint, card = card }
 			local minus, plus = card:FindFirstChild("Minus"), card:FindFirstChild("Plus")
 			if minus then
+				minus.Visible = ADJUSTABLE[def.key] == true
 				minus.Activated:Connect(function()
 					deps.fireAction({ type = "AdjustSpending", card = def.key, dir = -1 })
 				end)
 			end
 			if plus then
+				plus.Visible = ADJUSTABLE[def.key] == true
 				plus.Activated:Connect(function()
 					deps.fireAction({ type = "AdjustSpending", card = def.key, dir = 1 })
 				end)
@@ -61,11 +67,26 @@ function Bank.create(frame, deps)
 		end
 	end
 
+	-- ★ รวมหน้าจัดการพนักงาน: กด "การ์ดค่าพนักงาน" (ใบใหญ่) = เปิดหน้า Manage ที่เดิมต้องกดปุ่มเล็ก
+	--   ปุ่มเล็ก ManageBtn เลยถูกซ่อน — ทางเข้าเหลือทางเดียว ไม่มีปุ่มซ้ำหน้าที่กัน
+	local function openManage()
+		if deps.openApp then deps.openApp("manage") end
+	end
+	local staffCard = rows.staff and rows.staff.card
+	if staffCard then
+		local hit = Instance.new("TextButton") -- การ์ดเป็น Frame กดไม่ได้ — วางปุ่มใสทับทั้งใบ
+		hit.Name = "OpenManage"
+		hit.Size = UDim2.fromScale(1, 1)
+		hit.BackgroundTransparency = 1
+		hit.Text = ""
+		hit.ZIndex = 5
+		hit.Parent = staffCard
+		hit.Activated:Connect(openManage)
+	end
 	local manageBtn = content:FindFirstChild("ManageBtn")
 	if manageBtn then
-		manageBtn.Activated:Connect(function()
-			if deps.openApp then deps.openApp("manage") end
-		end)
+		manageBtn.Visible = false -- หน้าที่ย้ายไปอยู่บนการ์ดใบใหญ่แล้ว
+		manageBtn.Activated:Connect(openManage)
 	end
 	local footer = content:FindFirstChild("Footer")
 
@@ -74,22 +95,32 @@ function Bank.create(frame, deps)
 		local w = Config.WeeklyExpenses[state.phase]
 		local sp = state.spending or {}
 		local S = Config.Spending
-		local base = { food = w.food, rent = w.rent, staff = 0 }
+		-- ค่าพนักงาน = เงินเดือนจริงของคนที่จ้างอยู่ (ตรงกับ StaffService.weeklySalary ที่ server หักจริง)
+		-- ไม่ใช่ "งบโบนัส" แบบเดิมที่ปรับเองแล้วไม่มีผลกับอะไรเลย
+		local staffSalary = 0
+		for _, s in state.staff or {} do
+			staffSalary += s.salary or 0
+		end
+		local base = { food = w.food, rent = w.rent, staff = staffSalary }
 		local total = w.internet
 		for _, def in CARDS do
 			local row = rows[def.key]
 			if row then
 				local off = sp[def.key] or 0
+				-- ค่าเช่า/ค่าพนักงานปรับไม่ได้แล้ว (Config.Spending min=max=0) → off เป็น 0 เสมอ
 				local actual = math.max(0, base[def.key] + off * S[def.key].step)
 				total += actual
 				if row.amount then row.amount.Text = ("฿%d"):format(actual) end
 				if row.hint then
 					if def.key == "staff" then
-						row.hint.Text = off > 0 and "งบโบนัสทีม (ผลเมื่อมีพนักงาน)" or "ยังไม่มีพนักงาน"
+						local n = #(state.staff or {})
+						row.hint.Text = n > 0
+							and ("%d คน · กดเพื่อจัดการทีม"):format(n)
+							or "ยังไม่มีพนักงาน · กดเพื่อจ้าง"
+					elseif def.key == "rent" then
+						row.hint.Text = ("คงที่ตามเฟส %d"):format(state.phase)
 					elseif off == 0 then
 						row.hint.Text = "มาตรฐาน"
-					elseif def.key == "rent" and off <= S.rent.missedAtOffset then
-						row.hint.Text = "⚠️ ต่ำกว่าสัญญา = นับค้างเช่าทุกรอบ!"
 					else
 						local cfg = S[def.key]
 						local delta = off > 0 and off * cfg.mentalUp or -off * cfg.mentalDown

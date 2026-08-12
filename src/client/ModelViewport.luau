@@ -81,7 +81,9 @@ function ModelViewport.new(parent: Instance)
 	end
 
 	-- โมเดลอะไรก็ได้ (ของ/ไอเทม) — คำนวณ bounding box เอง ซูมให้พอดีกรอบเสมอไม่ว่าโมเดลใหญ่เล็กแค่ไหน
-	function handle.showModel(model: Model?, opts: { zoom: number?, fov: number? }?)
+	-- รับ Tool ได้ด้วย (กล้องใน ToolModels เป็น Tool ไม่ใช่ Model) — GetBoundingBox เป็นเมธอดของ Model เท่านั้น
+	-- เลยห่อ Tool/Folder ใน Model ชั่วคราวก่อน · ของที่เป็น Model อยู่แล้วไม่โดนแตะ (DialogueUI ใช้เหมือนเดิม)
+	function handle.showModel(model: Instance?, opts: { zoom: number?, fov: number? }?)
 		clearClone()
 		if not model then
 			vp.Visible = false
@@ -89,6 +91,11 @@ function ModelViewport.new(parent: Instance)
 		end
 		local clone = model:Clone()
 		stripUnsafe(clone)
+		if not clone:IsA("Model") then
+			local wrap = Instance.new("Model")
+			clone.Parent = wrap
+			clone = wrap
+		end
 		clone.Parent = worldModel
 		current = clone
 

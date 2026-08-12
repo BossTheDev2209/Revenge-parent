@@ -27,6 +27,10 @@ local Formulas = if isStudio
 local HUD = if isStudio
 	then require(game:GetService("StarterGui").UI.HUD)
 	else require("../HUD")
+-- โมเดล 3 มิติจริงบนการ์ด (12 ส.ค. 2569, user) — nil ตอนเทสด้วย lune (ไม่มี Instance) การ์ดตกไปใช้ emoji เอง
+local ModelViewport = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ModelViewport)
+	else nil
 
 local ShopKiosk = {}
 
@@ -49,6 +53,14 @@ end
 function ShopKiosk.imageFor(key: string, tier: number): string?
 	local id = UIAssets["shop_" .. key .. "_" .. tier]
 	return (id ~= nil and id ~= "") and id or nil
+end
+
+-- ชื่อโมเดลใน ReplicatedStorage.ToolModels ที่จะเอามา render บนการ์ด (12 ส.ค. 2569, user)
+-- กล้อง = Camera_N ตรงตามระดับ · clamp ที่ CameraModelCount เหมือน ToolService (ระดับเกินโมเดลที่ปั้นไว้ = ใช้ตัวท้ายสุด)
+-- ที่เก็บข้อมูลยังไม่มีโมเดล → nil = การ์ดตกกลับไปใช้รูป/emoji เหมือนเดิม
+function ShopKiosk.modelFor(key: string, tier: number): string?
+	if key ~= "camera" then return nil end
+	return "Camera_" .. math.clamp(tier, 1, Config.CameraModelCount)
 end
 
 -- สเปค ("quality" ในภาพร่าง) ของระดับนี้ — อ่านจาก ladder ที่ล็อกไว้ ไม่ก๊อปเลขมาเขียนซ้ำ
@@ -170,6 +182,7 @@ function ShopKiosk.open(playerGui, deps)
 	if ShopKiosk.running then return end
 	ShopKiosk.running = true
 
+	local toolModels = game:GetService("ReplicatedStorage"):FindFirstChild("ToolModels")
 	local perPage = ShopKiosk.CARDS_PER_ROW
 	local rowInner = CARD_W * perPage + GAP * (perPage - 1)
 	local panelW = 40 + 34 + 8 + rowInner + 8 + 34 -- margin + ลูกศรซ้าย + การ์ด + ลูกศรขวา
@@ -270,7 +283,12 @@ function ShopKiosk.open(playerGui, deps)
 				BackgroundTransparency = 1, Text = "", TextColor3 = COLORS.faint,
 				TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
 			})
-			-- รูปสินค้า: มี asset ใช้รูป / ไม่มีใช้ emoji ของหมวด (โชว์ทีละอัน)
+			-- รูปสินค้า: โมเดล 3 มิติจริง > รูป asset > emoji ของหมวด (โชว์ทีละอัน)
+			local vpHost = mk("Frame", card, {
+				Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(0.5, -26, 0, 24),
+				BackgroundTransparency = 1, Visible = false,
+			})
+			local vp = ModelViewport and ModelViewport.new(vpHost) or nil
 			local img = mk("ImageLabel", card, {
 				Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(0.5, -26, 0, 24),
 				BackgroundTransparency = 1, Image = "", Visible = false,
@@ -306,8 +324,8 @@ function ShopKiosk.open(playerGui, deps)
 			end)
 
 			-- status/tier อัปทุกครั้งที่ refresh — handler อ่านค่าล่าสุด ไม่ผูกตายตอนสร้างปุ่ม
-			ui = { card = card, badge = badge, img = img, emoji = emoji,
-				name = name, spec = spec, btn = btn, status = nil, tier = nil }
+			ui = { card = card, badge = badge, img = img, emoji = emoji, vpHost = vpHost, vp = vp,
+				name = name, spec = spec, btn = btn, status = nil, tier = nil, vpTier = nil, vpOk = false }
 			cards[c] = ui
 		end
 
@@ -412,7 +430,22 @@ function ShopKiosk.open(playerGui, deps)
 					ui.badge.Text = ("L%d"):format(t.tier)
 					ui.name.Text = t.name or "?"
 					ui.spec.Text = t.spec or ""
-					if t.image then
+					-- โมเดล 3 มิติ > รูป asset > emoji · re-render เฉพาะตอนระดับของช่องนี้เปลี่ยน
+					-- (clone โมเดลใหม่ทุก refresh = แลค เพราะ refresh ยิงทุกครั้งที่ state ขยับ เช่นเงินเปลี่ยน)
+					local modelName = ShopKiosk.modelFor(entry.key, t.tier)
+					if ui.vp and modelName then
+						if ui.vpTier ~= t.tier then
+							ui.vpTier = t.tier
+							ui.vpOk = ui.vp.showModel(toolModels and toolModels:FindFirstChild(modelName))
+						end
+					elseif ui.vp and ui.vpTier ~= nil then
+						ui.vpTier, ui.vpOk = nil, false
+						ui.vp.clear()
+					end
+					ui.vpHost.Visible = ui.vpOk
+					if ui.vpOk then
+						ui.img.Visible, ui.emoji.Visible = false, false
+					elseif t.image then
 						ui.img.Image, ui.img.Visible, ui.emoji.Visible = t.image, true, false
 					else
 						ui.img.Visible, ui.emoji.Visible = false, true

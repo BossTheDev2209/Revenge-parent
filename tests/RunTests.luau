@@ -657,8 +657,10 @@ check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + �
 -- เทส gate จริงแยกอยู่หัวข้อ "แอปรอเฟส" ท้ายไฟล์
 local spb = GameState.newGame()
 spb.phase = 2
+-- ★ 12 ส.ค. 2569 (user): ปรับได้เฉพาะค่าอาหาร — ค่าเช่า/ค่าพนักงาน fixed (Config.Spending min=max=0)
+-- เฟส 2 = เช่า 3,000 + เน็ต 500 + กิน 600 = 4,100 (กลุ่มนี้ตั้ง phase=2 เพราะ Bank รอเฟส 2)
 check("เพิ่มค่ากิน 1 step", MoneyService.adjustSpending(spb, "food", 1) == true and spb.spending.food == 1)
-check("weeklyTotal รวม offset: 2200+200", MoneyService.weeklyTotal(spb) == 2_400)
+check("weeklyTotal รวม offset: 4100+200", MoneyService.weeklyTotal(spb) == 4_300)
 spb.spending.food = 3
 check("เกิน maxOffset ไม่ได้", MoneyService.adjustSpending(spb, "food", 1) == false)
 spb.spending.food = -1
@@ -666,20 +668,35 @@ check("ต่ำกว่า minOffset ไม่ได้", MoneyService.adjustS
 check("card มั่ว = false", MoneyService.adjustSpending(spb, "รถ", 1) == false)
 check("lifestyle: กินถูกสุด = -4/สัปดาห์", MoneyService.lifestyleMental(spb) == -4)
 spb.spending.food = 2
-spb.spending.rent = 1
-check("lifestyle: กินดี +4 เช่าดี +1 = +5", MoneyService.lifestyleMental(spb) == 5)
+check("lifestyle: กินดี = +4", MoneyService.lifestyleMental(spb) == 4)
+
+-- ค่าเช่า/ค่าพนักงาน fixed: ปรับไม่ได้ทั้ง 2 ทิศ (UI ก็ซ่อนปุ่ม ⊖⊕ ทิ้งแล้ว)
+check("ค่าเช่าปรับไม่ได้", MoneyService.adjustSpending(spb, "rent", 1) == false
+	and MoneyService.adjustSpending(spb, "rent", -1) == false and (spb.spending.rent or 0) == 0)
+check("ค่าพนักงานปรับไม่ได้", MoneyService.adjustSpending(spb, "staff", 1) == false
+	and MoneyService.adjustSpending(spb, "staff", -1) == false and (spb.spending.staff or 0) == 0)
+check("ค่าเช่าคงที่ตามเฟสทุกเฟส (ไม่มี offset มากวน)", (function()
+	local s2 = GameState.newGame()
+	for p = 1, 3 do
+		s2.phase = p
+		local w = Config.WeeklyExpenses[p]
+		if MoneyService.weeklyTotal(s2) ~= w.rent + w.internet + w.food then return false end
+	end
+	return true
+end)())
+
+-- Bad End ① เหลือทางเดียว = เงินไม่พอจ่ายครบ (ทางลัด "จ่ายเช่าต่ำกว่าสัญญา" ตัดไปพร้อม ⊖⊕ ค่าเช่า)
 spb.spending.food = 0
-spb.spending.rent = -2
 spb.money = 99_999
 spb.day = 8
 local brokeB, billedB = MoneyService.onDay(spb)
-check("เช่า offset -2 = นับค้างเช่าแม้เงินพอ", brokeB == false and billedB == true and spb.flags.rentMissed == 1)
-check("ยอดหักตาม offset: เช่า 500+กิน 400+เน็ต 300 = 1200", spb.money == 99_999 - 1_200)
-check("staff งบโบนัส: +2 step = 2200+2000", (function()
-	local s2 = GameState.newGame()
-	s2.spending.staff = 2
-	return MoneyService.weeklyTotal(s2) == 4_200
-end)())
+check("เงินพอ = ไม่นับค้างเช่าแล้ว (offset ลงไปไม่ถึง -2 อีกต่อไป)",
+	brokeB == false and billedB == true and (spb.flags.rentMissed or 0) == 0)
+check("ยอดหักเฟส 2 = 4,100", spb.money == 99_999 - 4_100)
+local poorB = GameState.newGame()
+poorB.phase, poorB.money, poorB.day = 2, 100, 8
+check("เงินไม่พอ = เหลือ 0 + นับค้างเช่า (ทางเดียวที่เหลือสู่ Bad End ①)",
+	MoneyService.onDay(poorB) == true and poorB.money == 0 and poorB.flags.rentMissed == 1)
 
 -- ===== doActivity (PDF หน้า 6 — ติดกัน 3 ครั้ง cooldown 1 วัน) =====
 local da = GameState.newGame()

@@ -13,10 +13,25 @@ local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../../../shared/Config")
+-- โมเดลตัวจริงของพนักงานบนการ์ด (12 ส.ค. 2569, user) — ชื่อโมเดลมาจาก roster[].model (Workspace.NPC.HirableNPC)
+local ModelViewport = if isStudio
+	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ModelViewport)
+	else nil
 
 local Manage = {}
 
 local BLUE = Color3.fromRGB(30, 60, 160)
+
+-- ชื่อโมเดลของพนักงาน id นั้น — state.staff เก็บแค่ stat (id/speed/quality/salary) ไม่มี model
+-- ต้องย้อนหาใน Config ด้วย id ทั้ง roster และ hire_loyal (ตัว auto ตอน split ไม่อยู่ใน roster)
+-- pure: เทสได้ด้วย lune
+function Manage.modelNameFor(id: string): string?
+	for _, r in Config.Staff.roster do
+		if r.id == id then return r.model end
+	end
+	local loyal = Config.Staff.loyalAfterSplit
+	return (loyal and loyal.id == id) and loyal.model or nil
+end
 
 local function stroke(inst, color, thick)
 	local s = Instance.new("UIStroke")
@@ -53,6 +68,9 @@ function Manage.create(frame, deps)
 	local right = content:FindFirstChild("Right")
 	local hirableList = right and right:FindFirstChild("HirableList")
 	local activeList = right and right:FindFirstChild("ActiveList")
+	-- โมเดลพนักงานทั้งหมดอยู่โฟลเดอร์เดียว (docs/05) — ไม่มีโฟลเดอร์ = การ์ดใช้ emoji เหมือนเดิม
+	local npcFolder = workspace:FindFirstChild("NPC")
+	local hirableFolder = npcFolder and npcFolder:FindFirstChild("HirableNPC")
 
 	-- การ์ด 1 ใบตามภาพร่าง — ยาวไม่แน่นอน (จำนวนเปลี่ยนตาม roster/hire state) ยังสร้างจาก data
 	local function makeCard(parent, r, hired)
@@ -82,7 +100,8 @@ function Manage.create(frame, deps)
 		status.Text = hired and "Active" or "Hirable"
 		status.Parent = card
 
-		-- ★ กรอบรูปพนักงาน — เว้นว่างรอรูปวาด (ตอนนี้ emoji)
+		-- ★ กรอบรูปพนักงาน — render โมเดลตัวจริงลง ViewportFrame (12 ส.ค. 2569, user)
+		--   หาโมเดลไม่เจอ/ไม่มี field model = ตกกลับไปใช้ emoji เหมือนเดิม (ไม่พัง)
 		local portrait = Instance.new("TextLabel")
 		portrait.Name = "ArtSlot"
 		portrait.Position = UDim2.new(0, 8, 0, 28)
@@ -92,6 +111,15 @@ function Manage.create(frame, deps)
 		portrait.Text = "🧑"
 		portrait.Parent = card
 		stroke(portrait)
+		local rigName = Manage.modelNameFor(r.id)
+		if ModelViewport and rigName and hirableFolder then
+			local vp = ModelViewport.new(portrait)
+			if vp.showBust(hirableFolder:FindFirstChild(rigName)) then
+				portrait.Text = "" -- โชว์โมเดลแล้ว ไม่ต้องมี emoji ซ้อนหลัง
+			else
+				vp.destroy()
+			end
+		end
 
 		local btn = Instance.new("TextButton")
 		btn.Position = UDim2.new(0, 8, 0, 72)

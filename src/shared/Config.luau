@@ -159,18 +159,20 @@ Config.Staff = {
 	-- flag (optional) = ปลดต่อเมื่อ state.flags[flag] ติด (ทีมล้างแค้นหลัง faasai ทรยศ)
 	-- leavesOnSplit = true → ลาออกตอน event ตีกัน (StaffService.splitStaff · flags.staffSplit)
 	-- ตัว believer ไม่ tag = อยู่ต่อ · default นี้ปรับได้หลัง playtest
+	-- model = ชื่อโมเดลใน Workspace.NPC.HirableNPC ที่ Manage app เอาไป render ลง ViewportFrame (12 ส.ค. 2569, user)
+	--   ไล่ 001-008 ตามลำดับ roster · ไม่มี field นี้ / หาโมเดลไม่เจอ = การ์ดตกกลับไปโชว์ emoji เหมือนเดิม (ไม่พัง)
 	roster = {
 		-- เฟส 2: trade-off ชัด เลือกได้สายเดียว
-		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000,  leavesOnSplit = true }, -- สายเร็ว transactional
-		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000 }, -- สายคุณภาพ (อยู่ต่อ)
-		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000 }, -- all-rounder (อยู่ต่อ)
+		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000,  leavesOnSplit = true, model = "NPC_พนักงาน001" }, -- สายเร็ว transactional
+		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000, model = "NPC_พนักงาน002" }, -- สายคุณภาพ (อยู่ต่อ)
+		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000, model = "NPC_พนักงาน003" }, -- all-rounder (อยู่ต่อ)
 		-- เฟส 3: เก่งหลายด้าน (multi-skill) salary แพง
-		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000, leavesOnSplit = true }, -- โปรตามเงิน
-		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000, leavesOnSplit = true }, -- mercenary ตามยอด
-		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000 }, -- สายคราฟต์ (อยู่ต่อ)
+		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000, leavesOnSplit = true, model = "NPC_พนักงาน004" }, -- โปรตามเงิน
+		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000, leavesOnSplit = true, model = "NPC_พนักงาน005" }, -- mercenary ตามยอด
+		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000, model = "NPC_พนักงาน006" }, -- สายคราฟต์ (อยู่ต่อ)
 		-- ทีมล้างแค้น: ปลดเมื่อ faasai ทรยศ (flags.betrayed ตั้งที่ BetrayalMilestone 500K พร้อม companion_1 ออก)
-		{ id = "hire_fierce1",   phase = 3, follower = 500_000, speed = 60, quality = 78, salary = 55_000, flag = "betrayed" },
-		{ id = "hire_fierce2",   phase = 3, follower = 500_000, speed = 55, quality = 85, salary = 58_000, flag = "betrayed" },
+		{ id = "hire_fierce1",   phase = 3, follower = 500_000, speed = 60, quality = 78, salary = 55_000, flag = "betrayed", model = "NPC_พนักงาน007" },
+		{ id = "hire_fierce2",   phase = 3, follower = 500_000, speed = 55, quality = 85, salary = 58_000, flag = "betrayed", model = "NPC_พนักงาน008" },
 	},
 
 	-- worldNPC ผู้ภักดี: auto-hire ตอน split (ไม่อยู่ใน roster = player จ้างเองไม่ได้) การันตีมีคนเหลือเสมอ
@@ -188,10 +190,18 @@ Config.Staff = {
 
 -- Bank ⊖⊕ (PDF หน้า 9 — user lock 21 ก.ค., step/ผลใจเลือกโดย agent — docs/02 §9.7)
 -- ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step | ผลใจคิดตอนตัดรอบ 7 วัน
+-- ★ 12 ส.ค. 2569 (user): เหลือ ⊖⊕ เฉพาะ "ค่าอาหาร" — ค่าเช่ากับค่าพนักงาน fixed แล้ว
+--   min=max=0 → adjustSpending ปฏิเสธเองทุกทิศ (new อยู่นอกช่วง) ไม่ต้องแก้ logic ที่อื่น
+--   ค่าเช่า = WeeklyExpenses[เฟส].rent ตรงๆ (สเกลตามเฟส 1,500/3,000/6,000)
+--   ⚠️ ผลข้างเคียงที่ user รับทราบแล้ว: ทางลัด "จ่ายเช่าต่ำกว่าสัญญา = ค้างเช่าทุกรอบ" (missedAtOffset −2)
+--      ยิงไม่ได้อีกต่อไป → Bad End ① เหลือทางเดียวคือ "เงินไม่พอจ่ายครบ 2 รอบ" (MoneyService.onDay)
+--      missedAtOffset คงไว้ให้ logic เดิมอ่านได้ ไม่ error — แต่ offset ไปไม่ถึง −2 แล้ว (dead branch)
+--   ค่าพนักงาน: เดิมเป็น "งบโบนัส" ที่ไม่เคยผูกผลจริง (ไม่ makesense) — ตัดทิ้ง เงินเดือนจริงมาจาก
+--      StaffService.weeklySalary (คนที่จ้างจริง) หักแยกใน Main.server อยู่แล้ว
 Config.Spending = {
 	food = { step = 200, minOffset = -1, maxOffset = 3, mentalUp = 2, mentalDown = -4 },
-	rent = { step = 500, minOffset = -2, maxOffset = 2, mentalUp = 1, mentalDown = -3, missedAtOffset = -2 },
-	staff = { step = 1_000, minOffset = 0, maxOffset = 5 }, -- ผลผูกระบบพนักงาน (ยังไม่ทำ) — กันงบไว้ก่อน
+	rent = { step = 500, minOffset = 0, maxOffset = 0, mentalUp = 1, mentalDown = -3, missedAtOffset = -2 },
+	staff = { step = 1_000, minOffset = 0, maxOffset = 0 },
 }
 
 -- เคยขยายเป็น 15 ระดับ (28 ก.ค.) แล้วถอดกลับเหลือ 6 (12 ส.ค. 2569, user) — ระดับ 7-15 ไม่เคย lock

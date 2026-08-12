@@ -179,7 +179,17 @@
 |------|-------|--------|
 | 3 กล่องสรุป | 🟡 | มี text — จัดเป็น 3 กล่อง + income/week (ต้องมี history §7) |
 | ปุ่ม ⊖⊕ ปรับรายจ่าย | ✅ lock+ทำแล้ว 21 ก.ค. | ปรับงบ/สัปดาห์ step ต่อการ์ด + ผลใจตอนตัดรอบ — docs/02 §9.7 |
-| **ระบบพนักงานทั้งหมด** | ✅ 21 ก.ค. | ทำครบแล้ว — StaffService + Manage app (สรุปทีม + การ์ด hire/fire) ตัวเลข docs/02 §9.8 |
+| **ระบบพนักงานทั้งหมด** | 🟡 (เดิม mark ✅ 21 ก.ค. — ไม่ตรงของจริง) | logic/ตัวเลขครบตรง docs/02 §9.8 (StaffService + Manage app + เทสผ่าน) **แต่ยังมีช่องโหว่:** ① event "พนักงานตีกัน" (`StaffService.splitStaff`) **ไม่มีจุดยิงจากเนื้อเรื่องเลย** — เรียกได้ทางเดียวคือ `/dev staffsplit` ② `s.lastStaffSplit` ตั้งไว้ให้ client โชว์ผล แต่ไม่มี UI ไหนอ่าน ③ การ์ด companion ไม่โชว์ใน Manage ④ บทฟ้าใสหลังทรยศยัง `[placeholder]` (audit 12 ส.ค.) |
+
+**★ 12 ส.ค. 2569 (user) — Bank/Manage ยกเครื่อง "ตัดความไม่ makesense":**
+- **ค่าเช่า fixed ตามเฟส** ซ่อนปุ่ม ⊖⊕ (ดู docs/02 §9.7 — กระทบ Bad End ①)
+- **การ์ด "ค่าพนักงาน" เลิกเป็นงบโบนัสที่ปรับเองแล้วไม่มีผล** → โชว์เงินเดือนจริงของทีม (`StaffService.weeklySalary`) อ่านอย่างเดียว
+- **รวมทางเข้าหน้าจัดการทีม:** กดการ์ด "ค่าพนักงาน" (ใบใหญ่) = เปิดหน้า Manage · ปุ่มเล็ก `ManageBtn` ถูกซ่อน (`Visible=false`) ไม่ให้มี 2 ทางเข้าซ้ำหน้าที่กัน — โค้ดยังผูก handler ไว้เผื่อเปิดกลับ
+- **ViewportFrame โมเดล 3 มิติจริง** แทน emoji แบนๆ ทั้ง 2 ที่ (ใช้ `ModelViewport.luau` ที่มีอยู่แล้ว ไม่ได้เขียนใหม่):
+  - Manage: การ์ดพนักงานโชว์ตัวจริง (`showBust`) — ชื่อโมเดลมาจาก `Config.Staff.roster[].model` → `Workspace.NPC.HirableNPC.NPC_พนักงาน001-008` (map 1:1 ตามลำดับ roster)
+  - Shop: การ์ดกล้องโชว์ตัวจริง (`showModel`) — `ShopKiosk.modelFor` → `ReplicatedStorage.ToolModels.Camera_N` (clamp ที่ `CameraModelCount`) · ที่เก็บข้อมูลยังไม่มีโมเดล = ใช้ emoji เหมือนเดิม
+  - ทั้งคู่ fail-safe: หาโมเดลไม่เจอ → ตกกลับไป emoji ไม่พัง · Shop re-render เฉพาะตอนระดับเปลี่ยน (กัน clone ทุก refresh = แลค)
+  - ⚠️ `hire_loyal` (ตัว auto ตอน split) ยังไม่มีโมเดล → การ์ดใช้ emoji · `ModelViewport.showModel` แก้ให้รับ Tool ได้ (กล้องเป็น Tool ไม่ใช่ Model — `GetBoundingBox` เป็นเมธอดของ Model เลยต้องห่อก่อน)
 
 ## 9. Message app (PDF หน้า 9 กลาง)
 

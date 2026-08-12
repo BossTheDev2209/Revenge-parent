@@ -1561,6 +1561,12 @@ for i, dm in DMsContent do
 		end
 	end
 end
+-- ฟ้าใส park DM hardcode ต้องตรง Config.FaasaiParkFollower เสมอ (DMs.luau ไม่ require Config ตาม convention — เช็คไม่ให้เพี้ยนตอนแก้เลข)
+for _, dm in DMsContent do
+	if dm.from == "ฟ้าใส" and dm.unlockFollower then
+		check("DM ฟ้าใส unlockFollower ตรงกับ Config.FaasaiParkFollower", dm.unlockFollower == Config.FaasaiParkFollower)
+	end
+end
 
 -- ===== Main Menu support (PDF หน้า 1 — Continue/save 4 ช่อง) =====
 check("latestSlot เลือก savedAt มากสุด",

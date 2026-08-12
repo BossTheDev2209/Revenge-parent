@@ -264,11 +264,19 @@ function Message.create(frame, deps)
 		end
 	end
 
+	-- คุยจบทั้งบทหรือยัง — ปุ่มรับเงินโผล่เฉพาะตอนจบเท่านั้น (user 12 ส.ค. — ไม่โผล่ระหว่างคุย)
+	--   lines format = โชว์หมดทีเดียว = จบทันที · exchanges = จบเมื่อตอบครบทุก exchange
+	local function convDone(dm): boolean
+		if dm.lines then return true end
+		if dm.exchanges then return (progress[dm] or 0) >= #dm.exchanges end
+		return true
+	end
+
 	-- ห่อ body ไว้ เพราะ body มี early return 2 จุด (format เก่า / คุยจบแล้ว)
 	-- ถ้าเรียก applyTextSizes/payoutButton ท้าย body ตรงๆ สองเส้นทางนั้นจะข้ามไป
 	renderChat = function(dm)
 		renderChatBody(dm)
-		payoutButton(dm) -- ต่อท้ายแชทเสมอ (ไม่มี payoutId = ฟังก์ชันคืนเลย)
+		if convDone(dm) then payoutButton(dm) end -- โผล่หลังคุยจบเท่านั้น ระหว่างคุยไม่แสดง
 		applyTextSizes() -- ของที่เพิ่ง track เข้ามารอบนี้ ต้องได้ขนาดทันที ไม่ใช่รอ resize
 	end
 

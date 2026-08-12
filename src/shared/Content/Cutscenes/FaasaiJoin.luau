@@ -34,6 +34,8 @@ return {
 	{ type = "wait", t = 2 },
 	{ type = "text", text = "นะคะ" },
 	{ type = "wait", t = 2 }, -- คลิปเดียวกันชื่อ ท่าคนละไฟล์ (export แยก rig) -- ถือกล้อง 01 ไว้ให้เห็นเคาะประตู+เริ่มคุยก่อนตัด (ไม่มี wait คั่น = cam ไม่หยุดรอ ข้าม 01 ไปเลย — ปรับเวลาได้ตามที่เห็นจริงตอน playtest)
-	{ type = "move", actor = "ฟ้าใส", to = "NPCHome_ฟ้าใส_bed", t = 0 }, -- แก้ root motion snap-back (ดูคอมเมนต์บนสุดไฟล์) ก่อนจบฉาก
+	-- snap ไปหน้าห้อง (room = จุดที่ preStage วางเธอไว้ตอนเริ่ม) ไม่ใช่ bed — dialogue join ต้องเล่นหน้าห้องก่อน
+	-- คุยจบ (settle ใน Main.client.luau) ค่อย SetNpcLoc bed = เธอถึงเข้าไปนั่งเตียง (snap ที่นี่อยู่ใต้จอดำ StoryBeat ไม่เห็นวาป)
+	{ type = "move", actor = "ฟ้าใส", to = "NPCHome_ฟ้าใส_room", t = 0 }, -- แก้ root motion snap-back ก่อนจบฉาก
 	-- Notebook โผล่/หายตาม flags.faasai_joined/betrayed แล้ว (Main.client.luau) ไม่ต้องสั่ง visible ในคัตซีนนี้
 }

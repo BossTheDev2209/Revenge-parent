@@ -31,7 +31,10 @@ game:GetService("RunService").Heartbeat:Connect(function(dt)
 	if not HUD.frozen then
 		HUD.gameHour = math.min(HUD.gameHour + dt / SPGH, HUD.serverHour + 59 / 60)
 	end
-	Lighting.ClockTime = HUD.gameHour % 24 -- ดวงอาทิตย์เลื่อนต่อเฟรม (frozen = ค้าง)
+	-- attribute SceneClock (ตั้งโดย cutscene step "time" / dialogue field "time") = ล็อกดวงอาทิตย์ให้ฉากนั้นๆ (BCA=0/park=17/Ending=8)
+	-- nil = เดินตามเวลาเกมปกติ · นาฬิกา HUD (label ล่าง) ยังโชว์เวลาเกมจริงเสมอ ไม่ตาม override
+	local sceneClock = Lighting:GetAttribute("SceneClock")
+	Lighting.ClockTime = (sceneClock or HUD.gameHour) % 24 -- ดวงอาทิตย์เลื่อนต่อเฟรม (frozen = ค้าง · SceneClock = ล็อกฉาก)
 	if HUD.clockLabel then
 		local h = math.floor(HUD.gameHour) % 24
 		local m = math.floor((HUD.gameHour - math.floor(HUD.gameHour)) * 60)

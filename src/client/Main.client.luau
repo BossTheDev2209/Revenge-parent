@@ -30,6 +30,7 @@ local CameraCart = require(script.Parent.CameraCart)
 local CameraFocus = require(script.Parent.CameraFocus)
 local ScreenTransition = require(script.Parent.ScreenTransition)
 local StoryNPCPlacer = require(script.Parent.StoryNPCPlacer)
+local NPCIndicator = require(script.Parent.NPCIndicator) -- วงใต้เท้า + หันมองผู้เล่น (12 ส.ค. เปิดใช้)
 local AnimPlayer = require(script.Parent.AnimPlayer) -- หา rig NPC ให้กล้องเล็งตอน StoryBeat คุยอัตโนมัติ
 local StoryBeat = require(script.Parent.StoryBeat)
 local Notify = require(script.Parent.Notify)
@@ -52,6 +53,24 @@ Audio.init(Players.LocalPlayer) -- โซนเพลง + เสียงเด
 RecordTool.init(Players.LocalPlayer, fireAction, function() return latestState end) -- Tool อัดคลิป + วงโซน
 -- ระดับ 6: ไม่มี Tool ถือ — ขับรถเข็นกล้องแทน + คลิกอัดตอนนั่ง (Config.CameraCartLevel)
 CameraCart.init(Players.LocalPlayer, fireAction, function() return latestState end)
+
+-- วงใต้เท้า + หันตัวมองผู้เล่น — NPC ทั่วไป (WorldNPC) + Special NPC (StoryNPC)
+-- StoryNPC ทำเอง (ไม่ใช้ attachAll ตรงๆ) ต้องข้าม 2 กลุ่ม:
+--   1) NPC_special_player = rig อ้างอิงไว้ export animation (PrimaryPart=Head ไม่ใช่ HumanoidRootPart, มี AnimSaves/Animate) ไม่ใช่ NPC จริง
+--   2) ฟ้าใส/เจียเจีย = StoryNPCPlacer ย้ายไปมาตาม state.npcLoc (bed/couch/chair/park/...) ทุก state push
+--      NPCIndicator จำ basePivot ตอน attach ค้างไว้แล้ว PivotTo กลับจุดเดิมทุกเฟรม (Heartbeat) — แนบเข้าไปจะดึงกลับตำแหน่งเริ่มเกมตลอด ทับระบบที่อยู่พัง
+-- ⚠️ ชื่อไทยเป็น bare key ใน Lua ไม่ได้ (identifier รับแค่ ASCII) ต้อง ["..."] เสมอ — เคยพลาดจนทั้งสคริปต์ parse ไม่ผ่าน 12 ส.ค.
+local NPC_INDICATOR_SKIP = {
+	NPC_special_player = true,
+	["NPC_special_ฟ้าใส"] = true,
+	["NPC_special_เจียเจีย"] = true,
+}
+NPCIndicator.attachAll(workspace.NPC.WorldNPC)
+for _, m in workspace.NPC.StoryNPC:GetChildren() do
+	if m:IsA("Model") and not NPC_INDICATOR_SKIP[m.Name] and m:FindFirstChildOfClass("Humanoid") then
+		NPCIndicator.attach(m)
+	end
+end
 
 -- รอให้แมพรอบจุดวาปใหม่ stream โหลดเข้า client ก่อน (StreamingEnabled ทำให้แมพไกลยังไม่โหลดตอนวาปถึง)
 -- ใช้ตอนจอดำระหว่าง transition · anchor ตัวกันตกทะลุพื้นระหว่างรอ · มีพื้นข้างล่าง = โหลดแล้ว · timeout กันค้าง
@@ -314,15 +333,26 @@ end
 local function runDialogue(lines, head, voiceName, onDone)
 	fireAction({ type = "FreezeTime", on = true })
 	if head then CameraFocus.focus(head) end
-	fadePlayer(true, 0.3)
+	-- บทที่ตั้งกล้องเอง (item.cam เช่น byLoc.park) = ช็อตซีนกว้างเห็นทั้งคู่ → ไม่จางตัวผู้เล่น (ให้เห็น player เล่น anim loop ด้วย)
+	-- บทปกติ (zoom หน้า NPC) = จางตัวผู้เล่นเหมือนเดิม (ตัวเองบัง NPC)
+	local keepPlayerVisible = false
+	for _, item in lines do
+		if type(item) == "table" and item.cam then keepPlayerVisible = true break end
+	end
+	if not keepPlayerVisible then fadePlayer(true, 0.3) end
 	DialogueUI.show(playerGui, lines, function(_, quit, teleportTarget)
 		-- จบ/เลิกคุย: ตัวผู้เล่นกลับมาทึบ + คืนกล้อง + unfreeze (ทุกกรณี)
-		fadePlayer(false, 0.3)
+		if not keepPlayerVisible then fadePlayer(false, 0.3) end
 		if head then CameraFocus.release() end
 		fireAction({ type = "FreezeTime", on = false })
-		-- เลือกช้อยที่มี .teleport (เช่น เมนู "อยากไปแมพไหน") — วาปตอนบทจบจริงเท่านั้น (กดเลิกคุยกลางคัน = ไม่วาป)
+		-- เลือกช้อยที่มี .teleport (เช่น เมนู "อยากไปแมพไหน" ผ่าน travel NPC) — วาปตอนบทจบจริงเท่านั้น (กดเลิกคุยกลางคัน = ไม่วาป)
 		if teleportTarget and not quit then
 			fireAction({ type = "TeleportTo", target = teleportTarget })
+			-- กลับจากแมพ 3.1 มาเฟส 3 (Spawn_Phase3) หลังฟ้าใสทรยศ = จุดชนวน betray cutscene (ตั้ง betray_ready ให้ trigger ด้านล่างเด้ง)
+			if teleportTarget == "Spawn_Phase3" and latestState and latestState.flags
+				and latestState.flags.betrayed and not latestState.flags.betray_cutscene_done then
+				fireAction({ type = "SetFlag", name = "betray_ready" })
+			end
 		end
 		if onDone then onDone(quit) end
 	end, voiceName)
@@ -345,7 +375,11 @@ local function startDialogue(dialogueName, interactPart)
 	local locSeenKey = loc and (dialogueName .. "@" .. loc)
 	local locSeen = locSeenKey and latestState and latestState.seenDialogue
 		and latestState.seenDialogue[locSeenKey] == latestState.phase
-	local lines = InteractBinder.pickLines(require(mod), latestState, seen, loc, locSeen)
+	-- คุยจบบท after (หลังทรยศ) เต็มครั้งแรกแล้ว → เล่น after.again ถ้ามี (คีย์ผสม "<บท>@after" แยกจาก seen/locSeen)
+	local afterSeenKey = dialogueName .. "@after"
+	local afterSeen = latestState and latestState.seenDialogue
+		and latestState.seenDialogue[afterSeenKey] == latestState.phase
+	local lines = InteractBinder.pickLines(require(mod), latestState, seen, loc, locSeen, afterSeen)
 	if not lines then
 		warn("[Main.client] บทว่างสำหรับเฟสนี้:", dialogueName)
 		return
@@ -363,6 +397,22 @@ local function startDialogue(dialogueName, interactPart)
 		if not quit and locSeenKey and not locSeen then fireAction({ type = "DialogueSeen", name = locSeenKey }) end
 		-- กดเลิกคุย (quit) = ไม่นับว่าคุยจบ · คุยจบเต็มครั้งแรกของเฟสนี้ → จำไว้ (คุยซ้ำได้บท repeat)
 		if not quit and not seen then fireAction({ type = "DialogueSeen", name = dialogueName }) end
+		if not quit and latestState and latestState.flags and latestState.flags.betrayed and not afterSeen then
+			fireAction({ type = "DialogueSeen", name = afterSeenKey })
+		end
+		-- Faasai park date: จบ byLoc.park.p แบบไม่ quit (บังคับอยู่แล้วผ่าน lock=true) → เด้งบทส่งท้ายทันที
+		-- ไม่ผ่าน StoryBeat — StoryBeat.play ห่อทุก phase ด้วย ScreenTransition (จอดำ fade 0.6s เข้า+ออก) เสมอ
+		-- แม้ไม่ส่ง cutscene/preStage/stage เลย (เจอตอน final review 12 ส.ค.) จะเห็นจอกระพริบดำ 2 รอบ ขัดกับที่ตั้งใจ "เด้งต่อทันที"
+		-- เรียก runDialogue ตรงๆ แทน (เหมือนคุย NPC ปกติ) ไม่มีจอดำคั่นเลย ตรงตามที่ออกแบบไว้
+		if not quit and dialogueName == "ฟ้าใส" and loc == "park" then
+			local Faasai = require(mod)
+			local farewellNpc = AnimPlayer.findRig("ฟ้าใส")
+			local farewellHead = farewellNpc and (farewellNpc:FindFirstChild("Head") or farewellNpc:FindFirstChild("HumanoidRootPart"))
+			runDialogue(Faasai.parkFarewell, farewellHead, "ฟ้าใส", function()
+				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "room" })
+				fireAction({ type = "SetFlag", name = "faasai_park_dated" })
+			end)
+		end
 	end)
 end
 
@@ -422,6 +472,9 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		local faasaiJoined = state.flags.faasai_joined == true
 		local betrayed = state.flags.betrayed == true
 		local jiajiaJoined = state.flags.jiajia_joined == true
+		-- flag faasai_joined ตั้งตอน "เริ่ม" trigger (กันยิงซ้ำ) ยังไม่ใช่ตอน cutscene+dialogue จบ
+		-- กระเป๋าฟ้าใส (Handle1) ต้องรอ join เสร็จจริงก่อนโผล่ = บท join จบ → seenDialogue["ฟ้าใส"] ถูก mark
+		local faasaiJoinDone = state.seenDialogue and state.seenDialogue["ฟ้าใส"] ~= nil
 		local function setVisible(name, show)
 			local inst = workspace:FindFirstChild(name, true)
 			if not inst then return end
@@ -433,11 +486,13 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			end
 			if inst:IsA("BasePart") then inst.Transparency = show and 0 or 1; inst.CanCollide = false end
 		end
-		setVisible("Handle1", faasaiJoined) -- กระเป๋าที่เตียง (เฟส 2) ค้างตลอดหลังร่วมทีม
+		setVisible("Handle1", faasaiJoinDone) -- กระเป๋าที่เตียง (เฟส 2) โผล่หลัง cutscene+dialogue join จบ ค้างตลอดหลังจากนั้น
 		setVisible("Handle2", faasaiJoined and not betrayed) -- กระเป๋าที่เก้าอี้ (เฟส 3) หายตอนทรยศ
-		setVisible("Notebook", faasaiJoined and not betrayed) -- คอมที่เตียง
+		setVisible("Notebook", faasaiJoinDone and not betrayed) -- คอมที่เตียง (เฟส 2) โผล่หลัง join จบเหมือน Handle1 หายตอนทรยศ
 		setVisible("MacbookChair", faasaiJoined and not betrayed) -- คอมที่เก้าอี้ (เฟส 3)
-		setVisible("MacbookCouch", jiajiaJoined) -- คอมเจียเจีย ไม่มีทรยศ ค้างตลอด
+		-- เจียเจียยังไม่มี arc "ชวนออกไปนอกบ้าน" (flag ยังไม่มี — มีแค่ byLoc.park placeholder) → โชว์ตลอดหลัง join ไปก่อน
+		-- ไว้สร้าง arc นั้น (คู่กับ faasai_park) แล้วเปลี่ยนเงื่อนไขเป็น "jiajiaJoined and not <flag ใหม่>"
+		setVisible("MacbookCouch", jiajiaJoined) -- คอมเจียเจีย ค้างตลอด (ยังไม่มีเงื่อนไขหาย)
 	end
 
 	-- โหลดเซฟ: วาปไปสปอว์นของเฟสนั้นตรงๆ + prime prevPhase กันเล่น cutscene ข้ามเฟส (bug #4/#7)
@@ -649,6 +704,17 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 		})
 	end
 
+	-- faasai เดทที่สวน: follower ถึง Config.FaasaiParkFollower ในเฟส 2 (ต้องเป็นเพื่อนร่วมทางแล้ว) → หายจากห้อง ไปสวน
+	-- ไม่มี cutscene นำ (ต่างจาก faasai_joined) — แค่ flag+loc flip เงียบๆ แล้ว DM แจ้ง (Notify ผ่าน DMs.luau unlockFollower เดิม)
+	if state.phase == 2 and state.follower >= Config.FaasaiParkFollower
+		and state.flags.faasai_joined and not state.flags.faasai_park and not state.flags.ending
+		and #state.pendingEvents == 0
+		and not DialogueUI.running and not CutscenePlayer.running
+		and not ScreenTransition.running and not StoryBeat.running then
+		fireAction({ type = "SetFlag", name = "faasai_park" }) -- mark กันยิงซ้ำ
+		fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "park" })
+	end
+
 	-- เจียเจียเข้าร่วม: follower ถึง joinFollower ของ companion_2 ในเฟส 3 → StoryBeat ครั้งเดียว
 	-- threshold มาจาก Config.Staff.companions ที่เดียว (ตัวเดียวกับที่ StaffService ใช้ auto-add เพื่อนร่วมทาง)
 	-- ไม่ตั้งเลขซ้ำใน Config อีกตัว — ไม่งั้น cutscene กับ roster เพี้ยนคนละค่าได้
@@ -688,6 +754,44 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			settle = function()
 				fireAction({ type = "SetNpcLoc", actor = "เจียเจีย", loc = "couch" })
 				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "chair" })
+			end,
+			onDone = function()
+				fireAction({ type = "FreezeTime", on = false })
+			end,
+		})
+	end
+
+	-- ฟ้าใสทรยศ: betrayed (server ตั้งที่ 500K = Config.BetrayalMilestone) + กลับจากแมพ 3.1 (flag betray_ready) → cutscene ครั้งเดียว
+	-- betray_ready ตั้งอัตโนมัติใน runDialogue ตอน travel NPC วาปกลับ "Spawn_Phase3" ขณะ betrayed (ดูข้างบน) — ไป 3.1 ผ่านช้อย teleport ของ travel NPC
+	-- (travel NPC = NPC_special_เจียเจีย_traveller ใน Map_phase3-1 + เจียเจียเฟส 3 · ช้อย teleport เลือกแมพปลายทาง)
+	-- anchor cutscene: NPCHome_เจียเจีย_faasai_betray / NPCHome_Player_faasai_betray (loc "faasai_betray" — เพิ่มใน StoryNPCPlacer NO_RAYCAST แล้ว)
+	if state.phase == 3 and state.flags.betrayed
+		and state.flags.betray_ready and not state.flags.betray_cutscene_done and not state.flags.ending
+		and #state.pendingEvents == 0
+		and not DialogueUI.running and not CutscenePlayer.running
+		and not ScreenTransition.running and not StoryBeat.running then
+		fireAction({ type = "SetFlag", name = "betray_cutscene_done" }) -- mark กันยิงซ้ำ
+		local FaasaiBetray = require(Content.Cutscenes.FaasaiBetray)
+		local Jiajia = require(Content.Dialogue["เจียเจีย"])
+
+		StoryBeat.play(playerGui, {
+			-- จัดเจียเจีย+player ให้ตรงจุดเริ่ม root motion — วาปก่อน + รอ stream ก่อน SetNpcLoc (เหมือน JiajiaJoin)
+			preStage = function()
+				fireAction({ type = "TeleportTo", target = "NPCHome_Player_faasai_betray" })
+				waitStreamedAround(6)
+				fireAction({ type = "SetNpcLoc", actor = "เจียเจีย", loc = "faasai_betray" })
+			end,
+			cutscene = FaasaiBetray,
+			-- ปฏิกิริยาครั้งเดียวต่อจากคัตซีน (12 ส.ค.) — Jiajia.betrayReact ไม่ใช่ .after (after โดน pickLines เลือกทุกครั้งที่คุย prompt หลังจากนี้แทน)
+			-- ไม่ mark DialogueSeen (ไม่ใช่บทแรกที่คุยจบผ่าน pickLines — seenDialogue["เจียเจีย"] ถูก mark ไปแล้วตอน join)
+			dialogue = Jiajia.betrayReact,
+			runDialogue = function(lines, done)
+				local npc = AnimPlayer.findRig("เจียเจีย")
+				local head = npc and (npc:FindFirstChild("Head") or npc:FindFirstChild("HumanoidRootPart"))
+				runDialogue(lines, head, "เจียเจีย", function() done() end)
+			end,
+			settle = function()
+				fireAction({ type = "SetNpcLoc", actor = "เจียเจีย", loc = "couch" }) -- เจียเจียกลับที่อยู่ถาวร (ฟ้าใสหายไปแล้ว betrayed)
 			end,
 			onDone = function()
 				fireAction({ type = "FreezeTime", on = false })

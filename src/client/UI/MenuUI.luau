@@ -30,9 +30,9 @@ end
 -- ข้อความในสมุด 1 บรรทัด (ช่องว่าง = ยังไม่เขียน)
 function MenuUI.slotLine(i: number, sum): string
 	if not sum then
-		return ("หน้า %d — ยังว่าง  (เริ่มเขียนใหม่)"):format(i)
+		return ("Page %d — empty  (start new)"):format(i)
 	end
-	return ("หน้า %d — วันที่ %d · %s follower · เฟส %d"):format(i, sum.day, tostring(sum.follower), sum.phase)
+	return ("Page %d — Day %d · %s followers · Phase %d"):format(i, sum.day, tostring(sum.follower), sum.phase)
 end
 
 -- ช่องที่เซฟล่าสุด (ปุ่ม "เล่นต่อ" ใช้ช่องนี้) — ไม่มี save เลยคืน nil
@@ -47,17 +47,23 @@ function MenuUI.latestSlot(slots)
 	return best
 end
 
--- เมนูหลักออกแบบพอดีจอสูง ~500px (ตัวเลข pixel เดิม: title 70-180, ปุ่มแรก y=210, ปุ่มสุดท้ายจบ 432+62=494)
+-- เมนูหลักออกแบบพอดีจอสูง ~580px (ตัวเลข pixel เดิม: title 20-270, ปุ่มแรก y=280, ปุ่มสุดท้ายจบ 502+62=564)
 -- มือถือแนวนอน (~390px สูง) ต้องหดทั้งแผง ไม่งั้นปุ่มล้นขอบล่าง — scale ทั้งชุดแทนคำนวณ pixel ใหม่ทีละปุ่ม
+-- topPad ขยับ 210→280 (12 ส.ค.) เปิดพื้นที่ให้ title สูงขึ้นจริง (ไม่ใช่แค่กว้างขึ้น) ตาม user
 local MENU_DESIGN = {
 	panelWidth = 420,
-	topPad = 210, -- ที่ว่างเหนือปุ่มแรก (โลโก้/หัวเรื่อง) — GuiInset บวกเพิ่มตอน glue ไม่ใช่ตรงนี้ (pure fn แตะ GuiService ไม่ได้)
+	topPad = 280, -- ที่ว่างเหนือปุ่มแรก (โลโก้/หัวเรื่อง) — GuiInset บวกเพิ่มตอน glue ไม่ใช่ตรงนี้ (pure fn แตะ GuiService ไม่ได้)
 	buttonHeight = 62,
-	buttonGap = 12, -- ระยะห่างเดิมจาก y ของปุ่ม (284-210-62=12)
+	buttonGap = 12, -- ระยะห่างเดิมจาก y ของปุ่ม (354-280-62=12)
 	buttonCount = 4,
-	refHeight = 500, -- ความสูงจอที่ตัวเลขข้างบนพอดีเป๊ะ ไม่ต้องหด
+	refHeight = 580, -- ความสูงจอที่ตัวเลขข้างบนพอดีเป๊ะ ไม่ต้องหด
 	minScale = 0.6, -- กันตัวหนังสือเล็กจนอ่านไม่ออกบนจอเตี้ยมาก
 }
+
+-- สัดส่วนภาพจริงของ UIAssets.menu_logo — วัดด้วย AssetService:CreateEditableImageAsync (12 ส.ค.) = 1024×576 (16:9)
+-- ต้องใช้ค่านี้คำนวณกรอบ title ให้สัดส่วนตรงเป๊ะ ไม่งั้น ScaleType.Fit จะ letterbox แล้ว center เนื้อภาพเข้ากลางกรอบ
+-- (กรอบกว้าง/สูงเกินสัดส่วนภาพจริง = มีช่องว่าง Fit เอาไป "จัดกลาง" ให้ — เคยพลาดจนโลโก้ลอยกลางจอ 12 ส.ค.)
+local TITLE_ASPECT = 1024 / 576
 
 -- viewport = Vector2-like ({X=,Y=}) → ตัวเลข layout ล้วนๆ ไม่แตะ Instance เลย (lune เทสได้)
 function MenuUI.layout(viewport)
@@ -299,11 +305,13 @@ end
 -- ===== ปุ่มกระดาษโน้ต (พอร์ตจาก Figma component MenuButton — ธีมสมุดเล่าเรื่อง) =====
 -- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่พังจริง ("Temp read failed" ซ้ำทุก session ไม่ใช่ cache กระตุก)
 -- เปลี่ยนเป็น Enum.Font (ของ client จริง) — variant Hover = พื้นแดงอ่อน
-local MENU_FONT = Font.fromEnum(Enum.Font.GothamMedium)
-local INK = Color3.fromRGB(51, 41, 33)
-local CREAM = Color3.fromRGB(250, 245, 230)
-local CREAM_HOVER = Color3.fromRGB(247, 229, 217)
-local ACCENT = Color3.fromRGB(204, 89, 82) -- แดงอิฐ
+local MENU_FONT = Font.fromEnum(Enum.Font.FredokaOne) -- ชุดเดียวกับ HUD (ข้อความในเกม) — 12 ส.ค. เปลี่ยนจาก GothamMedium
+-- สี/stroke อิงจาก GuiHUD (HUD.luau: panel()=navy 20,20,30 @0.25 transparency, popup()=ตัวขาว+stroke เข้ม 27,27,27 หนา 1)
+-- เปลี่ยนจากธีมกระดาษครีมเดิม (CREAM/INK) → ธีม HUD เข้ม 12 ส.ค. ตาม user
+local PANEL_BG = Color3.fromRGB(20, 20, 30)
+local PANEL_BG_HOVER = Color3.fromRGB(35, 35, 48)
+local TEXT_COLOR = Color3.new(1, 1, 1)
+local STROKE_COLOR = Color3.fromRGB(27, 27, 27)
 
 -- rot = องศาเอียง (imperfect) — ไม่ใส่ = 0 · color param เก่าเลิกใช้ (คง signature กันของพัง)
 local function textButton(parent, text, pos, size, _color, rot)
@@ -313,7 +321,7 @@ local function textButton(parent, text, pos, size, _color, rot)
 	shadow.Position = pos + UDim2.fromOffset(4, 6)
 	shadow.Size = size
 	shadow.Rotation = rot
-	shadow.BackgroundColor3 = Color3.fromRGB(60, 45, 30)
+	shadow.BackgroundColor3 = Color3.new(0, 0, 0)
 	shadow.BackgroundTransparency = 0.72
 	shadow.BorderSizePixel = 0
 	shadow.ZIndex = 0
@@ -326,10 +334,11 @@ local function textButton(parent, text, pos, size, _color, rot)
 	b.Position = pos
 	b.Size = size
 	b.Rotation = rot
-	b.BackgroundColor3 = CREAM
+	b.BackgroundColor3 = PANEL_BG
+	b.BackgroundTransparency = 0.25 -- ตรงกับ HUD panel()
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
-	b.TextColor3 = INK
+	b.TextColor3 = TEXT_COLOR
 	b.FontFace = MENU_FONT
 	b.TextScaled = true
 	b.TextXAlignment = Enum.TextXAlignment.Left
@@ -340,29 +349,19 @@ local function textButton(parent, text, pos, size, _color, rot)
 	c.CornerRadius = UDim.new(0, 12)
 	c.Parent = b
 	local st = Instance.new("UIStroke")
-	st.Color = INK
-	st.Thickness = 2.5
-	st.Transparency = 0.15
+	st.Color = STROKE_COLOR -- ตรงกับ HUD popup() text stroke
+	st.Thickness = 1
+	st.Transparency = 0
 	st.Parent = b
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 52) -- เว้นที่ให้ bullet
+	pad.PaddingLeft = UDim.new(0, 20) -- เดิม 52 เว้นที่ bullet — ตัด bullet ออกแล้ว (12 ส.ค.) เลยชิดซ้ายได้
 	pad.PaddingRight = UDim.new(0, 14)
 	pad.PaddingTop = UDim.new(0, 6)
 	pad.PaddingBottom = UDim.new(0, 6)
 	pad.Parent = b
-	-- bullet = จุดกลมแดง (Frame + UICorner วงกลม) ไม่พึ่ง glyph ฟอนต์
-	local bullet = Instance.new("Frame")
-	bullet.Size = UDim2.new(0, 14, 0, 14)
-	bullet.Position = UDim2.new(0, 20, 0.5, -7)
-	bullet.BackgroundColor3 = ACCENT
-	bullet.BorderSizePixel = 0
-	bullet.ZIndex = 2
-	bullet.Parent = b
-	local bc = Instance.new("UICorner")
-	bc.CornerRadius = UDim.new(1, 0)
-	bc.Parent = bullet
-	b.MouseEnter:Connect(function() b.BackgroundColor3 = CREAM_HOVER end)
-	b.MouseLeave:Connect(function() b.BackgroundColor3 = CREAM end)
+	-- (เอา bullet จุดแดงออกแล้ว 12 ส.ค. ตาม user — เหลือแค่ข้อความล้วน)
+	b.MouseEnter:Connect(function() b.BackgroundColor3 = PANEL_BG_HOVER end)
+	b.MouseLeave:Connect(function() b.BackgroundColor3 = PANEL_BG end)
 	b.Destroying:Connect(function() shadow:Destroy() end) -- ปุ่มหาย เงาหายด้วย
 	return b
 end
@@ -503,21 +502,9 @@ function MenuUI.open(playerGui, deps)
 	local homeScale = Instance.new("UIScale")
 	homeScale.Parent = homePanel
 
-	-- มือถือจอเตี้ย (แนวนอน): หด homePanel ทั้งชุดให้ปุ่มไม่ล้นจอ + เว้น GuiInset กันชนไอคอน topbar
-	-- (UIScale ย่อของข้างในทั้งหมดพร้อมกัน ตำแหน่ง/ขนาดปุ่มเดิมเป็น pixel design คงที่ ไม่ต้องคำนวณใหม่ทีละปุ่ม)
-	local function fitHomePanel()
-		local vp = camera.ViewportSize
-		local inset = GuiService:GetGuiInset()
-		local layout = MenuUI.layout(Vector2.new(vp.X, math.max(1, vp.Y - inset.Y)))
-		homePanel.Position = UDim2.new(0, 0, 0, inset.Y)
-		homePanel.Size = UDim2.new(0, 420, 1, -inset.Y)
-		homeScale.Scale = layout.scale
-	end
-	fitHomePanel()
-	-- หมุนจอ/resize ต้องหดใหม่ · ต้อง disconnect ตอนเมนูปิด ไม่งั้นเปิดเมนูซ้ำ = ค้างหลาย connection (ดู launch ด้านล่าง)
-	local viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitHomePanel)
-
 	-- โลโก้ถ้ามีรูป ไม่มีก็ใช้ตัวหนังสือ
+	-- ★ parent = gui ตรงๆ ไม่ใช่ homePanel (12 ส.ค.) — homePanel กว้างแค่ 420px (คอลัมน์ปุ่ม)
+	--   title ต้องใหญ่ยืดเกือบเต็มจอตาม user ถ้าอยู่ใน homePanel จะโดนตัดกว้างแค่ 420
 	local title
 	if UIAssets.menu_logo ~= "" then
 		title = Instance.new("ImageLabel")
@@ -533,9 +520,27 @@ function MenuUI.open(playerGui, deps)
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.Text = "Getting 1M Follower\nto Prove Parent Wrong"
 	end
-	title.Size = UDim2.new(1, -40, 0, 110)
-	title.Position = UDim2.new(0, 40, 0, 70)
-	title.Parent = homePanel
+	title.Parent = gui
+
+	-- มือถือจอเตี้ย (แนวนอน): หด homePanel ทั้งชุดให้ปุ่มไม่ล้นจอ + เว้น GuiInset กันชนไอคอน topbar
+	-- (UIScale ย่อของข้างในทั้งหมดพร้อมกัน ตำแหน่ง/ขนาดปุ่มเดิมเป็น pixel design คงที่ ไม่ต้องคำนวณใหม่ทีละปุ่ม)
+	-- title กว้างเกือบเต็มจอ (ยืดขวาเกือบสุดขอบ ตาม user 12 ส.ค.) สูงไม่เกิน topPad กันทับปุ่มแรก
+	-- ScaleType.Fit เดิมกันโลโก้ยืด/บิดอัตราส่วนอยู่แล้ว — เฟรมกว้าง/สูงแค่กำหนดขอบเขตสูงสุด ไม่บังคับสัดส่วนภาพ
+	local function fitHomePanel()
+		local vp = camera.ViewportSize
+		local inset = GuiService:GetGuiInset()
+		local layout = MenuUI.layout(Vector2.new(vp.X, math.max(1, vp.Y - inset.Y)))
+		homePanel.Position = UDim2.new(0, 0, 0, inset.Y)
+		homePanel.Size = UDim2.new(0, 420, 1, -inset.Y)
+		homeScale.Scale = layout.scale
+		-- กรอบ = สัดส่วนภาพจริงเป๊ะ (TITLE_ASPECT) ไม่มีช่องว่างให้ Fit เอาไปจัดกลาง — ชิดซ้ายจริง ไม่ลอยกลางจอ
+		local titleH = MENU_DESIGN.topPad - 30
+		title.Position = UDim2.new(0, 40, 0, inset.Y + 10)
+		title.Size = UDim2.new(0, titleH * TITLE_ASPECT, 0, titleH)
+	end
+	fitHomePanel()
+	-- หมุนจอ/resize ต้องหดใหม่ · ต้อง disconnect ตอนเมนูปิด ไม่งั้นเปิดเมนูซ้ำ = ค้างหลาย connection (ดู launch ด้านล่าง)
+	local viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitHomePanel)
 
 	local flash = Instance.new("Frame")
 	flash.Size = UDim2.new(1, 0, 1, 0)
@@ -545,7 +550,7 @@ function MenuUI.open(playerGui, deps)
 	flash.ZIndex = 50
 	flash.Parent = gui
 
-	local back = textButton(gui, "◀ ย้อนกลับ", UDim2.new(0, 40, 1, -80), UDim2.new(0, 200, 0, 52),
+	local back = textButton(gui, "◀ Back", UDim2.new(0, 40, 1, -80), UDim2.new(0, 200, 0, 52),
 		Color3.fromRGB(60, 60, 80))
 	back.Name = "Btn_Back"
 	back:SetAttribute("Sfx", "ui_back") -- เสียงย้อนกลับ คนละตัวกับกดเข้า (ตัวผูกกลางใน Main.client เล่นให้)
@@ -585,13 +590,12 @@ function MenuUI.open(playerGui, deps)
 		head.BackgroundTransparency = 1
 		head.TextColor3 = Color3.fromRGB(40, 35, 30)
 		head.TextScaled = true
-		head.Text = "สมุดบันทึก"
+		head.Text = "Save Files"
 		head.Parent = bookGui
 		for i = 1, 4 do
 			local b = textButton(bookGui, MenuUI.slotLine(i, nil),
 				UDim2.new(0.05, 0, 0.15 + (i - 1) * 0.2, 0), UDim2.new(0.9, 0, 0.17, 0),
 				Color3.fromRGB(245, 240, 225))
-			b.TextColor3 = Color3.fromRGB(40, 35, 30)
 			b.BackgroundTransparency = 0.1
 			slotBtns[i] = b
 			-- ปุ่มลบเซฟ (โชว์เฉพาะ slot ที่มี save) — มุมขวาของหน้า
@@ -633,7 +637,7 @@ function MenuUI.open(playerGui, deps)
 		head.BackgroundTransparency = 1
 		head.TextColor3 = Color3.new(1, 1, 1)
 		head.TextScaled = true
-		head.Text = "ตั้งค่า"
+		head.Text = "Settings"
 		head.Parent = setGui
 
 		local volLabel = Instance.new("TextLabel")
@@ -773,7 +777,7 @@ function MenuUI.open(playerGui, deps)
 	local slotsReady = false   -- true เมื่อ slotList รอบแรก (ครบทุกช่อง) มาถึง (updateSlots ทำงาน)
 	local slotRetries = 0      -- auto-retry RequestSlots เมื่อ DataStore อ่านบางช่องไม่สำเร็จ (กันเมนูค้างโชว์ "ไม่มีเซฟ" จนต้อง rejoin)
 	local pendingContinue = false -- กด "เล่นต่อ" ตอน slot ยังไม่โหลด → ค้างไว้ตัดสินหลังโหลด
-	local continueBtn = textButton(homePanel, "เล่นต่อ", UDim2.new(0, 40, 0, 210), UDim2.new(0, 340, 0, 62),
+	local continueBtn = textButton(homePanel, "Continue", UDim2.new(0, 40, 0, 280), UDim2.new(0, 340, 0, 62),
 		nil, -1.4)
 	continueBtn.Name = "Btn_Continue"
 	-- มีเซฟ = โหลดช่องล่าสุด · ไม่มีเซฟจริง = เริ่มใหม่ช่อง 1
@@ -789,7 +793,7 @@ function MenuUI.open(playerGui, deps)
 			--   เดา NewGame ตรงนี้ = ทับ auto-save ช่อง 1 ทิ้ง (เจอจริง 5 ส.ค. หน้าต่าง ~1.5 วิ)
 			--   → ค้างเจตนาไว้ รอ updateSlots มาถึงแล้วตัดสินจากข้อมูลจริง
 			pendingContinue = true
-			continueBtn.Text = "กำลังโหลด…"
+			continueBtn.Text = "Loading…"
 			deps.fireAction({ type = "RequestSlots" }) -- เผื่อ request แรกหาย
 		end
 	end)
@@ -798,9 +802,9 @@ function MenuUI.open(playerGui, deps)
 		b.Name = "Btn_" .. target
 		b.Activated:Connect(function() goto_(target) end)
 	end
-	navBtn("ไฟล์เซฟ", 284, "book", 1.0)
-	navBtn("ตั้งค่า", 358, "setting", -0.7)
-	navBtn("เครดิต", 432, "credit", 1.3)
+	navBtn("Save Files", 354, "book", 1.0)
+	navBtn("Settings", 428, "setting", -0.7)
+	navBtn("Credits", 502, "credit", 1.3)
 
 	-- ช่องมีหลาย snapshot → กางให้เลือกจุดเซฟที่จะ restore (auto + manual ล่าสุด→เก่า)
 	local currentSlots = nil
@@ -938,7 +942,7 @@ function MenuUI.open(playerGui, deps)
 		-- บางช่องอ่าน DataStore ไม่สำเร็จ = ข้อมูลยังพร่อง → อย่า lock slotsReady จากของพร่อง (ไม่งั้นเมนูค้างโชว์ "ไม่มีเซฟ" จนต้อง rejoin)
 		--   auto-retry เอง + คง pendingContinue ไว้ให้ Continue รอจนอ่านครบ (กัน NewGame ทับเซฟ)
 		if failed and next(failed) then
-			continueBtn.Text = "กำลังโหลดเซฟ…"
+			continueBtn.Text = "Loading save…"
 			if slotRetries < 6 then
 				slotRetries += 1
 				task.delay(1.2, function()
@@ -949,7 +953,7 @@ function MenuUI.open(playerGui, deps)
 		end
 		-- อ่านครบทุกช่องแล้ว → ปุ่มตัดสินใจได้ · ถ้าผู้เล่นกด "เล่นต่อ" ค้างไว้ตอนยังโหลด ทำต่อตอนนี้
 		slotRetries = 0
-		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
+		continueBtn.Text = latest and ("Continue (Page %d)"):format(latest) or "New Story"
 		slotsReady = true
 		if pendingContinue then
 			pendingContinue = false
@@ -998,7 +1002,7 @@ function MenuUI.openFallback(playerGui, deps)
 	local function doContinue()
 		startGame(latest and { type = "LoadSlot", slot = latest } or { type = "NewGame", slot = 1 })
 	end
-	local continueBtn = textButton(bg, "เล่นต่อ", UDim2.new(0.5, -160, 0, 130), UDim2.new(0, 320, 0, 48),
+	local continueBtn = textButton(bg, "Continue", UDim2.new(0.5, -160, 0, 130), UDim2.new(0, 320, 0, 48),
 		Color3.fromRGB(45, 95, 175))
 	continueBtn.Activated:Connect(function()
 		if slotsReady then
@@ -1006,7 +1010,7 @@ function MenuUI.openFallback(playerGui, deps)
 		elseif not pendingContinue then
 			-- slotList ยังไม่มา — อย่าเดา NewGame ทับเซฟ (เหมือน path เมนูหลัก) รอข้อมูลก่อน
 			pendingContinue = true
-			continueBtn.Text = "กำลังโหลด…"
+			continueBtn.Text = "Loading…"
 			deps.fireAction({ type = "RequestSlots" })
 		end
 	end)
@@ -1052,7 +1056,7 @@ function MenuUI.openFallback(playerGui, deps)
 		end
 		-- บางช่องอ่านไม่สำเร็จ = ข้อมูลพร่อง → อย่า lock slotsReady, auto-retry เอง (กัน NewGame ทับเซฟ)
 		if failed and next(failed) then
-			continueBtn.Text = "กำลังโหลดเซฟ…"
+			continueBtn.Text = "Loading save…"
 			if slotRetries < 6 then
 				slotRetries += 1
 				task.delay(1.2, function()
@@ -1062,7 +1066,7 @@ function MenuUI.openFallback(playerGui, deps)
 			return
 		end
 		slotRetries = 0
-		continueBtn.Text = latest and ("เล่นต่อ (หน้า %d)"):format(latest) or "เริ่มเรื่องใหม่"
+		continueBtn.Text = latest and ("Continue (Page %d)"):format(latest) or "New Story"
 		slotsReady = true
 		if pendingContinue then
 			pendingContinue = false

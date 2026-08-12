@@ -177,6 +177,10 @@ function DialogueUI.validate(lines)
 			return false, ("บรรทัด %d: actor ต้องเป็นชื่อตัวละคร (string)"):format(i)
 		elseif item.cam ~= nil and type(item.cam) ~= "string" then
 			return false, ("บรรทัด %d: cam ต้องเป็นชื่อ Part ใน CutsceneCams (string)"):format(i)
+		elseif item.lock ~= nil and type(item.lock) ~= "boolean" then
+			return false, ("บรรทัด %d: lock ต้องเป็น true/false (boolean)"):format(i)
+		elseif item.time ~= nil and type(item.time) ~= "number" then
+			return false, ("บรรทัด %d: time ต้องเป็นชั่วโมง 0-24 (number)"):format(i)
 		elseif item.choices then
 			if type(item.choices) ~= "table" or #item.choices == 0 then
 				return false, ("บรรทัด %d: choices ว่าง"):format(i)
@@ -219,6 +223,12 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	if not ok then
 		warn("[DialogueUI] บทพัง:", err)
 		return
+	end
+	-- item.lock (บรรทัดไหนก็ได้) = บทบังคับเล่นจนจบ ปิดปุ่ม "เลิกคุย" ทั้งบท
+	-- สแกนก่อนสร้าง UI (หลักการเดียวกับ usesCustomCam ใน Main.client — เจอที่ไหนในบท มีผลทั้งบท)
+	local locked = false
+	for _, item in lines do
+		if type(item) == "table" and item.lock then locked = true break end
 	end
 	DialogueUI.running = true
 	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดินตลอดบท
@@ -340,23 +350,26 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	layout.Parent = choiceFrame
 
 	-- ปุ่มเลิกคุย มุมซ้ายบนใต้แถบหนัง — กดแล้วออกจากบทเลย **ไม่นับว่าคุยจบ** (ไม่ยิง DialogueSeen)
+	-- locked = true (item.lock) → ไม่สร้างปุ่มเลย (quit ค้าง false ตลอด บทเดินต่อจนจบทางเดียว)
 	local quit = false
-	local quitBtn = Instance.new("TextButton")
-	quitBtn.Name = "QuitButton"
-	quitBtn.AnchorPoint = Vector2.new(0, 0)
-	quitBtn.Position = UDim2.new(0, 24, 0.12, 10)
-	quitBtn.Size = UDim2.fromOffset(120, 38)
-	quitBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	quitBtn.BackgroundTransparency = 0.35
-	quitBtn.TextColor3 = Color3.new(1, 1, 1)
-	quitBtn.TextScaled = true
-	quitBtn.Text = "← เลิกคุย"
-	quitBtn:SetAttribute("Sfx", "ui_back")
-	quitBtn.Parent = gui
-	local quitCorner = Instance.new("UICorner")
-	quitCorner.CornerRadius = UDim.new(0, 6)
-	quitCorner.Parent = quitBtn
-	quitBtn.Activated:Connect(function() quit = true end)
+	if not locked then
+		local quitBtn = Instance.new("TextButton")
+		quitBtn.Name = "QuitButton"
+		quitBtn.AnchorPoint = Vector2.new(0, 0)
+		quitBtn.Position = UDim2.new(0, 24, 0.12, 10)
+		quitBtn.Size = UDim2.fromOffset(120, 38)
+		quitBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		quitBtn.BackgroundTransparency = 0.35
+		quitBtn.TextColor3 = Color3.new(1, 1, 1)
+		quitBtn.TextScaled = true
+		quitBtn.Text = "← เลิกคุย"
+		quitBtn:SetAttribute("Sfx", "ui_back")
+		quitBtn.Parent = gui
+		local quitCorner = Instance.new("UICorner")
+		quitCorner.CornerRadius = UDim.new(0, 6)
+		quitCorner.Parent = quitBtn
+		quitBtn.Activated:Connect(function() quit = true end)
+	end
 
 	-- ซ่อน GUI อื่นที่เปิดอยู่ระหว่างคุย (HUD/ปุ่มเซฟ/Tool ฯลฯ บังการมองเห็น) — จำไว้คืนตอนจบ
 	local hiddenGuis = {}
@@ -382,6 +395,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	-- item.cam (นอกเหนือ zoom-หน้าอัตโนมัติของ CameraFocus) — วางมุมด้วย CutsceneCamTool เหมือน cutscene mode 1
 	-- ตัดกล้องตอนบรรทัดนั้นขึ้น (ไม่ใช่ timer) — caller ต้องไม่ส่ง head ให้ CameraFocus.focus (เดี๋ยวชนกัน) ดู docs/engines/dialogue.md
 	local camSaved = nil -- เก็บ CameraType/Subject เดิมไว้คืนตอนจบ — เซ็ตครั้งแรกที่เจอ item.cam เท่านั้น (ไม่ยุ่งบทที่ไม่ใช้)
+	local timeSet = false -- บทตั้ง item.time (ล็อกดวงอาทิตย์) ไหม — จบบทเคลียร์ SceneClock คืนเวลาจริง (เฉพาะบทที่ตั้ง)
 	local function cutTo(camName: string)
 		local folder = workspace:FindFirstChild("CutsceneCams")
 		local part = folder and folder:FindFirstChild(camName, true) or workspace:FindFirstChild(camName, true)
@@ -532,6 +546,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			while i <= #queue and not quit do
 				local item = DialogueUI.lineOf(queue[i])
 				if item.cam then cutTo(item.cam) end -- ตัดกล้องตามบรรทัด ไม่ใช่ timer (ต่างจาก CutscenePlayer)
+				if item.time then game:GetService("Lighting"):SetAttribute("SceneClock", item.time); timeSet = true end -- ล็อกดวงอาทิตย์ให้ฉาก (เช่น park=17) คืนตอนจบบท
 				-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
 				local moved = AnimPlayer.applyLine(item, voiceName)
 				if moved then movedActors[moved] = true end
@@ -557,6 +572,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		if not ok then warn("[DialogueUI] บทพังกลางคัน:", err) end
 		-- cleanup เสมอ (แม้บทพัง)
 		for actor in movedActors do AnimPlayer.stop(actor) end
+		if timeSet then game:GetService("Lighting"):SetAttribute("SceneClock", nil) end -- คืนดวงอาทิตย์เวลาจริง (เฉพาะบทที่ตั้ง time)
 		if camSaved then -- คืนกล้องที่ item.cam ยึดไป (CameraFocus ไม่รู้จักตัวนี้ ต้องคืนเอง)
 			camera.CameraType = camSaved.type
 			camera.CameraSubject = camSaved.subject

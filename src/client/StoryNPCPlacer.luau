@@ -22,12 +22,12 @@ local applied = {}
 -- loc ที่เป็นท่านั่ง/นอน (ไม่ใช่ยืน) — เรียก animation ชื่อ "Idle" + ตัวพิมพ์ใหญ่ตัวแรกของ loc
 -- (bed→IdleBed, couch→IdleCouch, chair→IdleChair) ต้องมี Animation ชื่อนั้นในโฟลเดอร์ actor เอง
 -- ไม่งั้นเงียบๆไม่ขยับ (AnimPlayer.play warn ให้)
-local SEATED_LOC = { bed = true, couch = true, chair = true }
+local SEATED_LOC = { bed = true, couch = true, chair = true, park = true }
 
 -- loc ที่ไม่เชื่อ raycast หาพื้นเลย (ก้ม/นั่งโซฟา/นั่งเก้าอี้ ฯลฯ) — เชื่อ anchor.Position ตรงๆ
 -- (user วางเทียบท่า/เบาะเก้าอี้จริงด้วยตาเอง) ⚠️ เจอ raycast ทะลุพื้น/เพดานชั้นอื่นของบ้าน (บ้านหลายชั้น
 -- ray เจอพื้น/พรมชั้นบนก่อนของจริง) ในบ้านเฟส 3 มาแล้ว — SEATED_LOC ทุกตัวเลยตัดมาเชื่อ anchor ตรงด้วย ไม่ raycast อีก
-local NO_RAYCAST_LOC = { jiajiajoin = true, bed = true, couch = true, chair = true }
+local NO_RAYCAST_LOC = { jiajiajoin = true, bed = true, couch = true, chair = true, park = true, faasai_betray = true }
 
 -- prop ที่ actor ถืออยู่ตอนอยู่ loc นั้น (จำกัดแค่เคสนี้พอ — ยังไม่คุ้มทำเป็น table ทั่วไปถ้ามีแค่ตัวเดียว)
 -- ⚠️ offset เดิมวัดจาก Torso ของ Faasai_bed_idle (rig อ้างอิงที่ "วาง" เฉยๆ ไม่ได้เล่น animation จริง — Torso เลย

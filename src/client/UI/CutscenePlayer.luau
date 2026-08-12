@@ -89,6 +89,9 @@ local VALID = {
 	-- โชว์/ซ่อน Part หรือ Model (ทุก BasePart ข้างใน) — ใช้สลับของจริงกับ duplicate สำหรับ animate
 	-- (เช่น ประตูจริงที่มี script ควบคุมอยู่แล้ว vs duplicate ที่ตัด script ออกไว้ animate เฉยๆ)
 	visible = function(s) return type(s.target) == "string" and type(s.show) == "boolean" end,
+	-- ล็อกตำแหน่งดวงอาทิตย์ของฉาก (hour 0-23.99) — ไม่เดินเวลาเกมจริง แค่ตั้งแสง/ดวงอาทิตย์ให้ตรงบรรยากาศ (BCA=0, Ending=8)
+	-- ตั้งครั้งเดียวค้างทั้งฉาก จบฉากคืนเวลาจริงอัตโนมัติ (HUD อ่าน attribute SceneClock ทับ ClockTime)
+	time = function(s) return type(s.hour) == "number" end,
 }
 
 -- เช็ค script ก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
@@ -350,8 +353,11 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 						Vector3.new(step.look[1], step.look[2], step.look[3])
 					), nil, t, e and e[1], e and e[2])
 				end
+			elseif step.type == "time" then
+				game:GetService("Lighting"):SetAttribute("SceneClock", step.hour) -- ล็อกดวงอาทิตย์ให้ฉาก (HUD อ่านทับ ClockTime)
 			end
 		end
+		game:GetService("Lighting"):SetAttribute("SceneClock", nil) -- จบฉากคืนเวลาจริง (เผื่อฉากมี time step)
 		for actor in movedActors do AnimPlayer.stop(actor) end
 		for propName in heldProps do AnimPlayer.unhold(propName) end
 		if hum and hum.Parent then

@@ -83,7 +83,7 @@
 
 <footer>
   dialogue-editor.html — เครื่องมือช่วยเขียนบท ไม่ต้องพิมพ์ Luau เอง · ทำงาน 100% ในเบราว์เซอร์ ไม่ส่งข้อมูลไปไหน<br>
-  ตรงกับ docs/engines/dialogue.md — ครบ p1/p2/p3/after/again, choices+tone+reply, anim/pose/face/actor, tag [slow]/[fast]/[normal]
+  ตรงกับ docs/engines/dialogue.md — p1/p2/p3/after/again + section แบบ dotted (byLoc.couch.p, byLoc.siam, betrayReact, parkFarewell), choices+tone+reply+teleport+lock, anim/pose/face/actor/cam, tag [slow]/[fast]/[normal] · import ไฟล์บทเดิมได้ครบไม่ตกหล่น
 </footer>
 
 <div id="importPane" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center;">
@@ -114,28 +114,50 @@
 
 <script>
 // ===================== data model =====================
-// scene = { phases: { p1:[block], p2:[], p3:[], after:[], again:[] } }
-// block (line)   = { kind:'line', speaker, text, anim, pose, face, actor }
-// block (choice) = { kind:'choice', options:[ { text, tone, reply:[block,...] } ] }
+// scene = { sections: [ { key, blocks:[block] } ] }   key = dotted path ตรงกับโครง Luau
+//   เช่น "p1","p3","after","after.p","after.again","byLoc.couch.p","byLoc.siam","betrayReact","parkFarewell"
+// block (line)   = { kind:'line', speaker, text, anim, pose, face, actor, lock, cam }
+// block (choice) = { kind:'choice', options:[ { text, tone, reply:[block,...], teleport, lock } ] }
 
-const PHASES = [
-  { key: 'p1', label: 'p1 — เฟส 1', hint: 'บทตอนเฟส 1 (Homeless)' },
-  { key: 'p2', label: 'p2 — เฟส 2', hint: 'บทตอนเฟส 2 (ห้องเช่า)' },
-  { key: 'p3', label: 'p3 — เฟส 3', hint: 'บทตอนเฟส 3 (บ้าน) — ไม่มี p3 = ระบบถอยไปใช้ p2 อัตโนมัติ' },
-  { key: 'after', label: 'after — หลังทรยศ', hint: 'บทหลังเพื่อนทรยศ (follower ≥ 500K) — เฉพาะ NPC ที่เกี่ยวข้อง เช่น แม่/ฟ้าใส' },
-  { key: 'again', label: 'again — คุยซ้ำ', hint: 'บทตอนคุยซ้ำในเฟสเดิม (คุยจบบทเต็มแล้วรอบนึง) — ไม่เขียน = คุยซ้ำเล่นบทเต็มเหมือนเดิม · ไม่ควรใส่ choices' },
-];
-
-let scene = emptyScene();
-let activePhase = 'p1';
-
-function emptyScene() {
-  const phases = {};
-  for (const p of PHASES) phases[p.key] = [];
-  return { phases };
+// hint ต่อ key ที่รู้จัก (แสดงใต้แท็บ) — key อื่น (byLoc.* ฯลฯ) ใช้ hintFor()
+const SECTION_HINTS = {
+  p1: 'บทเฟส 1 (Homeless)',
+  p2: 'บทเฟส 2 (ห้องเช่า)',
+  p3: 'บทเฟส 3 (บ้าน) — ไม่มี p3 = ระบบถอยไปใช้ p2 อัตโนมัติ',
+  after: 'บทหลังเพื่อนทรยศ (follower ≥ 500K) — ใส่ตรงๆ หรือแยกเป็น after.p / after.again',
+  again: 'บทคุยซ้ำในเฟสเดิม (คุยจบบทเต็มแล้วรอบนึง) — ไม่ควรใส่ choices',
+  betrayReact: 'ปฏิกิริยาครั้งเดียวหลัง cutscene ทรยศ (wire เองใน Main.client — ไม่ผ่าน pickLines)',
+  parkFarewell: 'บทส่งท้ายหลังเดทสวน (ฟ้าใส)',
+};
+function hintFor(key) {
+  if (SECTION_HINTS[key]) return SECTION_HINTS[key];
+  if (key.split('.')[0] === 'byLoc') return 'บทตามที่อยู่ (state.npcLoc) เช่น couch/siam · ลงท้าย .p=ครั้งแรก .again=คุยซ้ำ · ใส่ช้อย teleport ให้ไป/กลับแมพได้';
+  return 'section เพิ่มเติม (dotted path → โครง Luau)';
 }
-function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'' }; }
-function newChoiceOption() { return { text:'', tone:'neutral', reply: [] }; }
+
+const DEFAULT_KEYS = ['p1','p2','p3','after','again'];
+let scene = emptyScene();
+let activeSection = 'p1';
+
+function emptyScene() { return { sections: DEFAULT_KEYS.map(k => ({ key:k, blocks:[] })) }; }
+function getSection(key) {
+  let s = scene.sections.find(x => x.key === key);
+  if (!s) { s = { key, blocks: [] }; scene.sections.push(s); }
+  return s;
+}
+// รับ scene เก่า {phases:{}} → แปลงเป็น {sections:[]} (compat autosave/โปรเจกต์เก่า)
+function migrateScene(sc) {
+  if (sc && Array.isArray(sc.sections)) return sc;
+  if (sc && sc.phases) {
+    const sections = [];
+    for (const k of DEFAULT_KEYS) if (sc.phases[k]) sections.push({ key:k, blocks: sc.phases[k] });
+    for (const k in sc.phases) if (!DEFAULT_KEYS.includes(k)) sections.push({ key:k, blocks: sc.phases[k] });
+    return sections.length ? { sections } : emptyScene();
+  }
+  return emptyScene();
+}
+function newLine() { return { kind:'line', speaker:'', text:'', anim:'', pose:'', face:'', actor:'', lock:false, cam:false }; }
+function newChoiceOption() { return { text:'', tone:'neutral', reply: [], teleport:'', lock:false }; }
 function newChoice() { return { kind:'choice', options: [ newChoiceOption() ] }; }
 function uid() { return Math.random().toString(36).slice(2,9); }
 
@@ -149,7 +171,7 @@ function loadAutosave() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (data.scene) { scene = data.scene; npcNameInput.value = data.npcName || 'NewNPC'; return true; }
+    if (data.scene) { scene = migrateScene(data.scene); npcNameInput.value = data.npcName || 'NewNPC'; return true; }
   } catch(e){}
   return false;
 }
@@ -167,25 +189,46 @@ function render() {
 
 function renderTabs() {
   tabsEl.innerHTML = '';
-  for (const p of PHASES) {
+  for (const s of scene.sections) {
     const div = document.createElement('div');
-    div.className = 'tab' + (p.key === activePhase ? ' active' : '');
-    const n = scene.phases[p.key].length;
-    div.innerHTML = `${p.label} <span class="count">${n}</span>`;
-    div.onclick = () => { activePhase = p.key; render(); };
+    div.className = 'tab' + (s.key === activeSection ? ' active' : '');
+    div.innerHTML = `${s.key} <span class="count">${s.blocks.length}</span>`;
+    div.onclick = () => { activeSection = s.key; render(); };
+    if (!DEFAULT_KEYS.includes(s.key)) { // section ที่เพิ่มเอง = ลบได้
+      const x = document.createElement('span');
+      x.textContent = ' ✕'; x.style.opacity = '.5'; x.style.marginLeft = '4px';
+      x.onclick = (e) => {
+        e.stopPropagation();
+        if (!confirm('ลบ section "' + s.key + '"?')) return;
+        scene.sections = scene.sections.filter(z => z !== s);
+        if (activeSection === s.key) activeSection = (scene.sections[0] || {}).key || 'p1';
+        render();
+      };
+      div.appendChild(x);
+    }
     tabsEl.appendChild(div);
   }
+  const add = document.createElement('div');
+  add.className = 'tab'; add.style.opacity = '.7'; add.textContent = '+ section';
+  add.onclick = () => {
+    const key = prompt('ชื่อ section (dotted path) — ตรงกับโครง Luau\nเช่น  byLoc.siam  |  byLoc.couch.p  |  after.again  |  betrayReact  |  parkFarewell');
+    if (!key) return;
+    const k = key.trim();
+    if (!scene.sections.some(z => z.key === k)) scene.sections.push({ key: k, blocks: [] });
+    activeSection = k; render();
+  };
+  tabsEl.appendChild(add);
 }
 
 function renderWorkspace() {
   wsEl.innerHTML = '';
-  const phaseInfo = PHASES.find(p => p.key === activePhase);
+  const sec = getSection(activeSection);
   const hint = document.createElement('div');
   hint.className = 'phase-hint';
-  hint.textContent = phaseInfo.hint;
+  hint.textContent = hintFor(activeSection);
   wsEl.appendChild(hint);
 
-  const list = scene.phases[activePhase];
+  const list = sec.blocks;
   if (list.length === 0) {
     const e = document.createElement('div');
     e.className = 'empty-hint';
@@ -297,7 +340,7 @@ function renderLineFields(block) {
   wrap.appendChild(textField);
 
   const details = document.createElement('details');
-  const hasExtra = block.anim || block.pose || block.face || block.actor;
+  const hasExtra = block.anim || block.pose || block.face || block.actor || block.lock || block.cam;
   details.open = !!hasExtra;
   const summary = document.createElement('summary');
   summary.textContent = 'ท่าทาง / สีหน้า / actor (ไม่บังคับ)';
@@ -309,6 +352,19 @@ function renderLineFields(block) {
   pf.appendChild(miniField('face (สีหน้า)', block, 'face', 'เช่น Happy'));
   pf.appendChild(miniField('actor (ให้ตัวอื่นขยับแทน)', block, 'actor', 'เช่น Dad / player'));
   details.appendChild(pf);
+  // lock (บังคับอยู่ในบท ห้ามเลิกคุยกลางคัน) + cam (คงกล้อง cutscene ไม่โฟกัสหัว NPC) — flag ของใหม่ 12 ส.ค.
+  const flagRow = document.createElement('div');
+  flagRow.style.cssText = 'display:flex;gap:16px;margin-top:6px;font-size:12px;opacity:.85';
+  for (const [key, txt] of [['lock','lock (ห้ามเลิกคุยกลางคัน)'],['cam','cam (คงกล้อง cutscene)']]) {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:center;gap:4px';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.checked = !!block[key]; chk.style.width = 'auto';
+    chk.onchange = () => { block[key] = chk.checked; autosave(); };
+    lab.appendChild(chk); lab.appendChild(document.createTextNode(txt));
+    flagRow.appendChild(lab);
+  }
+  details.appendChild(flagRow);
   wrap.appendChild(details);
 
   return wrap;
@@ -373,6 +429,28 @@ function renderChoiceFields(block, depth) {
     textInput.oninput = () => { opt.text = textInput.value; autosave(); };
     optEl.appendChild(textInput);
 
+    // teleport (ไปแมพอื่นตอนจบบท เช่น Spawn_Phase3-1) + lock (บังคับเลือก ห้ามเลิกคุย) — ของใหม่ 12 ส.ค.
+    const advRow = document.createElement('div');
+    advRow.className = 'row'; advRow.style.marginTop = '6px';
+    const tpField = document.createElement('div');
+    tpField.className = 'field';
+    tpField.innerHTML = '<label>teleport (ชื่อ Part ปลายทาง — เว้นว่าง = ไม่วาป)</label>';
+    const tpInput = document.createElement('input');
+    tpInput.type = 'text'; tpInput.value = opt.teleport || '';
+    tpInput.placeholder = 'เช่น Spawn_Phase3-1 (ไปสยาม) / Spawn_Phase3 (กลับบ้าน)';
+    tpInput.oninput = () => { opt.teleport = tpInput.value; autosave(); };
+    tpField.appendChild(tpInput);
+    advRow.appendChild(tpField);
+    const lockWrap = document.createElement('label');
+    lockWrap.style.cssText = 'font-size:12px;opacity:.8;display:flex;align-items:center;gap:4px;align-self:flex-end;white-space:nowrap';
+    const lockChk = document.createElement('input');
+    lockChk.type = 'checkbox'; lockChk.checked = !!opt.lock;
+    lockChk.style.width = 'auto';
+    lockChk.onchange = () => { opt.lock = lockChk.checked; autosave(); };
+    lockWrap.appendChild(lockChk); lockWrap.appendChild(document.createTextNode('lock (ห้ามเลิกคุย)'));
+    advRow.appendChild(lockWrap);
+    optEl.appendChild(advRow);
+
     const replyLabel = document.createElement('div');
     replyLabel.style.fontSize = '11px';
     replyLabel.style.opacity = '.6';
@@ -408,7 +486,7 @@ function luauEscape(s) {
 }
 
 function isPlainTextLine(b) {
-  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor;
+  return b.kind === 'line' && !b.speaker && !b.anim && !b.pose && !b.face && !b.actor && !b.lock && !b.cam;
 }
 
 function genLine(b, indent) {
@@ -423,6 +501,8 @@ function genLine(b, indent) {
   if (b.pose) parts.push(`pose = "${luauEscape(b.pose)}"`);
   if (b.face) parts.push(`face = "${luauEscape(b.face)}"`);
   if (b.actor) parts.push(`actor = "${luauEscape(b.actor)}"`);
+  if (b.lock) parts.push(`lock = true`);
+  if (b.cam) parts.push(`cam = true`);
   return `${pad}{ ${parts.join(', ')} },`;
 }
 
@@ -432,7 +512,12 @@ function genChoice(b, indent) {
   const pad3 = '\t'.repeat(indent+2);
   let out = `${pad}{\n${pad2}choices = {\n`;
   for (const opt of b.options) {
-    out += `${pad3}{ text = "${luauEscape(opt.text)}", tone = "${opt.tone}"`;
+    const fields = [`text = "${luauEscape(opt.text)}"`];
+    // ช้อย teleport (ไปแมพอื่น) ไม่มี tone — ตรงกับ format จริง · ช้อยปกติมี tone
+    if (opt.teleport) fields.push(`teleport = "${luauEscape(opt.teleport)}"`);
+    else fields.push(`tone = "${opt.tone || 'neutral'}"`);
+    if (opt.lock) fields.push(`lock = true`);
+    out += `${pad3}{ ${fields.join(', ')}`;
     if (opt.reply && opt.reply.length > 0) {
       out += `,\n${pad3}\treply = {\n`;
       for (const r of opt.reply) {
@@ -453,36 +538,56 @@ function genBlock(b, indent) {
 
 function collectWarnings() {
   const warns = [];
-  for (const p of PHASES) {
-    const list = scene.phases[p.key];
-    if (p.key === 'again') {
-      const hasChoice = list.some(b => b.kind === 'choice');
-      if (hasChoice) warns.push(`"again" มี choices อยู่ — ปกติไม่แนะนำ (บทคุยซ้ำควรสั้น ไม่มีช้อย)`);
-    }
-    list.forEach((b, i) => {
-      if (b.kind === 'line' && !b.text) warns.push(`${p.key} บรรทัด #${i+1}: ไม่มีข้อความ`);
+  for (const sec of scene.sections) {
+    if (sec.key.split('.').pop() === 'again' && sec.blocks.some(b => b.kind === 'choice'))
+      warns.push(`"${sec.key}" มี choices — ปกติบทคุยซ้ำควรสั้น ไม่มีช้อย`);
+    sec.blocks.forEach((b, i) => {
+      if (b.kind === 'line' && !b.text) warns.push(`${sec.key} บรรทัด #${i+1}: ไม่มีข้อความ`);
       if (b.kind === 'choice') {
-        b.options.forEach((o, oi) => { if (!o.text) warns.push(`${p.key} ช้อย #${i+1}.${oi+1}: ไม่มีข้อความปุ่ม`); });
+        b.options.forEach((o, oi) => { if (!o.text) warns.push(`${sec.key} ช้อย #${i+1}.${oi+1}: ไม่มีข้อความปุ่ม`); });
       }
     });
   }
-  const anyLine = PHASES.some(p => scene.phases[p.key].length > 0);
-  if (!anyLine) warns.push('ยังไม่มีบทเลยสักเฟส');
+  if (!scene.sections.some(s => s.blocks.length > 0)) warns.push('ยังไม่มีบทเลยสัก section');
   return warns;
+}
+
+// ชื่อ key ใน Luau: identifier ล้วน = `key = ` · มีอักขระอื่น = `["key"] = `
+function luauKey(k) { return /^[A-Za-z_]\w*$/.test(k) ? k : `["${luauEscape(k)}"]`; }
+
+// สร้าง tree จาก dotted keys ของ section แล้วปล่อย Luau ซ้อนชั้นให้ตรงโครงเดิม
+function emitNode(node, indent) {
+  const pad = '\t'.repeat(indent);
+  let out = '';
+  for (const key of Object.keys(node)) {
+    const val = node[key];
+    out += `${pad}${luauKey(key)} = {\n`;
+    if (val.__blocks) {
+      for (const b of val.__blocks) out += genBlock(b, indent+1) + '\n';
+    } else {
+      out += emitNode(val, indent+1);
+    }
+    out += `${pad}},\n`;
+  }
+  return out;
 }
 
 function generateLuau() {
   const name = (npcNameInput.value || 'NewNPC').trim();
+  const root = {};
+  for (const sec of scene.sections) {
+    if (sec.blocks.length === 0) continue;
+    const parts = sec.key.split('.');
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!node[parts[i]] || node[parts[i]].__blocks) node[parts[i]] = node[parts[i]] || {};
+      node = node[parts[i]];
+    }
+    node[parts[parts.length - 1]] = { __blocks: sec.blocks };
+  }
   let out = `-- ${name} — สร้างจาก tools/dialogue-editor.html (ดู docs/engines/dialogue.md)\n`;
   out += `return {\n`;
-  for (const p of PHASES) {
-    const list = scene.phases[p.key];
-    if (list.length === 0) continue;
-    out += `\t${p.key} = {\n`;
-    for (const b of list) out += genBlock(b, 2) + '\n';
-    out += `\t},\n\n`;
-  }
-  out = out.replace(/\n\n$/, '\n');
+  out += emitNode(root, 1);
   out += `}\n`;
   return out;
 }
@@ -536,9 +641,9 @@ document.getElementById('fileInput').onchange = (e) => {
     try {
       const data = JSON.parse(reader.result);
       if (!data.scene) throw new Error('ไฟล์ไม่ใช่โปรเจกต์ dialogue');
-      scene = data.scene;
+      scene = migrateScene(data.scene);
       npcNameInput.value = data.npcName || 'NewNPC';
-      activePhase = 'p1';
+      activeSection = 'p1';
       render();
     } catch (err) {
       alert('เปิดไฟล์ไม่ได้: ' + err.message);
@@ -551,7 +656,7 @@ document.getElementById('btnNew').onclick = () => {
   if (!confirm('เริ่มไฟล์ใหม่? งานปัจจุบันที่ยังไม่ได้บันทึกโปรเจกต์จะหาย (autosave ในเบราว์เซอร์นี้ยังอยู่)')) return;
   scene = emptyScene();
   npcNameInput.value = 'NewNPC';
-  activePhase = 'p1';
+  activeSection = 'p1';
   render();
 };
 npcNameInput.oninput = autosave;
@@ -637,26 +742,37 @@ function parseLuau(src) {
 function mapItem(v) {
   if (typeof v === 'string') { const l=newLine(); l.text=v; return l; }
   if (v && typeof v==='object') {
-    if (Array.isArray(v.choices)) {
-      return { kind:'choice', options: v.choices.map(c => ({
+    if (v.choices && (Array.isArray(v.choices) || typeof v.choices==='object')) {
+      const opts = Array.isArray(v.choices) ? v.choices : Object.values(v.choices);
+      return { kind:'choice', options: opts.map(c => ({
         text: c.text||'', tone: c.tone||'neutral',
-        reply: Array.isArray(c.reply) ? c.reply.map(mapItem) : []
+        teleport: c.teleport||'', lock: !!c.lock,
+        reply: (Array.isArray(c.reply) ? c.reply : (c.reply?Object.values(c.reply):[])).map(mapItem)
       })) };
     }
     const l=newLine();
     for (const k of ['speaker','text','anim','pose','face','actor']) if (v[k]!=null) l[k]=String(v[k]);
+    l.lock = !!v.lock; l.cam = !!v.cam;
     return l;
   }
   return newLine();
 }
+// เดินลึกในไฟล์ที่ parse แล้ว: array = block-list (leaf → 1 section) · object = คอนเทนเนอร์ (ลงลึกต่อ)
+// → เก็บทุก section (p1..p3, after[/p/.again], byLoc.<loc>[/p/.again], betrayReact, parkFarewell ฯลฯ) ไม่ทิ้งอะไรเลย
 function luauToScene(parsed) {
-  const phases={}; for (const p of PHASES) phases[p.key]=[];
-  if (Array.isArray(parsed)) { phases.p1 = parsed.map(mapItem); return { phases }; }
-  if (parsed && typeof parsed==='object') {
-    let any=false;
-    for (const p of PHASES) if (Array.isArray(parsed[p.key])) { phases[p.key]=parsed[p.key].map(mapItem); any=true; }
-    if (!any) throw new Error('ไม่เจอ p1/p2/p3/after/again และไม่ใช่ list ของบรรทัด');
-    return { phases };
+  const sections = [];
+  function walk(val, path) {
+    if (Array.isArray(val)) {
+      sections.push({ key: path, blocks: val.map(mapItem) });
+    } else if (val && typeof val === 'object') {
+      for (const k of Object.keys(val)) walk(val[k], path ? path + '.' + k : k);
+    }
+  }
+  if (Array.isArray(parsed)) { return { sections: [ { key:'p1', blocks: parsed.map(mapItem) } ] }; }
+  if (parsed && typeof parsed === 'object') {
+    for (const k of Object.keys(parsed)) walk(parsed[k], k);
+    if (sections.length === 0) throw new Error('ไม่เจอบทเลย (ไฟล์ว่าง?)');
+    return { sections };
   }
   throw new Error('รูปแบบไม่ถูกต้อง');
 }
@@ -671,7 +787,7 @@ document.getElementById('btnDoImport').onclick = () => {
   try {
     const sc=luauToScene(parseLuau(txt));
     if (!confirm('แทนที่บทปัจจุบันด้วย Luau ที่วาง? (autosave ในเบราว์เซอร์ยังกู้ได้)')) return;
-    scene=sc; activePhase='p1'; render();
+    scene=sc; activeSection=(sc.sections[0]||{}).key||'p1'; render();
     document.getElementById('importPane').style.display='none';
     document.getElementById('importIn').value='';
   } catch(e) { document.getElementById('importErr').textContent='แปลงไม่ได้: '+e.message; }

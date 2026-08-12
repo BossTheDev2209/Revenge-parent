@@ -291,34 +291,96 @@ function Message.create(frame, deps)
 		lastPayoutSig = payoutSig(dm)
 	end
 
-	-- รายชื่อคนซ้าย — สูงเป็น scale ของ People (เดิม 44px ตายตัว) + ขอบมน + เพดานตัวอักษร
-	local rowIdx = 0
-	for _, dm in DMs do
-		rowIdx += 1
-		local b = Instance.new("TextButton")
-		b.Name = ("%03d"):format(rowIdx)
-		b.LayoutOrder = rowIdx
-		b.Size = UDim2.fromScale(0.94, 0.098) -- เดิม offset -8px ตายตัว → scale ล้วน
-		b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		b.TextColor3 = Color3.fromRGB(25, 25, 30)
-		b.TextScaled = true
-		b.TextXAlignment = Enum.TextXAlignment.Left
-		b.Text = dm.from
-		b.Parent = people
-		corner(b, 8)
-		padding(b, 10, 5)
-		track(capText(b), "cap", TEXT.people)
-		b.Activated:Connect(function() openDM(dm) end)
+	-- ===== รายชื่อคนซ้าย — โชว์เฉพาะคนที่ทักมาแล้วจริง (user 12 ส.ค.) =====
+	-- เดิมโชว์ครบทุกก้อนตั้งแต่เปิดแอปครั้งแรก = สปอยล์ว่ามีใครจะทักมาอีกบ้างกี่คน
+	-- ตอนนี้ยอด follower ยังไม่ถึง = ไม่เห็นชื่อเลย · พอถึงยอด Main.client เด้ง toast (Notify.dm)
+	-- แล้วแถวโผล่เองรอบ refresh ถัดไป — "ถึงเวลาค่อยมีข้อความเด้ง"
+	local function unlockedDMs()
+		local f = (latestState and latestState.follower) or 0
+		local list = {}
+		for _, dm in DMs do
+			if f >= (dm.unlockFollower or 0) then table.insert(list, dm) end
+		end
+		return list
 	end
 
+	local function buildPeople(list)
+		for _, ch in people:GetChildren() do
+			if ch:IsA("GuiObject") then ch:Destroy() end
+		end
+		for i, dm in list do
+			local b = Instance.new("TextButton")
+			b.Name = ("%03d"):format(i)
+			b.LayoutOrder = i
+			b.Size = UDim2.fromScale(0.94, 0.098) -- เดิม offset -8px ตายตัว → scale ล้วน
+			b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			b.TextColor3 = Color3.fromRGB(25, 25, 30)
+			b.TextScaled = true
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			b.Text = dm.from
+			b.Parent = people
+			corner(b, 8)
+			padding(b, 10, 5)
+			track(capText(b), "cap", TEXT.people)
+			b.Activated:Connect(function() openDM(dm) end)
+		end
+	end
+
+	-- ยังไม่มีใครทักมาเลย (เข้าเฟส 2 พอดีแต่ follower ยังไม่ถึงก้อนแรก)
+	local function showEmpty()
+		currentDM = nil
+		for _, ch in chat:GetChildren() do
+			if ch:IsA("GuiObject") then ch:Destroy() end
+		end
+		for _, ch in choiceBar:GetChildren() do
+			if ch:IsA("GuiObject") then ch:Destroy() end
+		end
+		local l = Instance.new("TextLabel")
+		l.Name = "001"
+		l.Size = UDim2.new(1, 0, 0, 0)
+		l.AutomaticSize = Enum.AutomaticSize.Y
+		l.BackgroundTransparency = 1
+		l.TextColor3 = Color3.fromRGB(120, 124, 134)
+		l.TextWrapped = true
+		l.Text = "ยังไม่มีใครทักมา\nทำคลิปให้คนรู้จักมากกว่านี้ก่อน"
+		l.Parent = chat
+		track(l, "size", TEXT.bubble)
+		applyTextSizes()
+	end
+
+	local shown = unlockedDMs()
+	local shownCount = #shown
+	buildPeople(shown)
 	applyTextSizes()
-	if DMs[1] then openDM(DMs[1]) end
+	if shown[1] then openDM(shown[1]) else showEmpty() end
 
 	local app = {}
-	-- state ใหม่จาก server → อัปเดตปุ่มเงินก้อน (กดรับสำเร็จ = server ตั้ง dmClaimed แล้ว push กลับมา)
-	-- วาดใหม่เฉพาะตอนสถานะปุ่มเปลี่ยนจริง ไม่ใช่ทุก push
+	-- state ใหม่จาก server → 2 อย่าง: มีคนทักมาใหม่ไหม / ปุ่มเงินก้อนเปลี่ยนสถานะไหม
+	-- วาดใหม่เฉพาะตอนเปลี่ยนจริง ไม่ใช่ทุก push (state ถูก push บ่อยมากตามเวลาในเกม)
 	function app.refresh(state)
 		latestState = state
+
+		-- มีคนใหม่ปลดล็อกระหว่างเปิดแอปค้างอยู่ → เพิ่มแถวเข้ารายชื่อทันที
+		local list = unlockedDMs()
+		if #list ~= shownCount then
+			shownCount = #list
+			local keep = currentDM
+			buildPeople(list)
+			-- คนที่เปิดค้างอยู่ยังอยู่ในรายชื่อ = เปิดค้างไว้เหมือนเดิม ไม่กระโดดไปคนอื่นเอง
+			local stillThere = false
+			for _, dm in list do
+				if dm == keep then stillThere = true end
+			end
+			if stillThere then
+				openDM(keep)
+			elseif list[1] then
+				openDM(list[1]) -- โหลดเซฟที่ follower ต่ำกว่าเดิม → คนที่เปิดอยู่หายไป
+			else
+				showEmpty()
+			end
+			return
+		end
+
 		local sig = payoutSig(currentDM)
 		if sig ~= lastPayoutSig then
 			lastPayoutSig = sig

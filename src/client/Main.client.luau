@@ -486,10 +486,11 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			end
 			if inst:IsA("BasePart") then inst.Transparency = show and 0 or 1; inst.CanCollide = false end
 		end
-		-- ★ แก้ 12 ส.ค. (user: "กระเป๋าโผล่มาก่อนคัตซีน") — "Handle1" ชนกับมือจับประตูทั่วแมพ (14 จุด!)
-		--   FindFirstChild(deep) เลยไปจับมือจับประตูตึกอื่นแทนกระเป๋าจริง กระเป๋าจริงเลยไม่เคยถูกโค้ดแตะ
-		--   ค้าง Transparency เดิมที่ authored ไว้ (เห็นตลอด) → เปลี่ยนชื่อของจริงเป็น FaasaiBag_Bed (unique)
-		setVisible("FaasaiBag_Bed", faasaiJoinDone) -- กระเป๋าที่เตียง (เฟส 2) โผล่หลัง cutscene+dialogue join จบ ค้างตลอดหลังจากนั้น
+		-- ★ แก้ 12 ส.ค. (user: "กระเป๋าฟ้าใสโผล่มาก่อนคัตซีน") — เดิมชื่อ "Handle1" ชนกับมือจับประตูทั่วแมพ
+		--   (14 จุด!) FindFirstChild(deep) เลยไปจับมือจับประตูแทน กระเป๋าฟ้าใสจริงไม่เคยถูกโค้ดแตะ เห็นตลอด
+		--   user เปลี่ยนชื่อกระเป๋าฟ้าใส (ชมพู) เป็น FaasaiBag_Bed แล้ว (อยู่ Workspace.Animation, unique ทั้งแมพ)
+		--   ⚠️ คนละใบกับ "กระเป๋าพระเอก" (ดำ) = PlayerRoom.FashionBag ที่ต้องโผล่ตลอด — โค้ดนี้ห้ามแตะ FashionBag
+		setVisible("FaasaiBag_Bed", faasaiJoinDone) -- กระเป๋าฟ้าใสที่เตียง (เฟส 2) โผล่หลัง cutscene+dialogue join จบ ค้างตลอดหลังจากนั้น
 		-- ⚠️ "Handle2" ก็ชนซ้ำเหมือนกัน (30 จุด — มือจับประตู) แต่หาตัวจริง (กระเป๋าที่เก้าอี้ เฟส 3) ไม่เจอ
 		--   ในแมพตอนนี้ (ไม่มี Part เดี่ยวๆ ใกล้เก้าอี้ที่ชื่อ Handle2/Handle เลย) — รอ user ชี้ตัวจริงก่อนแก้
 		setVisible("Handle2", faasaiJoined and not betrayed) -- กระเป๋าที่เก้าอี้ (เฟส 3) หายตอนทรยศ — ยังบัคอยู่ ดูคอมเมนต์บน

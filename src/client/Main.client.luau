@@ -486,8 +486,13 @@ RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(state)
 			end
 			if inst:IsA("BasePart") then inst.Transparency = show and 0 or 1; inst.CanCollide = false end
 		end
-		setVisible("Handle1", faasaiJoinDone) -- กระเป๋าที่เตียง (เฟส 2) โผล่หลัง cutscene+dialogue join จบ ค้างตลอดหลังจากนั้น
-		setVisible("Handle2", faasaiJoined and not betrayed) -- กระเป๋าที่เก้าอี้ (เฟส 3) หายตอนทรยศ
+		-- ★ แก้ 12 ส.ค. (user: "กระเป๋าโผล่มาก่อนคัตซีน") — "Handle1" ชนกับมือจับประตูทั่วแมพ (14 จุด!)
+		--   FindFirstChild(deep) เลยไปจับมือจับประตูตึกอื่นแทนกระเป๋าจริง กระเป๋าจริงเลยไม่เคยถูกโค้ดแตะ
+		--   ค้าง Transparency เดิมที่ authored ไว้ (เห็นตลอด) → เปลี่ยนชื่อของจริงเป็น FaasaiBag_Bed (unique)
+		setVisible("FaasaiBag_Bed", faasaiJoinDone) -- กระเป๋าที่เตียง (เฟส 2) โผล่หลัง cutscene+dialogue join จบ ค้างตลอดหลังจากนั้น
+		-- ⚠️ "Handle2" ก็ชนซ้ำเหมือนกัน (30 จุด — มือจับประตู) แต่หาตัวจริง (กระเป๋าที่เก้าอี้ เฟส 3) ไม่เจอ
+		--   ในแมพตอนนี้ (ไม่มี Part เดี่ยวๆ ใกล้เก้าอี้ที่ชื่อ Handle2/Handle เลย) — รอ user ชี้ตัวจริงก่อนแก้
+		setVisible("Handle2", faasaiJoined and not betrayed) -- กระเป๋าที่เก้าอี้ (เฟส 3) หายตอนทรยศ — ยังบัคอยู่ ดูคอมเมนต์บน
 		setVisible("Notebook", faasaiJoinDone and not betrayed) -- คอมที่เตียง (เฟส 2) โผล่หลัง join จบเหมือน Handle1 หายตอนทรยศ
 		setVisible("MacbookChair", faasaiJoined and not betrayed) -- คอมที่เก้าอี้ (เฟส 3)
 		-- เจียเจียยังไม่มี arc "ชวนออกไปนอกบ้าน" (flag ยังไม่มี — มีแค่ byLoc.park placeholder) → โชว์ตลอดหลัง join ไปก่อน

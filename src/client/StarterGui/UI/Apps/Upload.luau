@@ -2,13 +2,32 @@
 --   ซ้าย  : คอลัมน์ "Storage" = คลิปที่ตัดแล้วยังไม่อัป (thumbnail) · กรอบแดง = ที่เลือกอยู่
 --   กลาง  : กรอบ preview ใหญ่ (★ เว้นว่างรอรูปปกคลิป `clip_cover_*` — docs/13 §4)
 --   ล่าง  : title 3 ช้อย | description 3 ช้อย (กรอบแดง = ที่เลือก) + ปุ่ม upload! มุมขวาล่าง
--- ⚠️ title/description **ยังไม่มีผลต่อเกม** + ยังไม่มีไฟล์ `Content.ClipTitles` (สาย B — docs/14 §2)
---    ตอนนี้โชว์ช้อยเปล่า "1. / 2. / 3." ไว้ให้เห็นโครง กดเลือกได้ กรอบแดงขยับตาม
+-- ★ 12 ส.ค. (user) — เติมช้อยจริงจาก Content.ClipTitles (docs/14 §2 resolved: มีให้เลือกแล้ว)
+--   สุ่ม 3 title + 3 desc ไม่ซ้ำกันตอนเปิดแอป (Upload.create) นิ่งตลอดที่แอปเปิดอยู่ ไม่สุ่มใหม่ทุก refresh (กันกระพริบ)
+--   ⚠️ ยังเป็น flavor text ล้วน เลือกช้อยไหนไม่มีผลต่อเกม (docs/14 §2 เดิม — ยังไม่ได้ล็อกว่าจะมีผลอะไร)
 --
 -- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ทั้งหมด bake เป็น template รวมปุ่ม title/desc
 --   ทั้ง 6 ปุ่ม (จำนวนคงที่ 3+3 เสมอ ไม่เคยเปลี่ยน) — เหลือแค่ List (คลิปค้างอัป) ที่ยาวไม่แน่นอนจริง
 --   template จริงอยู่ Gui_PC.Screen.AppTemplates.Upload (แต่งใน Studio ได้)
 --   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: List (ว่าง) · Preview.PreviewText · Title/DescBtn1-3 · UploadBtn
+local isStudio = script ~= nil
+local ClipTitles = if isStudio
+	then require(game:GetService("ReplicatedStorage").Shared.Content.ClipTitles)
+	else require("../../../../shared/Content/ClipTitles")
+
+-- สุ่ม n รายการไม่ซ้ำจาก pool (pool สั้นกว่า n = คืนเท่าที่มี ไม่ crash)
+local function pickRandom(pool, n)
+	local idx = {}
+	for i = 1, #pool do idx[i] = i end
+	for i = #idx, 2, -1 do
+		local j = math.random(i)
+		idx[i], idx[j] = idx[j], idx[i]
+	end
+	local picked = {}
+	for i = 1, math.min(n, #idx) do picked[i] = pool[idx[i]] end
+	return picked
+end
+
 local Upload = {}
 
 local RED = Color3.fromRGB(230, 50, 50)
@@ -41,6 +60,16 @@ function Upload.create(frame, deps)
 	for i = 1, 3 do
 		titleBtns[i] = content:FindFirstChild("TitleBtn" .. i)
 		descBtns[i] = content:FindFirstChild("DescBtn" .. i)
+	end
+
+	-- สุ่มครั้งเดียวตอนเปิดแอป (ไม่สุ่มใหม่ทุก state refresh — กันช้อยเปลี่ยนขณะผู้เล่นกำลังเลือก)
+	local pickedTitles = pickRandom(ClipTitles.titles, 3)
+	local pickedDescs = pickRandom(ClipTitles.descriptions, 3)
+	for i, b in titleBtns do
+		if b and pickedTitles[i] then b.Text = pickedTitles[i] end
+	end
+	for i, b in descBtns do
+		if b and pickedDescs[i] then b.Text = pickedDescs[i] end
 	end
 
 	local pickedTitle, pickedDesc = 1, 1
@@ -99,10 +128,6 @@ function Upload.create(frame, deps)
 			for _, ch in list:GetChildren() do
 				if ch:IsA("TextButton") then ch:Destroy() end
 			end
-		end
-		for i = 1, 3 do -- รอ Content.ClipTitles จากสาย B แล้วค่อยเติมข้อความจริง
-			if titleBtns[i] then titleBtns[i].Text = ("%d. …"):format(i) end
-			if descBtns[i] then descBtns[i].Text = ("%d. …"):format(i) end
 		end
 		paint()
 

@@ -16,6 +16,9 @@ local Audio = if isStudio
 local AnimPlayer = if isStudio
 	then require(script.Parent.Parent.AnimPlayer)
 	else require("../AnimPlayer")
+local PreloadService = if isStudio
+	then require(script.Parent.Parent.PreloadService)
+	else require("../PreloadService")
 
 local CutscenePlayer = {}
 CutscenePlayer.running = false
@@ -114,6 +117,10 @@ function CutscenePlayer.play(playerGui, steps, onDone)
 		return
 	end
 	CutscenePlayer.running = true
+	-- ★ แก้ 12 ส.ค. (user: "แมพโหลดไม่ทัน") — ยิง preload animation ที่ steps นี้จะเรียกไว้ตั้งแต่ต้นฉาก
+	--   ขนานไปกับ freeze/lock ด้านล่าง (fire-and-forget ไม่บล็อก) ทัน step "anim" จริงส่วนใหญ่เพราะ
+	--   ก่อนหน้ามักมี camera/text/wait step คั่นให้เวลาโหลดอยู่แล้ว (ดู PreloadService.luau)
+	PreloadService.preloadCutscene(steps)
 	-- cutscene = เงียบ ไม่มีเพลงโซน (ฉากคุย NPC ยังมีเพลงปกติ) — บทสั่ง { type="bgm" } เองได้ถ้าอยากมี
 	-- lockBGM กันโซนสั่งเพลงใหม่ · bgm(nil) ดับเพลงที่ค้างมาจากเมนู/โซนก่อนหน้า (lock อย่างเดียวไม่ดับของเดิม)
 	Audio.lockBGM(true)

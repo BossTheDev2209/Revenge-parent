@@ -89,6 +89,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Audio = require(script.Parent.Parent.AudioService)
 local UIAssets = require(game:GetService("ReplicatedStorage").Shared.UIAssets)
+local PreloadService = require(script.Parent.Parent.PreloadService)
 
 local CAM_TIME = 1.2
 local FLASH_IN, FLASH_HOLD, FLASH_OUT = 0.35, 2.4, 0.6
@@ -408,6 +409,9 @@ end
 function MenuUI.open(playerGui, deps)
 	deps.fireAction({ type = "FreezeTime", on = true })
 	deps.fireAction({ type = "RequestSlots" })
+	-- ★ แก้ 12 ส.ค. (user: "แมพโหลดไม่ทัน") — โหลด asset เฟส 1 ไว้ล่วงหน้าตั้งแต่ยืนดูเมนู (fire-and-forget)
+	--   เผื่อเซฟไม่มี/New Game (เริ่มเฟส 1 เสมอ) — เซฟที่ข้ามเฟสไปแล้วแค่เสียแรง preload เปล่าๆ ไม่พังอะไร
+	PreloadService.preloadMap("Map_Phase1")
 
 	-- เพลงเมนูเฉพาะ — lock กันโซนในแมพแย่งสั่งเพลงระหว่างอยู่เมนู (ตัวละคร spawn ในแมพจริง โซนจะเล่นทับ)
 	-- ทีมวาง Sound ชื่อ "Menu" ใน SoundService.BGM (ไม่มี = เงียบ + warn ครั้งเดียว ไม่พัง) · launch() ดับตอนเข้าเกม
@@ -980,6 +984,7 @@ end
 
 -- ===== fallback: ไม่มี MenuScene ในแมพ (เกมต้องเข้าได้เสมอ) =====
 function MenuUI.openFallback(playerGui, deps)
+	PreloadService.preloadMap("Map_Phase1") -- เหตุผลเดียวกับ MenuUI.open — ดูคอมเมนต์ที่นั่น
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_MainMenu"
 	gui.ResetOnSpawn = false

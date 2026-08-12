@@ -634,22 +634,24 @@ check("ไม่มีโซน = นอกโซนเสมอ", RecordTool.in
 
 -- ===== MoneyService (design doc §4 — หักราย 7 วัน + Bank ⊖⊕ lock 21 ก.ค.) =====
 local mo = GameState.newGame()
-check("รวมรายจ่าย phase 1 = 2200", MoneyService.weeklyTotal(mo) == 2_200)
+-- ★ เฟส 1 ไม่มีค่าเช่าแล้ว (12 ส.ค. 2569, user — Homeless) → เหลือเน็ต 300 + กิน 400 = 700
+check("รวมรายจ่าย phase 1 = 700 (ไม่มีค่าเช่า)", MoneyService.weeklyTotal(mo) == 700)
+check("phase 1 ค่าเช่า = 0 จริง", Config.WeeklyExpenses[1].rent == 0)
 mo.phase = 3
 check("รวมรายจ่าย phase 3 = 7700", MoneyService.weeklyTotal(mo) == 7_700)
 mo.phase = 1
 mo.money = 5_000
 mo.day = 8
-check("วัน 8 (ครบสัปดาห์แรก) หักแล้วเหลือ 2800",
-	MoneyService.onDay(mo) == false and mo.money == 2_800)
+check("วัน 8 (ครบสัปดาห์แรก) หักแล้วเหลือ 4300",
+	MoneyService.onDay(mo) == false and mo.money == 4_300)
 mo.day = 9
 MoneyService.onDay(mo)
-check("วัน 9 ไม่หัก", mo.money == 2_800)
+check("วัน 9 ไม่หัก", mo.money == 4_300)
 mo.day = 1
 MoneyService.onDay(mo)
-check("วัน 1 ไม่หัก", mo.money == 2_800)
+check("วัน 1 ไม่หัก", mo.money == 4_300)
 mo.day = 15
-mo.money = 1_000
+mo.money = 100
 check("เงินไม่พอ: เหลือ 0 + นับ rentMissed + คืน true",
 	MoneyService.onDay(mo) == true and mo.money == 0 and mo.flags.rentMissed == 1)
 

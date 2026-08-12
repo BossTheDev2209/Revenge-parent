@@ -106,6 +106,11 @@ function Bank.create(frame, deps)
 		for _, def in CARDS do
 			local row = rows[def.key]
 			if row then
+				-- เฟส 1 ไม่มีค่าเช่า (Homeless) → ซ่อนการ์ดไปเลย ไม่ใช่โชว์ ฿0 ค้างไว้ให้งง
+				if def.key == "rent" and row.card then
+					row.card.Visible = w.rent > 0
+					if row.hint then row.hint.Visible = w.rent > 0 end
+				end
 				local off = sp[def.key] or 0
 				-- ค่าเช่า/ค่าพนักงานปรับไม่ได้แล้ว (Config.Spending min=max=0) → off เป็น 0 เสมอ
 				local actual = math.max(0, base[def.key] + off * S[def.key].step)

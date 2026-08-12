@@ -1,6 +1,6 @@
 -- SelfTalkBCA — ฉากคิดสำคัญของผู้เล่นหลังได้รางวัล BCA (True Ending: Good1)
 -- เรียกโดย EndingSequence.luau แบบตรงๆ (ไม่ผ่าน NPC-prompt system)
--- ทุกบรรทัดใช้ speaker="คุณ" เพื่อให้หน้าผู้เล่นขึ้นเป็นตัวพูด (ฉากคิดสำคัญ ไม่ใช่คิดในใจแบบวงเล็บ)
+-- บรรทัดพูดทุกบรรทัดใช้ speaker="คุณ" เพื่อให้หน้าผู้เล่นขึ้นเป็นตัวพูด (ฉากคิดสำคัญ ไม่ใช่คิดในใจแบบวงเล็บ) — บรรทัด narration/stage-direction ใช้ plain string โดยไม่มี speaker ตามปกติ
 
 return {
 	{ speaker = "คุณ", text = "[placeholder] ความกังวล — ตอนเริ่มต้นจาก 0 followers" },

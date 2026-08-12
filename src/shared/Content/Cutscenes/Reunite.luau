@@ -1,8 +1,11 @@
 -- Reunite — cutscene ตอนคืนเงิน + ตัวต่อ BCA (เข้าหาพ่อแม่) (Good Ending)
 -- เล่นผ่าน CutscenePlayer (mode 1) — step: camera / text / wait / anim / move
--- ⚠️ **CutsceneCams/Reunite/* Parts ยังไม่มี** — ทีมต้องวางตาม naming convention:
---   `Workspace.CutsceneCams.Reunite.Reunite_01`, `.Reunite_02`, ... (ปกติคือ Persistent Model ครอบแคมทั้งหมด)
---   naming = <Scene>_<NN> where NN = zero-padded two digits (01, 02, 03, ...) ascending
+-- ⚠️ **Team must place these Parts before scene plays:**
+--   1. Camera anchors: Workspace.CutsceneCams.Reunite.Reunite_01 through Reunite_06
+--      naming = <Scene>_<NN> where NN = zero-padded two digits (01, 02, 03, ...) ascending
+--      (typically wrapped in Persistent Model: Workspace.CutsceneCams.Reunite folder)
+--   2. NPC settle anchors: NPCHome_พ่อ_reunite, NPCHome_แม่_reunite, NPCHome_Player_reunite
+--      (follow established convention from FaasaiJoin/JiajiaJoin: NPCHome_<actor>_<scene-location>)
 -- ⚠️ animation clips สำหรับพ่อแม่ + player ยังไม่มี — ไม่เขียน anim step จนกว่า animation assets จะเตรียมพร้อม
 --   สำหรับตอนนี้: ใช้ text + wait + move + camera cutscene เล่าเรื่องผ่าน ยังไม่ต้องเล่นท่าทาง
 -- Trigger: หลัง cutscene BCA พร้อม BCA award ceremony ไปถึงผู้เล่นแล้ว
@@ -43,7 +46,7 @@ return {
 
 	-- ===== Epilogue: settle positions after cutscene =====
 	-- root motion ไม่ขยับ HumanoidRootPart จริง — snap คนกลับตำแหน่งที่ควรจะเป็นเมื่อจบฉาก
-	{ type = "move", actor = "player", to = "Spawn_Phase3", t = 0 },
-	{ type = "move", actor = "พ่อ", to = "NPCHome_พ่อ_home", t = 0 },
-	{ type = "move", actor = "แม่", to = "NPCHome_แม่_home", t = 0 },
+	{ type = "move", actor = "player", to = "NPCHome_Player_reunite", t = 0 },
+	{ type = "move", actor = "พ่อ", to = "NPCHome_พ่อ_reunite", t = 0 },
+	{ type = "move", actor = "แม่", to = "NPCHome_แม่_reunite", t = 0 },
 }

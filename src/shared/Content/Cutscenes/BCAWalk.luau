@@ -5,7 +5,6 @@
 -- ⚠️ [placeholder] — รอไทยของจริง หัวข้อสุนทรพจน์ + ข้อความเนื้อเรื่อง แก้ได้เลย
 
 return {
-	{ type = "focus", target = "BCA_Stage" },
 	{ type = "camera", cam = "BCA_11" },
 	{ type = "text", text = "[placeholder BCA stage intro]" },
 	{ type = "wait", t = 2 },

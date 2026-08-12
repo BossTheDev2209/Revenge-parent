@@ -404,7 +404,8 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			return
 		end
 		if not camSaved then
-			camSaved = { type = camera.CameraType, subject = camera.CameraSubject }
+			-- ⚠️ ต้องเก็บ FieldOfView ด้วย ไม่ใช่แค่ CameraType/Subject — เคยพลาดจน FOV ค้างค่า item.cam ทั้งเกมหลังเลิกคุย (12 ส.ค.)
+			camSaved = { type = camera.CameraType, subject = camera.CameraSubject, fov = camera.FieldOfView }
 		end
 		camera.CameraType = Enum.CameraType.Scriptable
 		local ease = part:GetAttribute("Ease") or "InOut"
@@ -577,6 +578,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			camera.CameraType = camSaved.type
 			camera.CameraSubject = camSaved.subject
 				or (Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"))
+			camera.FieldOfView = camSaved.fov
 		end
 		viewportConn:Disconnect()
 		gui:Destroy()

@@ -415,8 +415,11 @@ local function startDialogue(dialogueName, interactPart)
 			local farewellNpc = AnimPlayer.findRig("ฟ้าใส")
 			local farewellHead = farewellNpc and (farewellNpc:FindFirstChild("Head") or farewellNpc:FindFirstChild("HumanoidRootPart"))
 			runDialogue(Faasai.parkFarewell, farewellHead, "ฟ้าใส", function()
-				-- ★ แก้ 12 ส.ค. (user) — จบเดทสวนแล้วฟ้าใส "หายไป" (away) ไม่ใช่กลับมาโผล่หน้าห้อง (room) จุดเดิม
-				--   เธอโผล่อีกทีตอนเข้าเฟส 3 (JiajiaJoin settle ตั้ง loc = "chair") — ระหว่างนี้ซ่อนใต้แมพ
+				-- loc="away" (12 ส.ค., user เปลี่ยนใจ) — เดิม "room" ทำให้ฟ้าใสโผล่กลับห้องทันที
+				-- ตอนนี้หายไปจาก player เลยจนกว่า jiajia_joined จะยิง (settle ตั้ง loc="chair" ให้ — Main.client.luau ~L756)
+				-- ⚠️ "chair" ผูกกับ jiajia_joined (milestone ในเฟส 3) ไม่ใช่จังหวะขึ้นเฟส 3 พอดี — ถ้า user อยากให้โผล่ทันทีที่ขึ้นเฟส 3
+				-- (ก่อน jiajia_joined ถึงเกณฑ์) ต้องเพิ่ม trigger ใหม่แยก ยังไม่ได้ทำ
+				-- ต้องมี anchor NPCHome_ฟ้าใส_away วางไว้นอกแมพ/ใต้พื้น (StoryNPCPlacer อ่านค่าตรงนี้ตาม comment "away" ที่มีอยู่แล้ว)
 				fireAction({ type = "SetNpcLoc", actor = "ฟ้าใส", loc = "away" })
 				fireAction({ type = "SetFlag", name = "faasai_park_dated" })
 			end)

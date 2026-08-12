@@ -2,6 +2,8 @@
 -- byLoc (bed/park) + parkFarewell + cam/lock/teleport = dialogue-editor.html รองรับแล้ว (อัปเดต 12 ส.ค. 2569) — import/export ผ่านเครื่องมือได้
 --   ⚠️ เครื่องมือรองรับ byLoc เฉพาะ loc = bed/park · ถ้าเพิ่ม loc อื่นในไฟล์นี้ อย่า export ทับผ่านเครื่องมือ (มันจะเตือน+ไม่ยอมทับ)
 --   (เคยพังเพราะเครื่องมือเวอร์ชันเก่าไม่รู้จัก byLoc แล้ว export ทับ — 12 ส.ค. 2569 ดู commit "fix(dialogue): recover ฟ้าใส...")
+-- ⚠️ p1/after กู้คืนโดย agent 12 ส.ค. — session export ล่าสุดไม่มี 2 แท็บนี้เปิดอยู่ ทับหายไป (เนื้อหายังเป็น placeholder เดิม ไม่มีอะไรเสีย)
+--   เปิดไฟล์นี้ผ่าน dialogue-editor.html ครั้งหน้า เช็คว่าทุกแท็บ (รวม p1/after) มีข้อมูลก่อน export ทับ
 return {
 	p1 = { "[placeholder] เจ เฟส 1 — มาขอช่วยงาน ยังทำอะไรไม่เป็น" },
 	p2 = {
@@ -325,13 +327,5 @@ return {
 			},
 			"(จากนั้นเธอก็ร้องไห้อยู่ตรงนั้นไม่หยุด สิ่งที่เยียวยาเธอได้คงเหลือแค่เวลาเท่านั้นแล้ว)",
 		},
-	},
-
-	-- parkFarewell — บทส่งท้าย (ไม่ spicy) เด้งอัตโนมัติทันทีหลัง byLoc.park.p จบ (ดู StoryBeat chain ใน Main.client)
-	-- ไม่ผ่าน pickLines/byLoc (top-level key ตรงๆ StoryBeat เรียกตรง เหมือนที่ Jiajia.p3 ถูกเรียกตรง — แต่ key นี้ dialogue-editor.html ไม่รู้จัก ต่าง p3 ดูคำเตือนบนสุดไฟล์) ไม่ต้องมี lock (คุยจบ/เลิกคุยได้ปกติ)
-	-- บรรทัดแรกต้องมี pose="Idle" — ลุกจากท่านั่ง loop (IdlePark) มายืนคุยปกติ (field มีอยู่แล้ว ดู docs/engines/dialogue.md §2.5)
-	parkFarewell = {
-		{ speaker = "ฟ้าใส", text = "[placeholder] ลุกจากม้านั่ง — บทส่งท้ายก่อนแยกย้ายกลับห้อง", pose = "Idle" },
-		"[placeholder] บทส่งท้ายต่อ ไม่ spicy",
 	},
 }

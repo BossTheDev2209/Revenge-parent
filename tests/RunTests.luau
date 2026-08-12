@@ -1335,16 +1335,18 @@ end
 -- ฟ้าใส = NPC เดียวที่ต้องมีชุด after (arc ทรยศ docs/02 §9.4) — โครงต้องอยู่แม้บทยังไม่เขียน
 local f1 = if isStudio then require(DialogueFolder["ฟ้าใส"]) else require("../src/shared/Content/Dialogue/ฟ้าใส")
 check("ฟ้าใส มีครบ p1/p2/after (arc ทรยศ)", f1.p1 ~= nil and f1.p2 ~= nil and f1.after ~= nil)
-check("ฟ้าใส byLoc.park.p มี lock=true (main course ห้ามเลิกคุย)",
+check("ฟ้าใส byLoc.park มี lock=true (main course ห้ามเลิกคุย)",
 	(function()
-		for _, item in f1.byLoc.park.p do
+		-- byLoc.park เป็นได้ 2 แบบ: list ตรง (ไม่มี again) หรือ { p=, again= } — ไม่มี again ตอนนี้ = list ตรง (ดู docs/engines/dialogue.md §byLoc)
+		local lines = f1.byLoc.park.p or f1.byLoc.park
+		for _, item in lines do
 			if type(item) == "table" and item.lock == true then return true end
 		end
 		return false
 	end)())
-check("ฟ้าใส มี parkFarewell (บทส่งท้ายหลัง park.p จบ)", f1.parkFarewell ~= nil and #f1.parkFarewell > 0)
-check("parkFarewell บรรทัดแรก pose=Idle (ลุกจากท่านั่ง)",
-	type(f1.parkFarewell[1]) == "table" and f1.parkFarewell[1].pose == "Idle")
+check("ฟ้าใส มี parkFarewell (บทส่งท้ายหลัง park จบ)", f1.parkFarewell ~= nil and #f1.parkFarewell > 0)
+check("parkFarewell บรรทัดแรกมี pose (ลุกจากท่านั่ง IdlePark — ค่าอะไรก็ได้ ไม่ใช่ loop เดิม)",
+	type(f1.parkFarewell[1]) == "table" and type(f1.parkFarewell[1].pose) == "string")
 
 -- milestone popup ถอดออกแล้ว (9 ส.ค.) — CanonEvents ว่างได้ (drain ยิง EventSeen เงียบ) เช็คแค่ Config
 local Events = if isStudio

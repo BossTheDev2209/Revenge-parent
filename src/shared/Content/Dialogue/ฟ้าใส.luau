@@ -1,7 +1,7 @@
 -- ฟ้าใสBedroom — สร้างจาก tools/dialogue-editor.html (ดู docs/engines/dialogue.md)
--- ⚠️⚠️ ไฟล์นี้มี key `byLoc` และ `parkFarewell` ที่ dialogue-editor.html **ไม่รู้จัก** (เครื่องมือรู้จักแค่ p1/p2/p3/after/again)
---   เปิดไฟล์นี้ผ่านเครื่องมือแล้ว export ทับ = 2 key นี้หายเงียบๆ (เคยเกิดจริง 12 ส.ค. 2569 — กู้คืนแล้วดู commit "fix(dialogue): recover ฟ้าใส...")
---   แก้ข้อความใน byLoc/parkFarewell ต้องแก้ตรงในไฟล์ `.luau` นี้เท่านั้น ห้ามผ่าน dialogue-editor.html
+-- byLoc (bed/park) + parkFarewell + cam/lock/teleport = dialogue-editor.html รองรับแล้ว (อัปเดต 12 ส.ค. 2569) — import/export ผ่านเครื่องมือได้
+--   ⚠️ เครื่องมือรองรับ byLoc เฉพาะ loc = bed/park · ถ้าเพิ่ม loc อื่นในไฟล์นี้ อย่า export ทับผ่านเครื่องมือ (มันจะเตือน+ไม่ยอมทับ)
+--   (เคยพังเพราะเครื่องมือเวอร์ชันเก่าไม่รู้จัก byLoc แล้ว export ทับ — 12 ส.ค. 2569 ดู commit "fix(dialogue): recover ฟ้าใส...")
 return {
 	p1 = { "[placeholder] เจ เฟส 1 — มาขอช่วยงาน ยังทำอะไรไม่เป็น" },
 	p2 = {

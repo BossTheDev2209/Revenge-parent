@@ -363,6 +363,12 @@ local function textButton(parent, text, pos, size, _color, rot)
 	b.MouseEnter:Connect(function() b.BackgroundColor3 = PANEL_BG_HOVER end)
 	b.MouseLeave:Connect(function() b.BackgroundColor3 = PANEL_BG end)
 	b.Destroying:Connect(function() shadow:Destroy() end) -- ปุ่มหาย เงาหายด้วย
+	-- ★ แก้ 10 ส.ค. (user เจอ: แผ่นโปร่งแสงมุมมนลอยค้างมุมจอ) — เงาเป็นคนละ instance กับปุ่ม เดิมไม่มีอะไร
+	--   sync ตอน Visible เปลี่ยน (ผูกแค่ตอน Destroy) พอโค้ดสั่ง b.Visible = false (เช่น Btn_Back ตอนอยู่หน้า home)
+	--   เงาไม่รู้เรื่อง ค้างโชว์เดี่ยวๆ ทับฉาก
+	local function syncShadow() shadow.Visible = b.Visible end
+	b:GetPropertyChangedSignal("Visible"):Connect(syncShadow)
+	syncShadow()
 	return b
 end
 

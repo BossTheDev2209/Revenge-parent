@@ -309,7 +309,19 @@ function HUD.build(parent): ScreenGui
 	soundBtn.Activated:Connect(toggleVol)
 
 	-- ---------- ขวาสุด: mental bar แนวตั้ง ----------
-	local barBack = panel(gui, UDim2.new(1, -46, MENTAL_TOP, 0),
+	-- ★ แก้ 10 ส.ค. (user เพื่อนขอ: ซ่อนบาร์ก่อน phase 2) — ห่อทุกชิ้น (บาร์+หัวใจ+ป้าย%) ใน Frame
+	-- เดียว "MentalGroup" เต็มจอโปร่งใส แทนที่จะพารากับ gui ตรงๆ แยกกัน (ก่อนหน้านี้ toggle ซ่อนไม่ได้
+	-- เพราะไม่มีตัวห่อให้สั่ง Visible ทีเดียว — ดู HUD.update ท้ายไฟล์)
+	-- ตำแหน่งชิ้นในนี้ยังอ้างอิงมุมจอเหมือนเดิมทุกค่า เพราะ MentalGroup ครอบเต็มจอพอดี (0,0 ถึง 1,1)
+	local mentalGroup = Instance.new("Frame")
+	mentalGroup.Name = "MentalGroup"
+	mentalGroup.Size = UDim2.new(1, 0, 1, 0)
+	mentalGroup.Position = UDim2.new(0, 0, 0, 0)
+	mentalGroup.BackgroundTransparency = 1
+	mentalGroup.Parent = gui
+	HUD.mentalGroup = mentalGroup
+
+	local barBack = panel(mentalGroup, UDim2.new(1, -46, MENTAL_TOP, 0),
 		UDim2.new(0, MENTAL_W, MENTAL_BOT - MENTAL_TOP, 0), Color3.fromRGB(15, 15, 20))
 	barBack.Name = "MentalTrack"
 	barBack.BackgroundTransparency = 0.1
@@ -331,7 +343,7 @@ function HUD.build(parent): ScreenGui
 		h.BackgroundTransparency = 1
 		h.TextScaled = true
 		h.Text = emoji
-		h.Parent = gui
+		h.Parent = mentalGroup
 		return h
 	end
 	heart("❤️", MENTAL_TOP, -34) -- หัวใจเต็มบนหัวบาร์
@@ -346,7 +358,7 @@ function HUD.build(parent): ScreenGui
 		t.TextSize = 13
 		t.TextXAlignment = Enum.TextXAlignment.Right
 		t.Text = tick[1] .. "%"
-		t.Parent = gui
+		t.Parent = mentalGroup
 	end
 
 	-- ---------- ล่างกลาง: hotbar ----------

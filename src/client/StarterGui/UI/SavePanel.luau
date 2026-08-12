@@ -52,15 +52,34 @@ function SavePanel.buildPanel(parent): ScreenGui
 	dim:SetAttribute("Sfx", "none")
 	dim.Parent = gui
 
+	local PANEL_W, PANEL_H = 520, 420
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.AnchorPoint = Vector2.new(0.5, 0.5) -- กลาง = UIScale ย่อออกจากจุดกึ่งกลาง แผงอยู่กลางจอเสมอ
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(520, 420)
+	panel.Size = UDim2.fromOffset(PANEL_W, PANEL_H)
 	panel.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
 	panel.BorderSizePixel = 0
 	panel.Parent = gui
 	corner(panel, 12)
+
+	-- ★ 12 ส.ค. responsive (docs/05 §5.5) — layout ในแผงเป็นพิกเซลตายตัวตามดีไซน์
+	--   ย่อทั้งแผงด้วย UIScale ให้พอดีจอแทน (แพทเทิร์นเดียวกับ ShopKiosk.fitScale / EditQTE.fitToScreen)
+	--   เดิมแผง 520×420 ตายตัว → มือถือ/จอเล็กแนวตั้ง แผงล้นจอ กดปุ่มล่างไม่ถึง
+	--   gui ตัวนี้ถาวร (สร้างครั้งเดียว toggle ด้วย .Enabled) → connection อยู่ยาวได้ ไม่ต้อง disconnect
+	local uiScale = Instance.new("UIScale")
+	uiScale.Parent = panel
+	local cam = workspace.CurrentCamera
+	local function fitToScreen()
+		if not cam then return end
+		local vp = cam.ViewportSize
+		local inset = game:GetService("GuiService"):GetGuiInset()
+		local margin = 24
+		local fit = math.min((vp.X - margin * 2) / PANEL_W, (vp.Y - inset.Y - margin * 2) / PANEL_H)
+		uiScale.Scale = math.clamp(fit, 0.35, 1) -- ไม่ขยายเกิน 1 (ดีไซน์เป็นขนาดเต็มอยู่แล้ว)
+	end
+	fitToScreen()
+	if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen) end
 
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"

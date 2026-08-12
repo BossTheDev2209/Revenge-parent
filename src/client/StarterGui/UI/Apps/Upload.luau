@@ -111,14 +111,23 @@ function Upload.create(frame, deps)
 			if not clip.uploaded then
 				any = true
 				if list then
+					-- ★ 12 ส.ค. responsive (docs/05 §5.5): เดิมสูง 62px + กว้าง -18px ตายตัว
+					--   → scale ล้วนของ List (ScrollingFrame + UIListLayout + AutoCanvas โตเอง เลื่อนได้)
 					local thumb = Instance.new("TextButton")
-					thumb.Size = UDim2.new(1, -18, 0, 62)
+					thumb.Name = ("%03d"):format(i) -- เผื่อ SortOrder = Name เรียงถูก
+					thumb.LayoutOrder = i
+					thumb.Size = UDim2.fromScale(0.94, 0.135)
 					thumb.BackgroundColor3 = Color3.fromRGB(232, 234, 240)
 					thumb.TextColor3 = Color3.fromRGB(60, 60, 70)
 					thumb.TextScaled = true
 					thumb.Text = ("▶ #%d  %s"):format(i, clip.tier)
 					thumb.Parent = list
 					stroke(thumb)
+					-- TextScaled บนกล่อง scale = ตัวยืดเต็ม คุมเพดานอิงความกว้างกรอบแอปจริง
+					local cap = Instance.new("UITextSizeConstraint")
+					cap.MinTextSize = 8
+					cap.MaxTextSize = math.clamp(math.floor(content.AbsoluteSize.X * 0.024 + 0.5), 10, 18)
+					cap.Parent = thumb
 					thumb.Activated:Connect(function()
 						selectClip(i, thumb)
 						if previewText then

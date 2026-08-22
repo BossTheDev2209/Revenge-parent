@@ -1,9 +1,6 @@
 -- สำเนาของ StarterPlayer.StarterCharacterScripts.SprintHandler (Rojo ไม่ sync — ดู README.md)
---
 -- SprintHandler — กด Shift ค้าง = วิ่ง, ปล่อย = เดินปกติ
--- เคารพ attribute `MoveLocked` บน Humanoid: ระบบอื่นล็อกการเดินอยู่ (cutscene / เมนู) = ไม่แตะ WalkSpeed
--- เดิมวน while true set ทุก 0.1 วิ ทับ WalkSpeed=0 ของ CutscenePlayer (แก้ 5 ส.ค. 2569)
-
+-- เคารพ attribute MoveLocked บน Humanoid: ระบบอื่นล็อกการเดินอยู่ (cutscene/เมนู) = ไม่แตะ WalkSpeed
 local UIS = game:GetService("UserInputService")
 local character = script.Parent
 local humanoid = character:WaitForChild("Humanoid")
@@ -33,6 +30,6 @@ UIS.InputEnded:Connect(function(input)
 	end
 end)
 
--- ปลดล็อกเมื่อไหร่ = คืนความเร็วตามปุ่มที่กดค้างอยู่จริง (ไม่ต้อง poll ถี่ๆ)
+-- ปลดล็อกเมื่อไหร่ = คืนความเร็วตามปุ่มที่กดค้างจริง (ไม่ต้อง poll ถี่ๆ)
 humanoid:GetAttributeChangedSignal("MoveLocked"):Connect(apply)
 apply()

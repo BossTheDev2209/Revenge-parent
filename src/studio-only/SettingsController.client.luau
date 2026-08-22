@@ -1,10 +1,7 @@
--- Settings panel logic — ยืมหน้าตา/สไลเดอร์จาก toolbox "Cafe Settings System" (by Tigo) แต่ต่อกับระบบเกมเรา
--- คุม: เสียงรวม (Master) + เพลง/เอฟเฟกต์/บรรยากาศ แยกกลุ่ม (SoundGroup ใต้ Master) · เงา · คุณภาพกราฟิก
--- เก็บลงเซฟผ่าน Remote SetSetting (เสียงทุกช่อง + เงา) — quality platform จำเอง · resync ทุกครั้งที่เปิดแผง
---
--- ★ ตัวจริงอยู่ Studio: StarterGui.SettingsGUI.SettingsController (LocalScript ฝังในแผง GUI — Rojo ไม่ sync)
---   แก้ใน Studio แล้ว copy กลับมาที่นี่ทุกครั้ง (CLAUDE.md ข้อ 7)
--- ⚠️ thread นี้ sandboxed — require ข้ามไป AudioService ไม่ได้ · ต้องยุ่งกับ SoundGroup ตรงๆ (AudioService route เสียงมากลุ่มเดียวกัน)
+-- Settings panel logic — ยืมหน้าตา/สไลเดอร์จาก toolbox "Cafe Settings System" แต่ต่อกับระบบเกมเรา
+-- คุม: เสียงรวม + เพลง/เอฟเฟกต์/บรรยากาศ (SoundGroup ใต้ Master) · เงา · คุณภาพกราฟิก · ป้ายลอย
+-- ตัวจริงอยู่ Studio: StarterGui.SettingsGUI.SettingsController (LocalScript · Rojo ไม่ sync — copy กลับมาที่นี่)
+-- ⚠️ thread นี้ sandboxed require ไม่ได้ — ยุ่งกับ SoundGroup/Attribute ตรงๆ (AudioService route เสียงมากลุ่มเดียวกัน)
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local SoundService = game:GetService("SoundService")
@@ -23,7 +20,7 @@ local closeButton = settingsMain:WaitForChild("CloseButton")
 local Action = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"):WaitForChild("Action")
 local function persist(key, value) Action:FireServer({ type = "SetSetting", key = key, value = value }) end
 
--- SoundGroup: Master(รวม) > Music/SFX/Ambient (AudioService route เสียงมากลุ่มพวกนี้) — สร้างเผื่อยังไม่มี
+-- SoundGroup: Master > Music/SFX/Ambient — สร้างเผื่อยังไม่มี
 local function grp(name)
 	local m = SoundService:FindFirstChild("Master")
 	if not m then m = Instance.new("SoundGroup"); m.Name = "Master"; m.Parent = SoundService end
@@ -37,7 +34,7 @@ local function volSetter(name) return function(v) grp(name).Volume = v end end
 
 local refreshers = {}
 
--- ===== สไลเดอร์ทั่วไป (คลิกบนแถบ = ตั้งค่า + เริ่มลาก · ปล่อยเมาส์ = หยุด+เซฟ) — คุมเฉพาะแกน X =====
+-- สไลเดอร์: คลิกบนแถบ = ตั้งค่า + เริ่มลาก · ปล่อยเมาส์ = หยุด+เซฟ (คุมเฉพาะแกน X)
 local function initSlider(rowName, getV, setV, persistKey)
 	local frame = scrollingFrame:FindFirstChild(rowName)
 	if not frame then return end
@@ -81,7 +78,7 @@ local function initSlider(rowName, getV, setV, persistKey)
 	table.insert(refreshers, function() render(getV()) end)
 end
 
--- ===== toggle (เงา / คุณภาพกราฟิก) =====
+-- toggle (เงา / คุณภาพกราฟิก / ป้ายลอย)
 local function initToggle(rowName, getOn, onClick, labelOn, labelOff)
 	local row = scrollingFrame:FindFirstChild(rowName)
 	local btn = row and row:FindFirstChild("Toggle")
@@ -99,7 +96,7 @@ local function initToggle(rowName, getOn, onClick, labelOn, labelOff)
 	table.insert(refreshers, refresh)
 end
 
--- เสียง: รวม + แยกกลุ่ม
+-- เสียง
 initSlider("MusicVolume", volGetter("Master"), volSetter("Master"), "volume")
 initSlider("BgmVolume", volGetter("Music"), volSetter("Music"), "bgmVol")
 initSlider("SfxVolume", volGetter("SFX"), volSetter("SFX"), "sfxVol")
@@ -116,12 +113,9 @@ initToggle("HidePlayers", function() return UserGameSettings.SavedQualityLevel ~
 	UserGameSettings.SavedQualityLevel = (UserGameSettings.SavedQualityLevel ~= LOW) and LOW or HIGH
 end, "สูง", "ต่ำ")
 
--- ป้ายลอย (ตัวคูณโซนถ่าย + ชื่อ NPC — 12 ส.ค. 2569, user)
--- ใช้ key/กลไก state.settings.hideBillboards ตัวเดียวกับปุ่ม "ป้ายลอย (NPC/โซน)" ที่มีอยู่แล้วในหน้าเมนูหลัก
--- (MenuUI.luau — เดิมทำไว้ใช้ตอนอัดคลิปแนะนำเกม) แค่เพิ่มทางเข้าอีกทางจากแผง Settings ตอนเล่นเกมจริง
--- thread นี้ require ไม่ได้ (sandboxed) เลยอ่าน state.settings ตรงๆ ไม่ได้ — Main.client mirror ค่าลง
--- workspace:Attribute("HideBillboards") ให้แทน (แบบเดียวกับที่ toggle เงาอ่าน Lighting.GlobalShadows)
--- getOn() คืน "ป้ายกำลังโชว์อยู่ไหม" (ตรงข้ามกับ hideBillboards) ให้ตรงความหมายเดียวกับ toggle อื่นในไฟล์นี้
+-- ป้ายลอย (ตัวคูณโซน + ชื่อ NPC) — key เดียวกับปุ่มในเมนูหลัก · thread นี้อ่าน state ไม่ได้ (sandboxed)
+-- Main.client mirror ค่าลง workspace Attribute HideBillboards ให้ (แบบเดียวกับ toggle เงาอ่าน GlobalShadows)
+-- getOn() = "ป้ายกำลังโชว์ไหม" (ตรงข้าม hideBillboards) ให้ตรงความหมายกับ toggle อื่น
 initToggle("FloatingLabels", function() return workspace:GetAttribute("HideBillboards") ~= true end, function()
 	local hidden = workspace:GetAttribute("HideBillboards") == true
 	workspace:SetAttribute("HideBillboards", not hidden)
@@ -130,9 +124,8 @@ end, "เปิด", "ปิด")
 
 closeButton.MouseButton1Click:Connect(function() settingsMain.Visible = false end)
 
--- ⚠️ AutomaticCanvasSize ของ ScrollingFrame เป็น bug ที่รู้กันของ Roblox: ไม่ recompute ตอนเพิ่ม/ลบแถว
--- ระหว่างที่แผงยัง Visible=false (เจอจริง 12 ส.ค. — เพิ่มแถว FloatingLabels ตอนแผงซ่อนอยู่ แล้ว canvas ค้างสั้นเกิน
--- เลื่อนไปไม่ถึงแถวท้ายๆ) → คำนวณ CanvasSize เองจาก UIListLayout.AbsoluteContentSize ทุกครั้งที่เปิดแผงกันเหนียว
+-- ⚠️ AutomaticCanvasSize bug ของ Roblox: ไม่ recompute ตอนเพิ่ม/ลบแถวขณะแผง Visible=false
+-- → คำนวณ CanvasSize เองจาก UIListLayout.AbsoluteContentSize ทุกครั้งที่เปิดแผง
 local listLayout = scrollingFrame:FindFirstChildOfClass("UIListLayout")
 local function refreshAll()
 	for _, f in refreshers do f() end

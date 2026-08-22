@@ -1,6 +1,6 @@
 -- สำเนาของ ServerScriptService.Footsteps.Running (Rojo ไม่ sync — ดู ../README.md)
 -- ตอนรันจริงถูกโคลนเข้า HumanoidRootPart: script.Parent = HumanoidRootPart, script.Parent.Parent = ตัวละคร
--- แก้ 5 ส.ค. 2569: จังหวะก้าวแปรตามความเร็ว (เดิม wait(0.351) คงที่ — วิ่งกับเดินเสียงถี่เท่ากัน)
+-- จังหวะก้าวแปรตามความเร็ว (เดิม wait คงที่ วิ่งกับเดินเสียงถี่เท่ากัน)
 
 local running = true;
 local Connection = nil;

@@ -1,14 +1,9 @@
--- RecordQTE.luau — DBD-style skill-check ตอนถ่ายคลิป (v3 10 ส.ค. — docs/02 §9.5)
--- แถบเส้นแนวนอนล่างจอ เข็มวิ่งกลับไปมา (ping-pong) "อิสระ" ไม่หยุด ชนขอบ = สลับทิศเอง (แค่ physics ไม่นับอะไร)
---   ผู้เล่นต้อง**กด N ครั้ง** (Space บน PC / แตะบนมือถือ — server สุ่มส่งมา ไม่เกี่ยวกับจำนวน bounce ของเข็มเลย)
---   กด 1 ครั้ง = เกรดจากตำแหน่งเข็ม ณ ตอนนั้น แล้วเข็มเดินหน้าต่อตามเดิม (ไม่รีเซ็ต ไม่สลับทิศจากการกด)
---   เล่นจนกดครบ N ครั้งเสมอ ไม่ fail-fast · โซนกึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอด (เข็มวิ่งผ่านเป้าเดิมซ้ำ)
---   ยิ่งกดสำเร็จไปแล้วกี่ครั้ง ยิ่งเร่งไว (sweepSecondsFor ผูกกับจำนวนที่กดไปแล้ว)
---   timeout safety net: ไม่กดเลยเกิน Config.RecordQTE.timeoutSeconds = auto-จบ (ที่เหลือ miss) กัน InteractLock ค้างตลอดไป
--- server เป็นคนสุ่ม 2% + จำนวนครั้งที่ต้องกด + คิด reward สะสม (RecordService) — ไฟล์นี้แค่เล่น skill-check แล้วส่งเกรดทั้งชุดกลับ
---
--- pure ส่วน: gradeFor / sweepSecondsFor (เทส lune ได้) · Roblox glue: start (สร้างแถบ + input + lock + state machine)
--- ระหว่าง QTE: InteractLock.lock() ปิด ProximityPrompt (กด E ไม่ได้) + freeze เดิน/กระโดด (reuse ของเดิม)
+-- RecordQTE — skill-check ตอนถ่ายคลิป: เข็มวิ่ง ping-pong บนแถบล่างจอ กด N ครั้ง (Space/แตะ)
+--   กด 1 ครั้ง = เกรดจากตำแหน่งเข็มตอนนั้น เข็มเดินหน้าต่อ (ไม่รีเซ็ต/สลับทิศจากการกด)
+--   เล่นจนครบ N เสมอ ไม่ fail-fast · โซนกึ่งกลางสุ่มครั้งเดียวคงที่ · ยิ่งกดไปเยอะ เข็มยิ่งไว
+--   timeout: ไม่กดเลยเกิน timeoutSeconds = auto-จบ (ที่เหลือ miss) กัน InteractLock ค้าง
+-- server สุ่ม chance + จำนวนครั้ง + คิด reward (RecordService) · ไฟล์นี้แค่เล่นแล้วส่งเกรดทั้งชุดกลับ
+-- pure: gradeFor / sweepSecondsFor (เทส lune) · glue: start
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -17,8 +12,7 @@ local Config = if isStudio
 local RecordQTE = {}
 RecordQTE.running = false
 
--- ตำแหน่งเข็ม (0..1 ตามความยาวแถบ) เทียบกึ่งกลางโซน → เกรด (pure — เทสได้)
---   |pos-center| ≤ perfectHW = perfect · ≤ goodHW = good · เกินนั้น = miss
+-- ตำแหน่งเข็ม (0..1) เทียบกึ่งกลางโซน → เกรด (pure)
 function RecordQTE.gradeFor(pos: number, center: number, perfectHW: number, goodHW: number): string
 	local d = math.abs(pos - center)
 	if d <= perfectHW then return "perfect" end
@@ -26,25 +20,22 @@ function RecordQTE.gradeFor(pos: number, center: number, perfectHW: number, good
 	return "miss"
 end
 
--- ความเร็วเข็มเมื่อกดสำเร็จไปแล้ว hitsDone ครั้ง (1-indexed = hitsDone+1) — เร่งทีละครั้งจนถึงพื้น sweepSecondsMin (pure — เทสได้)
+-- ความเร็วเข็มเมื่อกดสำเร็จไปแล้ว hitIndex-1 ครั้ง — เร่งจนถึงพื้น sweepSecondsMin (pure)
 function RecordQTE.sweepSecondsFor(hitIndex: number, cfg): number
 	local s = cfg.sweepSecondsStart - (hitIndex - 1) * cfg.sweepSpeedupPerHit
 	return math.max(cfg.sweepSecondsMin, s)
 end
 
--- ===== Roblox glue =====
--- hitsRequired: จำนวนครั้งที่ต้องกด (server สุ่มส่งมาผ่าน state.pendingRecordQTE.hits)
--- zoneMult: { perfect, good } ตัวคูณความกว้างโซนจากของกินที่ออกฤทธิ์ (MoneyService.qteZoneMult)
---   ไม่ส่ง = 1 เท่าเดิม · โซนที่กว้างขึ้นใช้ทั้ง "วาดบนจอ" และ "ตัดเกรด" ตัวเดียวกัน (เห็นตรงกับที่ได้จริง)
+-- hitsRequired: จำนวนครั้งที่ต้องกด (server สุ่มส่งมา) · zoneMult: { perfect, good } จากของกิน (ไม่ส่ง = 1)
+--   โซนที่กว้างขึ้นใช้ทั้งวาดบนจอและตัดเกรดตัวเดียวกัน (เห็นตรงกับที่ได้จริง)
 function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 	if RecordQTE.running then return end
 	RecordQTE.running = true
 	hitsRequired = math.max(1, hitsRequired or 1)
 
 	local Q = Config.RecordQTE
-	-- โซนที่ใช้จริงรอบนี้ (คูณของกินแล้ว) — clamp กันโซน Good ล้นจนเข็มชนขอบก็ได้แต้มฟรี
 	local perfectHW = Q.perfectHalfWidth * ((zoneMult and zoneMult.perfect) or 1)
-	local goodHW = math.min(Q.goodHalfWidth * ((zoneMult and zoneMult.good) or 1), 0.19)
+	local goodHW = math.min(Q.goodHalfWidth * ((zoneMult and zoneMult.good) or 1), 0.19) -- clamp กันโซนล้นจนได้แต้มฟรี
 	local RunService = game:GetService("RunService")
 	local CAS = game:GetService("ContextActionService")
 	local UIS = game:GetService("UserInputService")
@@ -54,11 +45,9 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 
 	InteractLock.lock() -- ปิด E + freeze เดิน/กระโดด ตลอด QTE
 
-	-- โซนสำเร็จ: กึ่งกลางสุ่มครั้งเดียวตอนเริ่ม คงที่ตลอด (เข็มวิ่งผ่านเป้าเดิมซ้ำๆ)
-	local center = Q.centerMin + math.random() * (Q.centerMax - Q.centerMin)
+	local center = Q.centerMin + math.random() * (Q.centerMax - Q.centerMin) -- สุ่มครั้งเดียว คงที่ตลอด
 	local ACTION = "RecordQTE_Press"
 
-	-- ---------- UI ----------
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_RecordQTE"
 	gui.ResetOnSpawn = false
@@ -90,7 +79,6 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 	hitLabel.Text = ("กดแล้ว 0/%d"):format(hitsRequired)
 	hitLabel.Parent = gui
 
-	-- แถบ (track) กลางล่างจอ — ขนาดกลาง
 	local TRACK_W = 460
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -126,9 +114,8 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 		return z
 	end
 	zone(goodHW, Color3.fromRGB(70, 180, 120), 0.35)     -- Good = เขียว
-	zone(perfectHW, Color3.fromRGB(245, 240, 180), 0.05) -- Perfect = ขาวนวล (เด่นสุด)
+	zone(perfectHW, Color3.fromRGB(245, 240, 180), 0.05) -- Perfect = ขาวนวล
 
-	-- เข็มวิ่ง (ping-pong อิสระ ไม่หยุดจนกว่าจะกดครบ)
 	local NEEDLE_COLOR = Color3.fromRGB(255, 90, 90)
 	local needle = Instance.new("Frame")
 	needle.Name = "Needle"
@@ -145,16 +132,14 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 	local nScale = Instance.new("UIScale")
 	nScale.Parent = needle
 
-	-- ---------- state ----------
-	-- pos/dir = physics ของเข็มล้วนๆ อัปเดตทุก frame อิสระจากการกด (bounce เองที่ขอบ ไม่นับอะไร)
-	-- hitsDone/grades = ผูกกับ "การกด" เท่านั้น — คนละแกนกับ pos/dir โดยเจตนา (v3: แก้จาก v2 ที่ผูกรอบเข้ากับ bounce)
+	-- pos/dir = physics ของเข็ม (bounce เองที่ขอบ) · hitsDone/grades = ผูกกับการกด — คนละแกนโดยเจตนา
 	local pos, dir = 0, 1
 	local hitsDone = 0
 	local grades = {}
 	local resolved = false
 	local startedAt = os.clock()
 	local heartbeat
-	local inGoodBand = false -- ติดตามสถานะเข้า/ออกโซน good กันเล่น qte_tick ทุก frame
+	local inGoodBand = false -- กันเล่น qte_tick ทุก frame
 
 	local GRADE_COLOR = {
 		perfect = Color3.fromRGB(245, 240, 180),
@@ -170,7 +155,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 		task.delay(0.6, function() if gui then gui:Destroy() end end)
 	end
 
-	-- แฟลชสีเข็มตามเกรด + pop เล็กๆ ให้ฟีดแบ็กแต่ละครั้งที่กด (ไม่บล็อกการเล่นต่อ)
+	-- แฟลชสีเข็มตามเกรด + pop เล็กๆ (ไม่บล็อกการเล่นต่อ)
 	local function flashGrade(grade)
 		local c = GRADE_COLOR[grade]
 		needle.BackgroundColor3 = c
@@ -205,10 +190,10 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 		cleanup()
 	end
 
-	-- กด 1 ครั้ง = บันทึกเกรดจากตำแหน่งเข็มปัจจุบัน — ไม่แตะ pos/dir (เข็มเดินหน้าต่อตามเดิม)
+	-- กด 1 ครั้ง = บันทึกเกรดจากตำแหน่งเข็มปัจจุบัน (ไม่แตะ pos/dir)
 	local function press()
 		if resolved then return end
-		local grade = RecordQTE.gradeFor(pos, center, perfectHW, goodHW) -- โซนที่คูณของกินแล้ว (ตรงกับที่วาดบนจอ)
+		local grade = RecordQTE.gradeFor(pos, center, perfectHW, goodHW)
 		table.insert(grades, grade)
 		hitsDone += 1
 		flashGrade(grade)
@@ -220,8 +205,7 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 		end
 	end
 
-	-- เข็มขยับอิสระทุก frame ตามอัตราเร็วที่ผูกกับ hitsDone (ยิ่งกดไปแล้วเยอะ ยิ่งไว) — ชนขอบสลับทิศเอง ไม่นับอะไร
-	-- timeout: ไม่กดเลยนานเกิน timeoutSeconds = auto-เติม miss ที่เหลือให้ครบแล้วจบ (กัน InteractLock ค้างตลอดไป)
+	-- เข็มขยับอิสระทุก frame (เร็วตาม hitsDone) ชนขอบสลับทิศเอง · timeout = auto-เติม miss ที่เหลือ
 	heartbeat = RunService.Heartbeat:Connect(function(dt)
 		if resolved then return end
 		if os.clock() - startedAt > Q.timeoutSeconds then
@@ -251,14 +235,13 @@ function RecordQTE.start(playerGui, fireAction, hitsRequired: number, zoneMult)
 	end, false, Enum.KeyCode.Space)
 
 	if UIS.TouchEnabled then
-		-- ตัวจับแตะเต็มจอ (อยู่หลังแถบ) — แตะที่ไหนก็ได้ = กดจังหวะ
-		local tapCatcher = Instance.new("TextButton")
+		local tapCatcher = Instance.new("TextButton") -- จับแตะเต็มจอ (หลังแถบ)
 		tapCatcher.Name = "TapCatcher"
 		tapCatcher.BackgroundTransparency = 1
 		tapCatcher.Text = ""
 		tapCatcher.Size = UDim2.fromScale(1, 1)
 		tapCatcher.ZIndex = 0
-		tapCatcher:SetAttribute("Sfx", "none") -- ไม่เล่นเสียงคลิก UI ทับ
+		tapCatcher:SetAttribute("Sfx", "none")
 		tapCatcher.Parent = gui
 		tapCatcher.Activated:Connect(press)
 	end

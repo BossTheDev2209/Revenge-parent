@@ -1,13 +1,6 @@
--- RecordTool.luau — ฝั่ง client ของระบบอัดคลิป (docs/02 §9.5)
--- หน้าที่: ผูก Tool 3 ชิ้นใน Backpack → ยิง action RecordFootage + วาดวงโซนถ่าย + นับเวลาโซน
--- server คุมสูตร/cooldown/cap ทั้งหมด ไฟล์นี้แค่บอกว่า "อยู่ในโซนไหม" กับวาดภาพ
---
--- ✅ VERIFIED WORKING 9 ส.ค. (synced build): คลิกจริงในเกม → Tool.Activated ยิง → RecordFootage ถึง server →
---   footage เพิ่ม (HUD 0→3GB) + floatGain "+2.4 Bonus!" ม่วงขึ้นจริง. รายงานก่อนหน้าว่าพังคือ stale Rojo sync
---   (plugin หลุดหลัง restart Studio → เทสโค้ดเก่า, CLAUDE.md rule 10). กดไม่ติด = เช็ค Rojo Connect ก่อน ไม่ใช่ logic
---
--- ทีมแมพต้องทำ: วาง Part ชื่อ `FilmSpot_<อะไรก็ได้>` กระจายในแมพหลายจุด (docs/05)
--- ไม่มีสักจุด = ไม่มีโซน อัดได้ที่ base rate ปกติ (ไม่พัง)
+-- RecordTool — ฝั่ง client ของระบบอัดคลิป: ผูก Tool → ยิง RecordFootage + วาดวงโซน + นับเวลา
+-- server คุมสูตร/cooldown/cap ทั้งหมด ไฟล์นี้แค่บอก "อยู่ในโซนไหม" กับวาดภาพ
+-- ทีมแมพ: วาง Part ชื่อ FilmSpot_<อะไรก็ได้> กระจายในแมพ · ไม่มี = อัดที่ base rate (ไม่พัง)
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -21,14 +14,13 @@ local Audio = if isStudio
 
 local RecordTool = {}
 
--- อยู่ในวงโซนไหม (pure — เทสได้)
+-- อยู่ในวงโซนไหม (pure)
 function RecordTool.inZone(playerPos, spotPos, radius: number): boolean
 	if not spotPos then return false end
 	local dx, dz = playerPos.X - spotPos.X, playerPos.Z - spotPos.Z
 	return dx * dx + dz * dz <= radius * radius
 end
 
--- ===== Roblox glue =====
 function RecordTool.init(player, fireAction, getState)
 	local ring = Instance.new("Part")
 	ring.Name = "FilmZoneRing"
@@ -62,35 +54,26 @@ function RecordTool.init(player, fireAction, getState)
 		return name and workspace:FindFirstChild(name, true) or nil
 	end
 
-	-- ผูก Tool ทุกชิ้นที่ ToolService ส่งมาให้ (Attribute ToolSource บอกว่าเป็นอะไร)
-	--   Camera_N / Selfie = อุปกรณ์ถ่าย → RecordFootage
-	--   Notebook (เฟส 1)  = กดวางลงพื้นหน้าตัวเอง → กลายเป็นคอมใช้งานได้
+	-- ผูก Tool ทุกชิ้นที่ ToolService ส่งมา · Camera_N = RecordFootage · Notebook = วางลงพื้น
 	local bound = {}
 	local function bindTool(tool)
 		if not tool:IsA("Tool") or bound[tool] then return end
 		local src = tool:GetAttribute("ToolSource")
 		if not src then return end
-		-- Tool กล้องระดับรถเข็นมี CameraCart คุมเอง (ยืน = เสกรถ / นั่ง = อัด)
-		-- ผูกที่นี่ด้วยจะยิง RecordFootage ซ้อนตอนกดเรียกรถ
-		if src == Config.CameraCartToolSource then return end
+		if src == Config.CameraCartToolSource then return end -- รถเข็นมี CameraCart คุมเอง (กันยิงซ้อน)
 		bound[tool] = true
 		tool.Activated:Connect(function()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if not root then return end
 			if src == "Notebook" then
-				-- วางห่างตัว 4 studs หันหน้าจอเข้าหาผู้เล่น
-				-- yaw +90° (ไม่ใช่ 180°): PivotTo จัด CFrame ให้ PrimaryPart = Interact_NotebookPack (ฐาน)
-				-- แต่จอกางตามแกน "ลึก" ของฐาน (local X) ไม่ใช่ LookVector → 180° ทำให้จอหันข้าง
-				-- ★ เกณฑ์ที่ใช้ตัดสิน: "ทิศจอ→คีย์บอร์ด" ต้องชี้ไปหาผู้เล่น (คนนั่งฝั่งคีย์บอร์ด จอย่อมหันมาทางนั้น)
-				--   ห้ามใช้ normal ของแผ่นจอตัดสิน — แผ่นบางมี 2 หน้าเหมือนกัน เดาผิดข้างได้ 180° (เคยพลาดมาแล้ว)
-				-- ยืนยันด้วยการจำลอง PivotTo จริงใน Studio: +90° -> dot +1.000 | -90° -> -1.000 (หันหลัง) | 180°/0° -> ~0.2 (หันข้าง)
+				-- วางห่างตัว 4 studs หันจอเข้าหาผู้เล่น · yaw +90° เพราะจอกางตามแกน local X ของฐาน ไม่ใช่ LookVector
+				-- (ยืนยันจริงใน Studio: +90° dot +1.0 หันมา | -90° หันหลัง | 0/180° หันข้าง)
 				local cf = root.CFrame * CFrame.new(0, -2.5, -4) * CFrame.Angles(0, math.pi / 2, 0)
 				Audio.sfx("notebook_place")
 				fireAction({ type = "PlaceNotebook", cf = cf })
 			else
 				local part = spotPart()
 				local inside = RecordTool.inZone(root.Position, part and part.Position, Config.Record.zoneRadiusStuds)
-				-- ตัดเสียงชัตเตอร์ออก (10 ส.ค.): กดรัวๆ แล้วซ้อนกับ record_bonus/record_gain (จังหวะไม่ตรงกัน) ฟังรำคาญ
 				fireAction({ type = "RecordFootage", inZone = inside })
 			end
 		end)
@@ -105,24 +88,21 @@ function RecordTool.init(player, fireAction, getState)
 		end
 	end
 
-	-- ★ Roblox สร้าง Backpack "ตัวใหม่" ทุกครั้งที่ตัวละครเกิด — ต้องต่อ ChildAdded กับตัวใหม่ทุกรอบ
-	--   เดิมต่อครั้งเดียวตอนโหลดสคริปต์ → พอเกิดตัวละคร connection ตายไปกับ Backpack ตัวเก่า
-	--   ของที่มีตอนเกิดยังใช้ได้ (bindAll ใน CharacterAdded อ่าน Backpack สดทุกรอบ)
-	--   แต่ Tool ที่มาทีหลัง — ซื้อกล้องใหม่ / ข้ามเฟส — ไม่มีใครผูกให้ = คลิกแล้วเงียบสนิท ไม่มี error
+	-- Roblox สร้าง Backpack ใหม่ทุกครั้งที่ตัวละครเกิด — ต้องต่อ ChildAdded กับตัวใหม่ทุกรอบ
+	-- (ไม่งั้น Tool ที่มาทีหลัง — ซื้อกล้องใหม่/ข้ามเฟส — ไม่มีใครผูก = คลิกแล้วเงียบ)
 	local function hookBackpack(child)
 		if not child:IsA("Backpack") then return end
 		for _, t in child:GetChildren() do bindTool(t) end
-		child.ChildAdded:Connect(bindTool) -- Tool ใหม่ตอนอัปเกรด/ข้ามเฟส
+		child.ChildAdded:Connect(bindTool)
 	end
 
 	bindAll()
 	local bp0 = player:FindFirstChildOfClass("Backpack")
 	if bp0 then hookBackpack(bp0) end
-	player.ChildAdded:Connect(hookBackpack) -- Backpack ตัวใหม่ตอนเกิดใหม่
+	player.ChildAdded:Connect(hookBackpack)
 	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
 
-	-- ตัวเลขลอยรอบตัวตอนอัดติด "+1.2" / "+2.4 Bonus!" (ภาพร่าง `CameraTool clicking number pop-up ui.png`)
-	-- อ่านจากส่วนต่าง footageGB ของ state — server เป็นคนคิดว่าได้เท่าไหร่ ที่นี่แค่โชว์
+	-- ตัวเลขลอยตอนอัดติด "+1.2" / "+2.4 Bonus!" — อ่านจากส่วนต่าง footageGB (server คิด ที่นี่แค่โชว์)
 	local function floatGain(amount: number, bonus: boolean)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if not root then return end
@@ -173,8 +153,7 @@ function RecordTool.init(player, fireAction, getState)
 		end
 	end)
 
-	-- เข้าโซน: เช็คทุกเฟรม (Heartbeat) แยกจากลูปอัปเดตวง/label ข้างล่าง — ต้องได้ยินทันที ไม่ใช่รอ 0.5s
-	-- ตัดเสียงตอนออกโซนแล้ว (10 ส.ค.): user ฟังแล้วรำคาญ เหลือแค่ตอนเข้า
+	-- เข้าโซน: เช็คทุกเฟรมแยกจากลูปวาดวง — ต้องได้ยินเสียงทันที (เล่นเฉพาะตอนเข้า)
 	do
 		local wasInside = false
 		game:GetService("RunService").Heartbeat:Connect(function()
@@ -188,10 +167,7 @@ function RecordTool.init(player, fireAction, getState)
 		end)
 	end
 
-	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง (ภาพ/ข้อความ ไม่ต้องไวเท่าเสียง — 0.5s พอ)
-	-- ป้ายลอย (hideBillboards, 12 ส.ค. 2569, user): ตั้งใจแรกคือให้ otherBillboards ใน InteractBinder
-	-- ซ่อน billboard (ตัวเลข "×1.5 120s") ให้เอง แต่ทดสอบจริงแล้วไม่ติด (billboard.Enabled ค้าง true แม้ hideAll=true —
-	-- สาเหตุยังไม่ชัด ไม่ตามต่อเพราะเวลาจำกัด) เลยคุมตรงนี้เองแทน ทั้งวงแหวนและตัวเลข ไม่มีระบบอื่นแย่งคุม 2 property นี้เลย
+	-- วงโซนตามจุดปัจจุบัน + นับถอยหลัง · hideBillboards คุมทั้งวงและตัวเลขตรงนี้เอง
 	local RING_TRANSPARENCY = ring.Transparency
 	task.spawn(function()
 		while true do

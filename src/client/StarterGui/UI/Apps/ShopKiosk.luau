@@ -1,16 +1,7 @@
--- ShopKiosk.luau — ร้านค้าในแมพ: เดินไปกด `Interact_Shop` แล้วเปิดหน้าซื้อของ
--- คนละตัวกับ UI/Apps/Shop.luau (แอปบนจอคอม) — อันนั้นเข้าผ่าน PC อันนี้เดินไปที่ร้าน
---
--- ★ หน้าตาตามภาพร่าง PDF หน้า 9 ล่าง (docs/09 §10 · docs/12):
---   หมวดละ 1 แถว · แถวละ 4 การ์ด · ลูกศร ◀ ▶ เลื่อนดูระดับถัดไป
---   การ์ด = รูป + ชื่อ + quality(สเปค) + price/ปุ่ม Buy
---   สถานะการ์ด: ซื้อแล้ว ✓ / ใช้อยู่ ⭐ / ซื้อได้ Buy / ไกลกว่านั้น 🔒
---
--- ของที่ขายมาจาก `Config.ShopCatalog` · ราคามาจาก `Config.UpgradeCosts` · สเปคคำนวณจาก ladder
--- → เพิ่ม/แก้ของ = แก้ Config อย่างเดียว ไม่ต้องแตะไฟล์นี้
---
--- ซื้อจริงเกิดที่ server (`MoneyService.buyUpgrade` ผ่าน action BuyUpgrade) — ไฟล์นี้แค่โชว์+ยิง
--- pure ส่วนบนสุด (เทสด้วย lune) — ที่เหลือเป็น Roblox UI
+-- ShopKiosk — ร้านค้าในแมพ: เดินไปกด Interact_Shop เปิดหน้าซื้อ (คนละตัวกับแอป Shop บนจอคอม)
+-- หมวดละ 1 แถว · แถวละ 4 การ์ด · ลูกศร ◀▶ เลื่อนระดับ · สถานะ: ซื้อแล้ว✓/ใช้อยู่⭐/Buy/🔒
+-- ของจาก Config.ShopCatalog · ราคาจาก UpgradeCosts · สเปคจาก ladder → เพิ่ม/แก้ = แก้ Config อย่างเดียว
+-- ซื้อจริงที่ server (BuyUpgrade) · pure ส่วนบน (เทส lune) · ที่เหลือเป็น Roblox UI
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -22,49 +13,42 @@ local Formulas = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Formulas)
 	else require("../../../../shared/Formulas")
 -- ยืมแค่ HUD.comma (pure) — เลขเงินต้องคั่นหลักแบบเดียวกับ HUD ทั้งเกม
--- HUD ย้ายไปอยู่ StarterGui.UI แล้ว (9 ส.ค.) — ดึงจาก template StarterGui ตรงๆ ก็พอ
--- (ยืมแค่ฟังก์ชัน pure ไม่สนว่าจะได้ instance เดียวกับที่ Main.client ใช้จริงหรือเปล่า)
 local HUD = if isStudio
 	then require(game:GetService("StarterGui").UI.HUD)
 	else require("../HUD")
--- โมเดล 3 มิติจริงบนการ์ด (12 ส.ค. 2569, user) — nil ตอนเทสด้วย lune (ไม่มี Instance) การ์ดตกไปใช้ emoji เอง
+-- โมเดล 3 มิติจริงบนการ์ด — nil ตอนเทส lune (การ์ดตกไปใช้ emoji)
 local ModelViewport = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ModelViewport)
 	else nil
 
 local ShopKiosk = {}
 
-ShopKiosk.CARDS_PER_ROW = 4 -- ★ PDF หน้า 9: แถวละ 4 ใบ แล้วกดลูกศรเลื่อน
+ShopKiosk.CARDS_PER_ROW = 4
 
--- ===== pure =====
-
--- จำนวนระดับทั้งหมดของหมวด = ของเริ่มต้น 1 + ที่ซื้อได้อีก #names
+-- จำนวนระดับทั้งหมด = ของเริ่มต้น 1 + ที่ซื้อได้ #names
 function ShopKiosk.tierCount(entry: { names: { string } }): number
 	return #entry.names + 1
 end
 
--- ชื่อของที่ระดับนี้ (ระดับ 1 = ของติดตัวตอนเริ่มเกม ไม่ได้ซื้อ)
+-- ชื่อของที่ระดับนี้ (ระดับ 1 = ของติดตัวตอนเริ่ม)
 function ShopKiosk.nameAt(entry, level: number): string?
 	if level == 1 then return entry.startName end
 	return entry.names[level - 1]
 end
 
--- คีย์รูปใน UIAssets — วาดไว้แค่ระดับ 1-6 ที่เหลือคืน nil (การ์ดใช้ emoji ของหมวดแทน)
+-- คีย์รูปใน UIAssets — วาดไว้แค่ 1-6 ที่เหลือ nil (การ์ดใช้ emoji)
 function ShopKiosk.imageFor(key: string, tier: number): string?
 	local id = UIAssets["shop_" .. key .. "_" .. tier]
 	return (id ~= nil and id ~= "") and id or nil
 end
 
--- ชื่อโมเดลใน ReplicatedStorage.ToolModels ที่จะเอามา render บนการ์ด (12 ส.ค. 2569, user)
--- กล้อง = Camera_N ตรงตามระดับ · clamp ที่ CameraModelCount เหมือน ToolService (ระดับเกินโมเดลที่ปั้นไว้ = ใช้ตัวท้ายสุด)
--- ที่เก็บข้อมูลยังไม่มีโมเดล → nil = การ์ดตกกลับไปใช้รูป/emoji เหมือนเดิม
+-- ชื่อโมเดลใน ToolModels ที่ render บนการ์ด · กล้อง = Camera_N (clamp ที่ CameraModelCount) · อื่น = nil
 function ShopKiosk.modelFor(key: string, tier: number): string?
 	if key ~= "camera" then return nil end
 	return "Camera_" .. math.clamp(tier, 1, Config.CameraModelCount)
 end
 
--- สเปค ("quality" ในภาพร่าง) ของระดับนี้ — อ่านจาก ladder ที่ล็อกไว้ ไม่ก๊อปเลขมาเขียนซ้ำ
--- nil = หมวดนี้ยังไม่มี ladder (pc — ผลยัง unwired) → การ์ดโชว์แค่ชื่อของ
+-- สเปค ("quality") ของระดับนี้ — อ่านจาก ladder ไม่ก๊อปเลขซ้ำ · nil = หมวดนี้ยังไม่มี ladder
 function ShopKiosk.specFor(key: string, level: number): string?
 	if key == "storage" then
 		local gb = Config.StorageLadderGB[level]
@@ -80,7 +64,7 @@ function ShopKiosk.specFor(key: string, level: number): string?
 	return nil
 end
 
--- ของชิ้นถัดไปของหมวดนี้ตาม state ปัจจุบัน — nil = ซื้อครบทุกระดับแล้ว
+-- ของชิ้นถัดไปตาม state — nil = ซื้อครบทุกระดับ
 function ShopKiosk.offerFor(entry, state)
 	local level = state.upgrades and state.upgrades[entry.key] or 1
 	local name = entry.names[level]
@@ -90,22 +74,21 @@ function ShopKiosk.offerFor(entry, state)
 	return {
 		name = name,
 		price = price,
-		level = level + 1, -- ระดับที่จะได้หลังซื้อ
+		level = level + 1,
 		spec = ShopKiosk.specFor(entry.key, level + 1),
 	}
 end
 
--- บันไดทั้งหมดของหมวด พร้อมสถานะแต่ละขั้น — UI วาดตามนี้ตรงๆ
---   owned = ผ่านมาแล้ว | current = ใช้อยู่ | next = ซื้อได้ขั้นถัดไป | locked = ต้องไล่ซื้อก่อน
+-- บันไดทั้งหมด + สถานะแต่ละขั้น: owned (ผ่านแล้ว) / current (ใช้อยู่) / next (ซื้อได้) / locked
 function ShopKiosk.tiersFor(entry, state)
-	local owned = state.upgrades and state.upgrades[entry.key] or 1 -- ซื้อถึงระดับไหน
-	local equipped = Formulas.activeLevel(state, entry.key) -- ใช้ระดับไหนอยู่ (ย้อนกลับได้)
+	local owned = state.upgrades and state.upgrades[entry.key] or 1
+	local equipped = Formulas.activeLevel(state, entry.key) -- ใช้ระดับไหนอยู่
 	local costs = Config.UpgradeCosts[entry.key] or {}
 	local out = {}
 	for tier = 1, ShopKiosk.tierCount(entry) do
-		-- เช็ค equipped ก่อน owned เสมอ — ไม่งั้นตัวที่ถืออยู่จะโดนนับเป็น "ซื้อแล้ว" เฉยๆ
+		-- เช็ค equipped ก่อน owned เสมอ (ไม่งั้นตัวที่ถืออยู่โดนนับเป็น "ซื้อแล้ว")
 		local status = if tier == equipped then "current"
-			elseif tier <= owned then "owned" -- ซื้อแล้วแต่ไม่ได้ใช้ → กดย้อนกลับมาใช้ได้
+			elseif tier <= owned then "owned" -- ซื้อแล้วแต่ไม่ได้ใช้ → กดย้อนกลับได้
 			elseif tier == owned + 1 then "next"
 			else "locked"
 		table.insert(out, {
@@ -113,20 +96,18 @@ function ShopKiosk.tiersFor(entry, state)
 			name = ShopKiosk.nameAt(entry, tier),
 			spec = ShopKiosk.specFor(entry.key, tier),
 			image = ShopKiosk.imageFor(entry.key, tier),
-			price = costs[tier - 1], -- ระดับ 1 ไม่มีราคา (ของเริ่มต้น)
+			price = costs[tier - 1], -- ระดับ 1 ไม่มีราคา
 			status = status,
 		})
 	end
 	return out
 end
 
--- ===== เลื่อนหน้าในแถว (ลูกศร ◀ ▶ ใน PDF) =====
-
 function ShopKiosk.pageCount(total: number, perPage: number): number
 	return math.max(1, math.ceil(total / perPage))
 end
 
--- หน้าที่มีระดับนี้อยู่ — ใช้เปิดร้านมาแล้วเห็นของที่ซื้อได้เลย ไม่ต้องกดลูกศรหา
+-- หน้าที่มีระดับนี้ — เปิดร้านมาเห็นของที่ซื้อได้เลย ไม่ต้องกดลูกศรหา
 function ShopKiosk.pageOf(tier: number, perPage: number): number
 	return math.max(1, math.ceil(tier / perPage))
 end
@@ -135,21 +116,16 @@ function ShopKiosk.clampPage(page: number, total: number, perPage: number): numb
 	return math.clamp(page, 1, ShopKiosk.pageCount(total, perPage))
 end
 
--- ===== ย่อแผงให้พอดีจอ (responsive) =====
--- layout การ์ด/ลูกศรวางเป็นพิกเซลตายตัวตามภาพร่าง PDF — ย่อทั้งแผงด้วย UIScale
--- แทนที่จะรื้อ layout ใหม่ สัดส่วนเลยตรงภาพร่างทุกจอ แค่เล็กลงตามพื้นที่ที่มี
-ShopKiosk.SCREEN_MARGIN = 24 -- เว้นขอบจอกันชิดขอบ (px ต่อด้าน)
-ShopKiosk.MIN_SCALE = 0.35 -- ย่อต่ำกว่านี้อ่านไม่ออกแล้ว ยอมให้ล้นดีกว่า
+-- ย่อแผงให้พอดีจอ: layout เป็น px ตายตัวตามภาพร่าง ย่อทั้งแผงด้วย UIScale (สัดส่วนตรงภาพร่างทุกจอ)
+ShopKiosk.SCREEN_MARGIN = 24
+ShopKiosk.MIN_SCALE = 0.35 -- ย่อต่ำกว่านี้อ่านไม่ออก ยอมล้นดีกว่า
 
--- คืนตัวคูณขนาด: ≤1 เสมอ (จอใหญ่ใช้ขนาดที่ออกแบบไว้เป๊ะ ไม่ขยายจนเบลอ)
--- viewH ที่ส่งเข้ามาต้องหักแถบบนของ Roblox (GuiInset) มาแล้ว
+-- ตัวคูณขนาด ≤1 (จอใหญ่ใช้ขนาดออกแบบเป๊ะ ไม่ขยายจนเบลอ) · viewH ต้องหัก GuiInset มาแล้ว
 function ShopKiosk.fitScale(panelW: number, panelH: number, viewW: number, viewH: number, margin: number?): number
 	local m = margin or ShopKiosk.SCREEN_MARGIN
 	local fit = math.min((viewW - m * 2) / panelW, (viewH - m * 2) / panelH)
 	return math.clamp(fit, ShopKiosk.MIN_SCALE, 1)
 end
-
--- ===== Roblox UI =====
 
 local COLORS = {
 	bg = Color3.fromRGB(24, 24, 34),
@@ -187,7 +163,7 @@ function ShopKiosk.open(playerGui, deps)
 	local rowInner = CARD_W * perPage + GAP * (perPage - 1)
 	local panelW = 40 + 34 + 8 + rowInner + 8 + 34 -- margin + ลูกศรซ้าย + การ์ด + ลูกศรขวา
 	local rowH = 24 + CARD_H
-	-- แถวของกินใช้แล้วหมด (Config.Consumables) ต่อท้ายแถวอัปเกรด — ไม่มีของ = ไม่กินที่
+	-- แถวของกิน (Config.Consumables) ต่อท้าย — ไม่มีของ = ไม่กินที่
 	local CONSUMABLE_ROW_H = 24 + CARD_H
 	local hasConsumables = #Config.Consumables > 0
 	local panelH = 56 + (#Config.ShopCatalog * (rowH + 12)) + 12
@@ -196,14 +172,13 @@ function ShopKiosk.open(playerGui, deps)
 	local gui = mk("ScreenGui", nil, { Name = "Gui_ShopKiosk", ResetOnSpawn = false, DisplayOrder = 5 })
 	local panel = mk("Frame", gui, {
 		Size = UDim2.new(0, panelW, 0, panelH),
-		-- AnchorPoint กลาง = UIScale ย่อออกจากจุดกึ่งกลาง แผงอยู่กลางจอเสมอไม่ว่าย่อเท่าไหร่
-		AnchorPoint = Vector2.new(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5), -- UIScale ย่อจากกึ่งกลาง แผงอยู่กลางจอเสมอ
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		BackgroundColor3 = COLORS.bg,
 	})
 	mk("UICorner", panel, {})
 
-	-- ย่อให้พอดีจอ + ตามขนาดหน้าต่างที่เปลี่ยนระหว่างเล่น (ย่อหน้าต่าง/หมุนจอมือถือ)
+	-- ย่อให้พอดีจอ + ตามขนาดหน้าต่างที่เปลี่ยน (ย่อหน้าต่าง/หมุนจอ)
 	local uiScale = mk("UIScale", panel, {})
 	local cam = workspace.CurrentCamera
 	local GuiService = game:GetService("GuiService")
@@ -231,9 +206,9 @@ function ShopKiosk.open(playerGui, deps)
 		TextScaled = true, Text = "✕",
 	})
 	mk("UICorner", close, {})
-	close:SetAttribute("Sfx", "ui_back") -- ปิดหน้าต่าง = กลุ่มเสียงย้อน/ยกเลิก
+	close:SetAttribute("Sfx", "ui_back")
 
-	local page = {} -- [key] = หน้าที่กำลังดูของแถวนั้น
+	local page = {} -- [key] = หน้าที่กำลังดู
 	local rows = {}
 
 	for i, entry in Config.ShopCatalog do
@@ -283,7 +258,7 @@ function ShopKiosk.open(playerGui, deps)
 				BackgroundTransparency = 1, Text = "", TextColor3 = COLORS.faint,
 				TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
 			})
-			-- รูปสินค้า: โมเดล 3 มิติจริง > รูป asset > emoji ของหมวด (โชว์ทีละอัน)
+			-- รูปสินค้า: โมเดล 3 มิติ > รูป asset > emoji (โชว์ทีละอัน)
 			local vpHost = mk("Frame", card, {
 				Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(0.5, -26, 0, 24),
 				BackgroundTransparency = 1, Visible = false,
@@ -312,10 +287,9 @@ function ShopKiosk.open(playerGui, deps)
 				BackgroundColor3 = COLORS.buy, TextColor3 = COLORS.text, TextSize = 14, Text = "",
 			})
 			mk("UICorner", btn, {})
-			local ui -- ประกาศก่อน handler อ่าน status/tier ล่าสุดที่ refresh เขียนไว้
+			local ui -- ประกาศก่อน handler อ่าน status/tier ล่าสุดที่ refresh เขียน
 			btn.Activated:Connect(function()
-				-- เปิดเฉพาะ 2 สถานะ: next = ซื้อขั้นถัดไป · owned = ย้อนกลับไปใช้ระดับนั้น
-				-- server ตัดสินเงิน/ระดับอีกชั้นเสมอ (ไม่เชื่อ client)
+				-- next = ซื้อขั้นถัดไป · owned = ย้อนกลับไปใช้ระดับนั้น · server ตัดสินซ้ำเสมอ
 				if ui.status == "next" then
 					deps.fireAction({ type = "BuyUpgrade", item = entry.key })
 				elseif ui.status == "owned" then
@@ -323,7 +297,7 @@ function ShopKiosk.open(playerGui, deps)
 				end
 			end)
 
-			-- status/tier อัปทุกครั้งที่ refresh — handler อ่านค่าล่าสุด ไม่ผูกตายตอนสร้างปุ่ม
+			-- status/tier อัปทุก refresh — handler อ่านค่าล่าสุด ไม่ผูกตายตอนสร้างปุ่ม
 			ui = { card = card, badge = badge, img = img, emoji = emoji, vpHost = vpHost, vp = vp,
 				name = name, spec = spec, btn = btn, status = nil, tier = nil, vpTier = nil, vpOk = false }
 			cards[c] = ui
@@ -340,8 +314,7 @@ function ShopKiosk.open(playerGui, deps)
 		rows[i] = { entry = entry, cards = cards, info = rowInfo, left = left, right = right }
 	end
 
-	-- ===== แถวของกินใช้แล้วหมด — คนละรูปแบบกับบันไดอัปเกรด =====
-	-- ไม่มีระดับ/ไม่มีหน้า/ไม่มี locked: ซื้อได้ตลอดถ้าเงินพอและยังไม่ออกฤทธิ์ (ซื้อ = ดื่มทันที)
+	-- แถวของกิน — ไม่มีระดับ/หน้า/locked: ซื้อได้ตลอดถ้าเงินพอและยังไม่ออกฤทธิ์ (ซื้อ = ดื่มทันที)
 	local consumableCards = {}
 	if hasConsumables then
 		local cRow = mk("Frame", panel, {
@@ -368,7 +341,7 @@ function ShopKiosk.open(playerGui, deps)
 				BackgroundColor3 = COLORS.card,
 			})
 			mk("UICorner", card, {})
-			mk("TextLabel", card, { -- emoji ของชิ้นนั้น (ไม่มีรูป asset ให้ใช้ตอนนี้)
+			mk("TextLabel", card, { -- emoji ของชิ้นนั้น
 				Size = UDim2.new(0, 52, 0, 52), Position = UDim2.new(0.5, -26, 0, 24),
 				BackgroundTransparency = 1, Text = item.icon or "🥤",
 				TextColor3 = COLORS.text, TextScaled = true,
@@ -389,8 +362,7 @@ function ShopKiosk.open(playerGui, deps)
 			})
 			mk("UICorner", btn, {})
 			btn.Activated:Connect(function()
-				-- server เช็คซ้ำทุกอย่าง (เงิน/ออกฤทธิ์ซ้อน) — ปุ่มนี้แค่ยิงเจตนา
-				deps.fireAction({ type = "BuyConsumable", item = item.key })
+				deps.fireAction({ type = "BuyConsumable", item = item.key }) -- server เช็คซ้ำ (เงิน/ออกฤทธิ์ซ้อน)
 			end)
 			consumableCards[idx] = { item = item, btn = btn, card = card }
 		end
@@ -408,8 +380,7 @@ function ShopKiosk.open(playerGui, deps)
 			local tiers = ShopKiosk.tiersFor(entry, state)
 			local level = state.upgrades and state.upgrades[entry.key] or 1
 
-			-- เปิดร้านครั้งแรก: เด้งไปหน้าที่มีของซื้อได้เลย ไม่ต้องกดลูกศรหา
-			if not primed then
+			if not primed then -- เปิดร้านครั้งแรก: เด้งไปหน้าที่มีของซื้อได้
 				page[entry.key] = ShopKiosk.pageOf(math.min(level + 1, #tiers), perPage)
 			end
 			local pg = ShopKiosk.clampPage(page[entry.key], #tiers, perPage)
@@ -430,8 +401,7 @@ function ShopKiosk.open(playerGui, deps)
 					ui.badge.Text = ("L%d"):format(t.tier)
 					ui.name.Text = t.name or "?"
 					ui.spec.Text = t.spec or ""
-					-- โมเดล 3 มิติ > รูป asset > emoji · re-render เฉพาะตอนระดับของช่องนี้เปลี่ยน
-					-- (clone โมเดลใหม่ทุก refresh = แลค เพราะ refresh ยิงทุกครั้งที่ state ขยับ เช่นเงินเปลี่ยน)
+					-- โมเดล > รูป > emoji · re-render เฉพาะตอนระดับของช่องนี้เปลี่ยน (clone ทุก refresh = แลค)
 					local modelName = ShopKiosk.modelFor(entry.key, t.tier)
 					if ui.vp and modelName then
 						if ui.vpTier ~= t.tier then
@@ -451,8 +421,7 @@ function ShopKiosk.open(playerGui, deps)
 						ui.img.Visible, ui.emoji.Visible = false, true
 					end
 
-					-- หรี่เฉพาะ locked — "owned" กดย้อนกลับมาใช้ได้ ต้องเห็นชัด
-					local dim = t.status == "locked"
+					local dim = t.status == "locked" -- "owned" กดย้อนได้ ต้องเห็นชัด
 					ui.card.BackgroundColor3 = if t.status == "next" then COLORS.cardNext
 						elseif dim then COLORS.cardDim
 						else COLORS.card
@@ -460,14 +429,13 @@ function ShopKiosk.open(playerGui, deps)
 					ui.emoji.TextTransparency = dim and 0.55 or 0
 					ui.img.ImageTransparency = dim and 0.55 or 0
 
-					-- เสียงเปลี่ยนตามสถานะปุ่ม (Main.client อ่าน attribute Sfx ตอนกด)
+					-- เสียงตามสถานะปุ่ม (Main.client อ่าน attribute Sfx ตอนกด)
 					if t.status == "owned" then
-						-- ซื้อไว้แล้วแต่ไม่ได้ใช้ → กดย้อนกลับมาใช้ได้ (ผลลดลงจริงตามระดับ)
 						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "↩ ใช้อันนี้", COLORS.equip, true
 						ui.btn:SetAttribute("Sfx", "equip")
 					elseif t.status == "current" then
 						ui.btn.Text, ui.btn.BackgroundColor3, ui.btn.Active = "⭐ ใช้อยู่", COLORS.current, false
-						ui.btn:SetAttribute("Sfx", "none") -- ใช้อยู่แล้ว กดไม่มีผล = ไม่ต้องมีเสียง
+						ui.btn:SetAttribute("Sfx", "none")
 					elseif t.status == "next" then
 						local can = state.money >= t.price
 						ui.btn.Text = ("Buy ฿%s"):format(HUD.comma(t.price))
@@ -483,7 +451,7 @@ function ShopKiosk.open(playerGui, deps)
 			end
 		end
 
-		-- ของกิน: 3 สถานะ — ออกฤทธิ์อยู่ (ซื้อซ้ำไม่ได้) / ซื้อได้ / เงินไม่พอ
+		-- ของกิน: ออกฤทธิ์อยู่ (ซื้อซ้ำไม่ได้) / ซื้อได้ / เงินไม่พอ
 		local activeBuff = nil
 		for _, ui in consumableCards do
 			if type(ui) == "table" and ui.item then
@@ -504,8 +472,7 @@ function ShopKiosk.open(playerGui, deps)
 			end
 		end
 		if consumableCards.info then
-			-- บอกเวลาที่เหลือเป็นชั่วโมงเกม (state.day/timeOfDay = หน่วยเดียวกับ expireHour)
-			if activeBuff then
+			if activeBuff then -- เวลาที่เหลือเป็นชั่วโมงเกม (หน่วยเดียวกับ expireHour)
 				local buff = state.buffs[activeBuff.key]
 				local left = math.max(0, (buff.expireHour or 0) - (state.day * 24 + state.timeOfDay))
 				consumableCards.info.Text = ("ออกฤทธิ์อยู่ · เหลือ %d ชม.ในเกม"):format(left)
@@ -519,7 +486,7 @@ function ShopKiosk.open(playerGui, deps)
 	local function shut()
 		ShopKiosk.running = false
 		ShopKiosk.refresh = nil
-		fitConn:Disconnect() -- ไม่ตัด = ยิงหา uiScale ที่ถูกทำลายไปแล้วทุกครั้งที่ย่อจอ
+		fitConn:Disconnect() -- ไม่ตัด = ยิงหา uiScale ที่ถูกทำลายทุกครั้งที่ย่อจอ
 		gui:Destroy()
 	end
 	close.Activated:Connect(shut)

@@ -1,39 +1,19 @@
--- Message.luau — แชท HSR style (PDF หน้า 9 กลาง, design doc §6: choice เลือกได้แต่ไม่มีผล NPC ตอบเหมือนเดิม)
--- format DMs (ทีมเขียนบท — docs/10):
---   แบบเก่า: { from="ชื่อ", lines={"...", "..."} }                          → bubble ฝั่ง NPC อย่างเดียว
---   แบบช้อย: { from="ชื่อ", exchanges={ {npc="...", choices={"ก","ข","ค"}, reply="..."} } }
---
--- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ (container ว่างทั้งหมด) bake เป็น template
---   เนื้อหาข้างในทุกส่วนยาวไม่แน่นอนจริง (รายชื่อ/บับเบิลแชท/ปุ่มช้อย) ยังสร้างจาก data เหมือนเดิม
---   template จริงอยู่ Gui_PC.Screen.AppTemplates.Message (แต่งใน Studio ได้)
---   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: People, Chat, ChoiceBar (ScrollingFrame/Frame ว่างทั้งหมด)
---
--- ★ 12 ส.ค. — responsive pass (docs/05 §5.5 "ห้าม pixel ตายตัว") + ขอบมนทุกชิ้น (user)
---   แก้ 5 อย่างที่เจอตอนวัดของจริง:
---   1) แถวรายชื่อ/ปุ่มช้อยเคยสูงเป็น px ตายตัว (44/34) + ระยะ 40px → 3 ช้อยกินสูง 120px แต่ ChoiceBar
---      สูงจริงแค่ 111.8px = ปุ่มสุดท้ายล้นกรอบ · เปลี่ยนเป็น scale ทั้งหมด อิงกรอบจริง
---   2) TextScaled บนกล่องสูง 44px = ตัวหนังสือยืดเต็มกล่อง ใหญ่เว่อร์เทียบบับเบิลที่ล็อก TextSize 18
---      → คุมเพดานด้วย UITextSizeConstraint ทุกชิ้น ขนาดคำนวณจากความกว้างกรอบ
---   3) บับเบิลฝั่งเราไม่เคยชิดขวา เพราะ Chat มี UIListLayout ซึ่งทับ Position ทิ้ง
---      → ห่อบับเบิลใน row เต็มความกว้างแล้วจัดซ้าย/ขวาใน row แทน
---   4) Chat/People ตั้ง SortOrder = Name แต่โค้ดไม่เคยตั้งชื่อ → ชื่อซ้ำกันหมด ลำดับไม่การันตี
---      → ตั้งชื่อเป็นเลขลำดับ ("%03d") + LayoutOrder ให้ถูกทั้งสอง SortOrder
---   5) ขนาดตัวอักษรคิดครั้งเดียวตอนเปิดแอป → ย่อ/ขยายจอระหว่างเปิดค้างไว้ ไม่ตาม
---      → ผูก AbsoluteSize signal คิดใหม่ทุกครั้งที่กรอบเปลี่ยนขนาด
+-- Message — แชท HSR style (design doc §6: choice เลือกได้แต่ NPC ตอบเหมือนเดิม)
+-- format DMs: { from, lines={...} } (NPC พูดฝ่ายเดียว) หรือ { from, exchanges={ {npc, choices, reply} } }
+-- baked template อยู่ Gui_PC.Screen.AppTemplates.Message · ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: People, Chat, ChoiceBar
+-- responsive: ทุกชิ้น scale + เพดานขนาดตัวอักษร (ห้าม pixel ตายตัว) คิดใหม่ทุกครั้งที่กรอบเปลี่ยนขนาด
 local isStudio = script ~= nil
 local DMs = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.DMs)
 	else require("../../../../shared/Content/DMs")
--- จำนวนเงินก้อนต่อ payoutId (โชว์บนปุ่มเฉยๆ — server ตัดสินจ่ายจริงที่ SponsorService.claimDM)
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../../../shared/Config")
--- ตัวจัดรูปตัวเลข 1,024 ใช้ตัวเดียวกับ HUD (อย่าเขียนซ้ำ — รูปแบบต้องตรงกันทั้งเกม)
+-- comma: ตัวจัดรูปตัวเลขตัวเดียวกับ HUD (รูปแบบต้องตรงกันทั้งเกม)
 local comma = (if isStudio then require(script.Parent.Parent.HUD) else require("../HUD")).comma
 
 local Message = {}
 
--- ===== helper: ขอบมน / ระยะขอบใน / เพดานขนาดตัวอักษร =====
 local function corner(inst, r: number)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, r)
@@ -51,17 +31,16 @@ local function padding(inst, x: number, y: number)
 	return p
 end
 
--- TextScaled ล้วน = ตัวยืดเต็มกล่อง (ใหญ่เกิน) · คุมเพดานไว้ ได้ทั้ง responsive และไม่เบ้
+-- TextScaled ล้วน = ตัวยืดเต็มกล่อง — คุมเพดานไว้
 local function capText(inst)
 	local c = Instance.new("UITextSizeConstraint")
 	c.MinTextSize = 8
-	c.MaxTextSize = 18 -- ค่าเริ่ม ถูกคำนวณทับทันทีโดย applyTextSizes()
+	c.MaxTextSize = 18 -- ถูก applyTextSizes() คำนวณทับ
 	c.Parent = inst
 	return c
 end
 
--- สัดส่วนขนาดตัวอักษรต่อ "ความกว้างกรอบแอปจริง" (docs/05 §5.5 — ห้ามค่าคงที่)
--- { ratio, ต่ำสุด, สูงสุด } · จอใหญ่ = ตัวใหญ่ตาม แต่ไม่เกินเพดาน
+-- สัดส่วนขนาดตัวอักษรต่อความกว้างกรอบ · { ratio, ต่ำสุด, สูงสุด }
 local TEXT = {
 	people = { 0.026, 11, 20 }, -- แถวรายชื่อ
 	bubble = { 0.028, 12, 22 }, -- บับเบิลแชท
@@ -77,16 +56,14 @@ function Message.create(frame, deps)
 	end
 	local content = template:Clone()
 	content.Name = "MessageContent"
-	content.Visible = true -- template ซ่อนไว้ (Visible=false) กัน render ทับกันตอนพักเป็นแม่แบบ — clone ต้องเปิดเอง
+	content.Visible = true -- template ซ่อนไว้ clone ต้องเปิดเอง
 	content.Parent = frame
 
 	local people = content:FindFirstChild("People")
 	local chat = content:FindFirstChild("Chat")
 	local choiceBar = content:FindFirstChild("ChoiceBar")
 
-	-- ===== responsive text — คำนวณใหม่ทุกครั้งที่กรอบเปลี่ยนขนาด =====
-	-- เดิมคิดครั้งเดียวตอนเปิดแอป → ย่อ/ขยายหน้าต่างระหว่างเปิดค้างไว้ ตัวหนังสือไม่ตาม
-	-- kind "cap" = UITextSizeConstraint.MaxTextSize (คู่กับ TextScaled) | "size" = TextSize ตรงๆ
+	-- responsive text — คำนวณใหม่ทุกครั้งที่กรอบเปลี่ยนขนาด · kind "cap" = MaxTextSize | "size" = TextSize ตรงๆ
 	local scalables = {}
 	local function track(inst, kind: string, spec)
 		table.insert(scalables, { inst = inst, kind = kind, spec = spec })
@@ -94,11 +71,11 @@ function Message.create(frame, deps)
 	end
 	local function applyTextSizes()
 		local basis = content.AbsoluteSize.X
-		if basis <= 0 then basis = 660 end -- ยังไม่ render = ใช้ค่ากลางกันหาร 0
+		if basis <= 0 then basis = 660 end -- ยังไม่ render = ค่ากลางกันหาร 0
 		for i = #scalables, 1, -1 do
 			local s = scalables[i]
 			if not s.inst.Parent then
-				table.remove(scalables, i) -- ของที่ถูก Destroy ไปแล้ว (re-render) ทิ้งจาก list
+				table.remove(scalables, i) -- ของที่ถูก Destroy (re-render) ทิ้งจาก list
 			else
 				local ratio, lo, hi = s.spec[1], s.spec[2], s.spec[3]
 				local size = math.clamp(math.floor(basis * ratio + 0.5), lo, hi)
@@ -110,21 +87,19 @@ function Message.create(frame, deps)
 			end
 		end
 	end
-	-- กรอบแอปเปลี่ยนขนาดเมื่อไหร่ (ผู้เล่นย่อหน้าต่าง/หมุนจอ) = คิดใหม่ทันที
 	content:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyTextSizes)
 
-	local progress = {} -- [dm] = จำนวน exchange ที่คุยจบแล้ว (reset ทุกครั้งที่เปิดแอป — cosmetic)
+	local progress = {} -- [dm] = จำนวน exchange ที่คุยจบ (reset ทุกครั้งที่เปิดแอป)
 	local picked = {}   -- [dm] = { [i] = ช้อยที่เลือก }
-	local openDM        -- forward declare
+	local openDM
 
-	-- บับเบิล 1 อัน — ห่อใน row เต็มความกว้างเพราะ Chat มี UIListLayout (ทับ Position ของลูกตรงทิ้ง)
-	--   ฝั่งเรา (mine) ชิดขวา · NPC ชิดซ้าย · สูงยืดตามข้อความ (AutomaticSize.Y)
+	-- บับเบิล 1 อัน — ห่อใน row เต็มความกว้าง (Chat มี UIListLayout ทับ Position ของลูกตรง) · mine = ชิดขวา
 	local seq = 0
 	local function bubble(text, mine)
 		seq += 1
 		local row = Instance.new("Frame")
 		row.Name = ("%03d"):format(seq) -- SortOrder = Name → ต้องเรียงได้จริง
-		row.LayoutOrder = seq           -- เผื่อสลับเป็น SortOrder.LayoutOrder ทีหลัง
+		row.LayoutOrder = seq
 		row.Size = UDim2.new(1, 0, 0, 0)
 		row.AutomaticSize = Enum.AutomaticSize.Y
 		row.BackgroundTransparency = 1
@@ -149,11 +124,8 @@ function Message.create(frame, deps)
 		return b
 	end
 
-	-- ===== เงินก้อน sponsor ตาม milestone (12 ส.ค. 2569, user) =====
-	-- ปุ่มโผล่ท้ายแชทเฉพาะ DM ที่มี payoutId · 3 สถานะ: รับได้ / ยังไม่ถึงยอด / รับแล้ว
-	-- client แค่โชว์กับยิง action — เงื่อนไขจริง (ถึง milestone ไหม, รับไปแล้วยัง) server ตัดสินซ้ำเสมอ
-	-- ดึง state ทันทีตั้งแต่แรก — PCScreen เรียก create() ก่อน refresh() ถ้าไม่ดึงเอง
-	-- ปุ่มรอบแรกจะวาดด้วยข้อมูลว่าง (ขึ้น "ยังไม่ถึงยอด" ทั้งที่ถึงแล้ว) แล้วค่อยกระพริบแก้ทีหลัง
+	-- เงินก้อน sponsor ตาม milestone — ปุ่มโผล่ท้ายแชทเฉพาะ DM ที่มี payoutId · 3 สถานะ (รับได้/ยังไม่ถึง/รับแล้ว)
+	-- client แค่โชว์+ยิง action · ดึง state ตั้งแต่แรก (PCScreen เรียก create() ก่อน refresh())
 	local latestState = deps.getState and deps.getState() or nil
 	local function payoutButton(dm)
 		local id = dm.payoutId
@@ -200,7 +172,7 @@ function Message.create(frame, deps)
 		end)
 	end
 
-	local renderChat -- forward declare — body เรียก renderChat ซ้ำตอนกดช้อย
+	local renderChat
 	local function renderChatBody(dm)
 		-- ล้างทั้ง row (Frame) ไม่ใช่แค่ TextLabel — UIListLayout ไม่ใช่ GuiObject จึงรอด
 		for _, ch in chat:GetChildren() do
@@ -219,7 +191,7 @@ function Message.create(frame, deps)
 		end
 
 		local done = progress[dm] or 0
-		for i = 1, done do -- exchange ที่จบแล้ว: npc → เรา → npc ตอบ
+		for i = 1, done do -- exchange ที่จบ: npc → เรา → npc ตอบ
 			local ex = dm.exchanges[i]
 			bubble(ex.npc, false)
 			bubble(picked[dm][i], true)
@@ -230,8 +202,7 @@ function Message.create(frame, deps)
 		if not ex then return end
 		bubble(ex.npc, false)
 
-		-- ช้อยเรียงลงเต็มความกว้าง 3 แถว ตามภาพร่าง (ไม่ใช่เรียงข้างกัน)
-		-- ★ scale ล้วน: n ช้อยแบ่งความสูง ChoiceBar เท่าๆ กัน เว้นช่องไฟ 12% → ไม่มีทางล้นกรอบ
+		-- ช้อยเรียงลงเต็มความกว้าง · scale ล้วน: n ช้อยแบ่งความสูง ChoiceBar เท่าๆ กัน (ไม่ล้นกรอบ)
 		local choices = ex.choices or {}
 		local n = #choices
 		local slot = if n > 0 then 1 / n else 1
@@ -253,8 +224,8 @@ function Message.create(frame, deps)
 			track(capText(b), "cap", TEXT.choice)
 			local bs = Instance.new("UIStroke")
 			bs.Color = Color3.fromRGB(30, 60, 160)
-			bs.Thickness = 1 -- เดิม 2 หนาไป (user 12 ส.ค.)
-			bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- ขอบปุ่มเท่านั้น ไม่ stroke ตัวหนังสือให้ดูหนา
+			bs.Thickness = 1
+			bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- ขอบปุ่มเท่านั้น ไม่ stroke ตัวหนังสือ
 			bs.Parent = b
 			b.Activated:Connect(function()
 				-- เลือกอะไรก็ได้ NPC ตอบเหมือนเดิม (design §6)
@@ -265,24 +236,21 @@ function Message.create(frame, deps)
 		end
 	end
 
-	-- คุยจบทั้งบทหรือยัง — ปุ่มรับเงินโผล่เฉพาะตอนจบเท่านั้น (user 12 ส.ค. — ไม่โผล่ระหว่างคุย)
-	--   lines format = โชว์หมดทีเดียว = จบทันที · exchanges = จบเมื่อตอบครบทุก exchange
+	-- คุยจบทั้งบทหรือยัง — ปุ่มรับเงินโผล่เฉพาะตอนจบ · lines = จบทันที · exchanges = ตอบครบทุก exchange
 	local function convDone(dm): boolean
 		if dm.lines then return true end
 		if dm.exchanges then return (progress[dm] or 0) >= #dm.exchanges end
 		return true
 	end
 
-	-- ห่อ body ไว้ เพราะ body มี early return 2 จุด (format เก่า / คุยจบแล้ว)
-	-- ถ้าเรียก applyTextSizes/payoutButton ท้าย body ตรงๆ สองเส้นทางนั้นจะข้ามไป
+	-- ห่อ body เพราะ body มี early return 2 จุด (format เก่า/คุยจบ) — ต้องเรียก payoutButton/applyTextSizes ท้ายเสมอ
 	renderChat = function(dm)
 		renderChatBody(dm)
-		if convDone(dm) then payoutButton(dm) end -- โผล่หลังคุยจบเท่านั้น ระหว่างคุยไม่แสดง
-		applyTextSizes() -- ของที่เพิ่ง track เข้ามารอบนี้ ต้องได้ขนาดทันที ไม่ใช่รอ resize
+		if convDone(dm) then payoutButton(dm) end
+		applyTextSizes() -- ของที่เพิ่ง track รอบนี้ ต้องได้ขนาดทันที
 	end
 
-	-- ลายเซ็นสถานะปุ่มเงินของ DM ที่เปิดอยู่ — ใช้ตัดสินว่า refresh ต้องวาดใหม่ไหม
-	-- (state ถูก push บ่อยมากตามเวลาในเกม วาดใหม่ทุกครั้ง = แชทกระพริบ + เปลืองเปล่า)
+	-- ลายเซ็นสถานะปุ่มเงิน — ใช้ตัดสินว่า refresh ต้องวาดใหม่ไหม (state push บ่อย วาดทุกครั้ง = แชทกระพริบ)
 	local function payoutSig(dm): string
 		local id = dm and dm.payoutId
 		if not id then return "none" end
@@ -300,10 +268,7 @@ function Message.create(frame, deps)
 		lastPayoutSig = payoutSig(dm)
 	end
 
-	-- ===== รายชื่อคนซ้าย — โชว์เฉพาะคนที่ทักมาแล้วจริง (user 12 ส.ค.) =====
-	-- เดิมโชว์ครบทุกก้อนตั้งแต่เปิดแอปครั้งแรก = สปอยล์ว่ามีใครจะทักมาอีกบ้างกี่คน
-	-- ตอนนี้ยอด follower ยังไม่ถึง = ไม่เห็นชื่อเลย · พอถึงยอด Main.client เด้ง toast (Notify.dm)
-	-- แล้วแถวโผล่เองรอบ refresh ถัดไป — "ถึงเวลาค่อยมีข้อความเด้ง"
+	-- รายชื่อคนซ้าย — โชว์เฉพาะคนที่ทักมาแล้ว (ยังไม่ถึงยอด = ไม่เห็นชื่อ กันสปอยล์) · ถึงยอด Main.client เด้ง toast
 	local function unlockedDMs()
 		local f = (latestState and latestState.follower) or 0
 		local list = {}
@@ -321,7 +286,7 @@ function Message.create(frame, deps)
 			local b = Instance.new("TextButton")
 			b.Name = ("%03d"):format(i)
 			b.LayoutOrder = i
-			b.Size = UDim2.fromScale(0.94, 0.098) -- เดิม offset -8px ตายตัว → scale ล้วน
+			b.Size = UDim2.fromScale(0.94, 0.098)
 			b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 			b.TextColor3 = Color3.fromRGB(25, 25, 30)
 			b.TextScaled = true
@@ -335,7 +300,7 @@ function Message.create(frame, deps)
 		end
 	end
 
-	-- ยังไม่มีใครทักมาเลย (เข้าเฟส 2 พอดีแต่ follower ยังไม่ถึงก้อนแรก)
+	-- ยังไม่มีใครทักมา (เข้าเฟส 2 แต่ follower ยังไม่ถึงก้อนแรก)
 	local function showEmpty()
 		currentDM = nil
 		for _, ch in chat:GetChildren() do
@@ -364,18 +329,16 @@ function Message.create(frame, deps)
 	if shown[1] then openDM(shown[1]) else showEmpty() end
 
 	local app = {}
-	-- state ใหม่จาก server → 2 อย่าง: มีคนทักมาใหม่ไหม / ปุ่มเงินก้อนเปลี่ยนสถานะไหม
-	-- วาดใหม่เฉพาะตอนเปลี่ยนจริง ไม่ใช่ทุก push (state ถูก push บ่อยมากตามเวลาในเกม)
+	-- state ใหม่ → มีคนทักใหม่ไหม / ปุ่มเงินเปลี่ยนสถานะไหม · วาดใหม่เฉพาะตอนเปลี่ยนจริง (state push บ่อย)
 	function app.refresh(state)
 		latestState = state
 
-		-- มีคนใหม่ปลดล็อกระหว่างเปิดแอปค้างอยู่ → เพิ่มแถวเข้ารายชื่อทันที
 		local list = unlockedDMs()
 		if #list ~= shownCount then
 			shownCount = #list
 			local keep = currentDM
 			buildPeople(list)
-			-- คนที่เปิดค้างอยู่ยังอยู่ในรายชื่อ = เปิดค้างไว้เหมือนเดิม ไม่กระโดดไปคนอื่นเอง
+			-- คนที่เปิดค้างยังอยู่ในรายชื่อ = เปิดค้างเหมือนเดิม ไม่กระโดดไปคนอื่น
 			local stillThere = false
 			for _, dm in list do
 				if dm == keep then stillThere = true end
@@ -383,7 +346,7 @@ function Message.create(frame, deps)
 			if stillThere then
 				openDM(keep)
 			elseif list[1] then
-				openDM(list[1]) -- โหลดเซฟที่ follower ต่ำกว่าเดิม → คนที่เปิดอยู่หายไป
+				openDM(list[1]) -- โหลดเซฟที่ follower ต่ำกว่าเดิม → คนที่เปิดอยู่หาย
 			else
 				showEmpty()
 			end

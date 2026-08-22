@@ -1,20 +1,12 @@
--- PCScreen.luau — Universal PC UI (ScreenGui เต็มจอ + กล้อง zoom เข้าจอ) — PDF หน้า 5 "UI PC"
--- เปลี่ยนจาก SurfaceGui (gen จากโค้ด แก้หน้าตาไม่ได้) → ScreenGui instance ใน StarterGui (แต่งใน Studio ได้เลย)
--- convention: model มี part ชื่อ `Interact_pcMonitor` · กด E → กล้อง zoom เข้าจอ + เปิด Gui_PC
---
--- ★ instance จริง: StarterGui.Gui_PC (แต่งได้) — ไม่มีก็ build() สร้างจากโค้ด (fallback + mirror git · แพทเทิร์นเดียวกับ HUD)
--- ชื่อที่โค้ดอ้าง ห้ามเปลี่ยน (ที่เหลือย้าย/แต่ง/ลบได้):
---   Screen · Screen.{Wallpaper, DeviceLabel, ExitButton, AppFrame} · Screen.IconBar.IconTemplate (มีลูก Name)
--- ★ ไอคอนต่อแอป (11 ส.ค.): วาง ImageButton ชื่อ "Icon_<app.id>" ไว้ใต้ Screen.IconBar เอง (เช่น Icon_bank,
---   Icon_shop) แต่งสี/รูป/ตำแหน่งอิสระใน Studio — โค้ดจะใช้ instance นั้นตรงๆ ไม่แตะ ไม่มี = fallback clone
---   IconTemplate เหมือนเดิม (ดู PCScreen.open ท่อน "ไอคอน")
--- ★ ตัวไฟล์นี้ย้ายมาอยู่ StarterGui.UI (9 ส.ค. — คุมเรื่องคอม/HUD/แอปในคอมรวมที่เดียว)
+-- PCScreen — Universal PC UI (ScreenGui เต็มจอ + กล้อง zoom เข้าจอ) · กด E ที่ Interact_pcMonitor
+-- instance จริง: StarterGui.Gui_PC (แต่งใน Studio ได้) · ไม่มี = build() จากโค้ด
+-- ชื่อที่โค้ดอ้าง ห้ามเปลี่ยน: Screen.{Wallpaper, DeviceLabel, ExitButton, AppFrame, IconBar.IconTemplate}
+-- ไอคอนต่อแอป: วาง ImageButton ชื่อ "Icon_<app.id>" ใต้ Screen.IconBar เอง (ไม่มี = fallback clone IconTemplate)
 local isStudio = script ~= nil
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else require("../../../shared/UIAssets")
--- InteractLock ยังอยู่ StarterPlayerScripts เดิม — ต้อง absolute path ผ่าน PlayerScripts
--- (ความลึกเดิม script.Parent.Parent ใช้ไม่ได้แล้วหลังย้าย PCScreen ไป StarterGui)
+-- InteractLock/Audio อยู่ StarterPlayerScripts — absolute path (script.Parent.Parent ใช้ไม่ได้หลังย้าย PCScreen ไป StarterGui)
 local InteractLock = if isStudio
 	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("InteractLock"))
 	else nil
@@ -22,7 +14,6 @@ local Audio = if isStudio
 	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
 	else nil
 
--- ไม่มี Sound ชื่อนั้น = AudioService warn ครั้งเดียวแล้วเงียบ (ไม่พัง) · nil ตอนรันนอก Studio
 local function sfx(name: string)
 	if Audio then Audio.sfx(name) end
 end
@@ -31,14 +22,14 @@ local PCScreen = {}
 PCScreen.running = false
 local ZOOM_TIME = 0.4
 
--- หน้าตาเครื่องต่อเฟส (สีถูกทับด้วย wallpaper รูปถ้าทีมใส่ asset แล้ว)
+-- หน้าตาเครื่องต่อเฟส (สีถูกทับด้วย wallpaper รูปถ้าทีมใส่ asset)
 local STYLES = {
 	[1] = { deviceName = "โน้ตบุ๊คมือสอง", wall = Color3.fromRGB(95, 115, 135), wallAsset = "wallpaper_phase1" },
 	[2] = { deviceName = "คอมตั้งโต๊ะ", wall = Color3.fromRGB(40, 120, 200), wallAsset = "wallpaper_phase2" },
 	[3] = { deviceName = "เครื่องเทพ RGB", wall = Color3.fromRGB(30, 22, 55), wallAsset = "wallpaper_phase3", neon = true },
 }
 
--- กล้องบินไปหน้าจอ (กิมมิคเดิม): ระยะพอดีให้จอเต็มเฟรมแนวตั้ง
+-- กล้องบินไปหน้าจอ: ระยะพอดีให้จอเต็มเฟรมแนวตั้ง
 local function zoomToScreen(screenPart)
 	local camera = workspace.CurrentCamera
 	local saved = { cf = camera.CFrame, type = camera.CameraType }
@@ -51,7 +42,7 @@ local function zoomToScreen(screenPart)
 	return saved
 end
 
--- ===== build fallback: สร้างโครง Gui_PC จากโค้ด (ทุกชิ้น Scale + responsive) =====
+-- build fallback: สร้างโครง Gui_PC จากโค้ด (ทุกชิ้น Scale + responsive)
 local function corner(o, r)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, r or 8)
@@ -145,7 +136,7 @@ function PCScreen.build(parent): ScreenGui
 end
 
 -- deps = { fireAction, getState } | apps = { {id, name, label, create|external, hidden} }
--- screenPart = Interact_pcMonitor ของเครื่องที่กด (จำเป็น — กล้อง zoom หาจอ)
+-- screenPart = Interact_pcMonitor ของเครื่องที่กด (กล้อง zoom หาจอ)
 function PCScreen.open(playerGui, deps, apps, screenPart)
 	if PCScreen.running then return end
 	if not screenPart or not screenPart:IsA("BasePart") then
@@ -153,10 +144,10 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		return
 	end
 	PCScreen.running = true
-	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดิน
+	if InteractLock then InteractLock.lock() end
 	deps.fireAction({ type = "FreezeTime", on = true })
 
-	local savedCam = zoomToScreen(screenPart) -- กิมมิค: กล้องเข้าจอ
+	local savedCam = zoomToScreen(screenPart)
 	local state = deps.getState()
 	local style = STYLES[math.clamp(state and state.phase or 1, 1, 3)]
 
@@ -176,16 +167,10 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		return
 	end
 
-	-- ⚠️ 12 ส.ค. เจอจริง: Screen.Visible=false ค้างมาจาก template (.rbxl) → เปิดคอมมาจอไม่โผล่เลย
-	--   ทั้งเฟส (กด E ได้ prompt ขึ้น zoom เข้า แต่จอว่าง) · ไม่มีสคริปต์ไหนตั้ง false = property ค้างใน place
-	--   PCScreen คุมการโชว์ด้วย gui.Enabled (เปิด/ปิด) — Screen ต้อง Visible เสมอ บังคับตรงนี้กันดริฟต์
-	--   (แพทเทิร์นเดียวกับ iconBar.Visible=true ด้านล่าง — property ค้างจาก Studio แก้ที่โค้ดให้จบ)
-	screen.Visible = true
+	screen.Visible = true -- บังคับกัน Screen.Visible=false ค้างจาก Studio (เจอจริง: เปิดคอมมาจอว่าง)
 
-	-- ---- หน้าตาต่อเฟส ----
 	screen.BackgroundColor3 = style.wall
-	-- wallpaper: ทับเฉพาะตอน UIAssets มีรูปจริง — คีย์ที่ยังว่าง ("") ห้ามทับ
-	-- (11 ส.ค. เจอจริง: ทีมใส่ wallpaper ไว้ใน Studio แล้ว แต่ wallpaper_phase* ยังเป็น "" → โค้ดล้างรูปทิ้งทุกครั้งที่เปิดคอม)
+	-- wallpaper: ทับเฉพาะตอน UIAssets มีรูปจริง — คีย์ว่าง ("") ห้ามทับ (ไม่งั้นล้างรูปที่ทีมใส่ทิ้ง)
 	local wall = screen:FindFirstChild("Wallpaper")
 	if wall and wall:IsA("ImageLabel") then
 		local wallAsset = UIAssets[style.wallAsset]
@@ -213,7 +198,7 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		if currentApp and currentApp.refresh and state then currentApp.refresh(state) end
 		sfx("app_open")
 	end
-	-- silent = ปิดทั้งเครื่อง (closeScreen เล่น pc_off แทน ไม่ให้เสียงซ้อนกัน 2 ตัว)
+	-- silent = ปิดทั้งเครื่อง (closeScreen เล่น pc_off แทน กันเสียงซ้อน)
 	local function closeApp(silent: boolean?)
 		appFrame.Visible = false
 		appFrame:ClearAllChildren()
@@ -221,19 +206,14 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		if not silent then sfx("app_close") end
 	end
 
-	-- ---- ไอคอน: ใช้ instance จริงชื่อ "Icon_<id>" ถ้าทีมแต่งไว้ใน Studio (สี/รูป/ตำแหน่งเป็นของทีมล้วน โค้ดไม่แตะ)
-	--   ไม่มี = fallback clone IconTemplate เหมือนเดิม (ต้อง Destroy ตอนปิด — instance จริงไม่ Destroy)
-	-- ⚠️ 11 ส.ค. เจอ IconBar เอง Visible=false ค้างมาจาก Studio (ไอคอนข้างในเป็น true หมดแต่โดนพ่อบัง) — บังคับ true
-	--   กันเผลอเซ็ต false ใน Studio อีกแล้วพังเงียบๆ (BackgroundTransparency=1 อยู่แล้ว ไม่กระทบภาพ)
-	iconBar.Visible = true
-	local iconClones = {} -- เฉพาะตัวที่ fallback-clone มา
-	local iconConns = {} -- ทุกตัว (ทั้ง instance จริง+clone) กัน connection ซ้อนตอนเปิดใหม่
+	-- ไอคอน: ใช้ instance จริงชื่อ "Icon_<id>" ถ้าทีมแต่งไว้ (โค้ดไม่แตะสี/รูป/ตำแหน่ง) · ไม่มี = fallback clone
+	iconBar.Visible = true -- บังคับกัน IconBar.Visible=false ค้างจาก Studio (BackgroundTransparency=1 อยู่แล้ว)
+	local iconClones = {} -- เฉพาะตัวที่ fallback-clone (ต้อง Destroy ตอนปิด)
+	local iconConns = {} -- ทุกตัว กัน connection ซ้อน
 	local i = 0
 	for _, app in apps do
 		if app.hidden then
-			-- app.hidden = true ตอน "ยังไม่ถึงเฟส" (bank/message) หรือถาวร (manage) — icon จริงที่ทีมแต่งไว้
-			-- ต้องถูกซ่อนตรงๆ ไม่ใช่แค่ "ไม่วาดใหม่" (skip เฉยๆ ปล่อยให้ Visible ค้างจาก Studio = บั๊ก 12 ส.ค.)
-			-- manage ไม่มี instance จริงอยู่แล้ว (ตั้งใจไม่แต่ง) — FindFirstChild คืน nil ก็ไม่ทำอะไร ปลอดภัย
+			-- ยังไม่ถึงเฟส (bank/message) หรือถาวร (manage) — icon จริงต้องถูกซ่อนตรงๆ (ไม่ใช่แค่ไม่วาดใหม่)
 			local btn = app.id and iconBar:FindFirstChild("Icon_" .. app.id)
 			if btn then btn.Visible = false end
 		else
@@ -242,7 +222,7 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 			if not btn then
 				btn = template:Clone()
 				btn.Name = "Icon_" .. (app.id or i)
-				btn.LayoutOrder = i -- ใส่ UIGridLayout/UIListLayout ทับได้
+				btn.LayoutOrder = i
 				btn.Position = UDim2.fromScale(0, (i - 1) * 0.17) -- fallback ถ้าไม่มี layout
 				local assetId = app.id and UIAssets["app_" .. app.id] or ""
 				if assetId ~= "" then btn.Image = assetId end
@@ -260,7 +240,6 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 
 	gui.Enabled = true
 
-	-- ---- ปิด ----
 	local exitConn = nil
 	local function closeScreen()
 		deps.fireAction({ type = "FreezeTime", on = false })
@@ -270,8 +249,8 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 		gui.Enabled = false
 		closeApp(true)
 		for _, conn in iconConns do conn:Disconnect() end
-		for _, b in iconClones do b:Destroy() end -- เฉพาะ fallback clone — instance จริงที่ทีมแต่งไว้เก็บไว้ ไม่ Destroy
-		if exitConn then exitConn:Disconnect() end -- กัน handler ซ้อนตอนเปิดใหม่
+		for _, b in iconClones do b:Destroy() end -- เฉพาะ fallback clone — instance จริงเก็บไว้
+		if exitConn then exitConn:Disconnect() end
 		PCScreen.running = false
 		PCScreen.forceClose = nil
 		if InteractLock then InteractLock.unlock() end
@@ -279,7 +258,7 @@ function PCScreen.open(playerGui, deps, apps, screenPart)
 	end
 	PCScreen.forceClose = closeScreen
 
-	-- Exit: มีแอปเปิดอยู่ = กลับ desktop · อยู่ desktop = ปิดคอม
+	-- Exit: มีแอปเปิด = กลับ desktop · อยู่ desktop = ปิดคอม
 	local exit = screen:FindFirstChild("ExitButton")
 	if exit then
 		exitConn = exit.Activated:Connect(function()

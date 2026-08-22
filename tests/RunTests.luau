@@ -52,10 +52,6 @@ local Config = if isStudio
 local CommentService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.CommentService)
 	else require("../src/server/Services/CommentService")
--- ⚠️ CalendarService ถูกพับไว้ 9 ส.ค. (ไม่ wire เข้าเกมแล้ว) — เทสยังอยู่ครบ กันโค้ดเน่าถ้ารื้อกลับ
-local CalendarService = if isStudio
-	then require(game:GetService("ServerScriptService").Services.CalendarService)
-	else require("../src/server/Services/CalendarService")
 -- (SponsorService require อยู่ใน do-block ของเทสมันเอง — top-level ชนเพดาน local 200 ตัวของ Luau)
 local EndingService = if isStudio
 	then require(game:GetService("ServerScriptService").Services.EndingService)
@@ -184,7 +180,7 @@ check("slot default 1", s.slot == 1)
 check("started=false ตอนเริ่ม (ยังไม่ commit เข้าเกม)", s.started == false)
 check("mergeDefaults เติม started ให้เซฟเก่าที่ไม่มี field นี้",
 	GameState.mergeDefaults({ money = 1 }, GameState.newGame()).started == false)
-check("ตาราง clips/calendar/flags ว่าง", #s.clips == 0 and next(s.calendar) == nil and next(s.flags) == nil)
+check("ตาราง clips/flags ว่าง", #s.clips == 0 and next(s.flags) == nil)
 
 -- ===== GameState.mergeDefaults (save เก่า + key ใหม่ = ไม่พัง) =====
 local old = { money = 999, choices = { pos = 5 } }
@@ -195,7 +191,7 @@ check("ตารางซ้อนถูกเติมทั้งก้อน"
 
 -- ===== GameState.slotSummary =====
 local sum = GameState.slotSummary({ follower = 55_000, day = 12, money = 1, mental = 1,
-	clips = {}, choices = {}, upgrades = {}, calendar = {}, flags = {}, savedAt = 123 })
+	clips = {}, choices = {}, upgrades = {}, flags = {}, savedAt = 123 })
 check("summary: follower/day/savedAt", sum.follower == 55_000 and sum.day == 12 and sum.savedAt == 123)
 check("summary: phase คำนวณจาก follower", sum.phase == 2)
 
@@ -679,11 +675,9 @@ check("lifestyle: กินถูกสุด = -4/สัปดาห์", Money
 spb.spending.food = 2
 check("lifestyle: กินดี = +4", MoneyService.lifestyleMental(spb) == 4)
 
--- ค่าเช่า/ค่าพนักงาน fixed: ปรับไม่ได้ทั้ง 2 ทิศ (UI ก็ซ่อนปุ่ม ⊖⊕ ทิ้งแล้ว)
+-- ค่าเช่า fixed: ปรับไม่ได้ทั้ง 2 ทิศ (UI ก็ซ่อนปุ่ม ⊖⊕ ทิ้งแล้ว)
 check("ค่าเช่าปรับไม่ได้", MoneyService.adjustSpending(spb, "rent", 1) == false
 	and MoneyService.adjustSpending(spb, "rent", -1) == false and (spb.spending.rent or 0) == 0)
-check("ค่าพนักงานปรับไม่ได้", MoneyService.adjustSpending(spb, "staff", 1) == false
-	and MoneyService.adjustSpending(spb, "staff", -1) == false and (spb.spending.staff or 0) == 0)
 check("ค่าเช่าคงที่ตามเฟสทุกเฟส (ไม่มี offset มากวน)", (function()
 	local s2 = GameState.newGame()
 	for p = 1, 3 do
@@ -823,10 +817,6 @@ do
 	check("เฟสเกิน clamp เป็น 3", EditQTE.previewCoverKey(9, lo) == "clip_cover_5")
 end
 
--- ===== sponsorPay (PDF หน้า 6: เงินคลิปเฉลี่ย ×2–4) =====
-check("sponsorPay phase1 rng=0 → 650×0.8×2 = 1040", Formulas.sponsorPay(1, rng0) == 1040)
-local sp = Formulas.sponsorPay(1, rngHi)
-check("sponsorPay rng สูง → เข้าใกล้ ×4", sp >= 2070 and sp <= 2080)
 local ns = GameState.newGame()
 check("state ใหม่มี pendingComments/pendingEvents",
 	#ns.pendingComments == 0 and #ns.pendingEvents == 0)
@@ -869,67 +859,6 @@ local before = { pos = cs2.choices.pos, neu = cs2.choices.neu, neg = cs2.choices
 local hSkip, tagSkip = CommentService.answer(cs2, { response = "skip" })
 check("ปล่อยผ่าน = pop แต่ไม่นับ", hSkip == true and tagSkip == nil and #cs2.pendingComments == 0
 	and cs2.choices.pos == before.pos and cs2.choices.neu == before.neu and cs2.choices.neg == before.neg)
-
--- ===== CalendarService (พับไว้ 9 ส.ค. — ยังเทสอยู่ กันโค้ดเน่าถ้ารื้อกลับ) =====
--- ★ ครอบ do...end: chunk นี้ชนเพดาน local 200 ตัวของ Luau แล้ว (ทั้งไฟล์คอมไพล์ไม่ผ่าน)
---   จบ block = register ถูกคืนให้เทสถัดๆ ไป · เป็นการจัดขอบเขตล้วนๆ ไม่แตะ assertion สักตัว
-do
-local cal = GameState.newGame()
-cal.day = 5
-check("วางวันอนาคตได้", CalendarService.place(cal, 7, { type = "Schedule", id = "Marathon" }) == true)
-check("วางวันนี้/อดีตไม่ได้", CalendarService.place(cal, 5, { type = "Schedule" }) == false)
-cal.calendar[9] = { type = "Canon", id = "Hater", locked = true }
-check("ทับ Canon ไม่ได้", CalendarService.place(cal, 9, { type = "Schedule" }) == false)
-check("sponsor: ไม่มี offer ค้าง กดไม่ได้", CalendarService.acceptSponsor(cal, 8) == false)
-cal.follower = 15_000
-cal.phase = 2
-check("sponsor offer: ก่อน 10K ไม่สุ่ม", (function()
-	local c = GameState.newGame(); c.phase = 2; c.follower = 500
-	return CalendarService.rollSponsorOffer(c, function() return 0 end) == false
-end)())
-check("sponsor offer: เฟส 1 ไม่สุ่ม", (function()
-	local c = GameState.newGame(); c.follower = 15_000
-	return CalendarService.rollSponsorOffer(c, function() return 0 end) == false
-end)())
-check("sponsor offer: สุ่มพลาด (>=5%) ไม่ได้", CalendarService.rollSponsorOffer(cal, function() return 0.5 end) == false)
-check("sponsor offer: สุ่มติด (<5%) ได้", CalendarService.rollSponsorOffer(cal, function() return 0.01 end) == true)
-check("sponsor offer: มีค้างแล้วไม่ซ้อน", CalendarService.rollSponsorOffer(cal, function() return 0.01 end) == false)
-check("sponsor: มี offer แล้ววางได้", CalendarService.acceptSponsor(cal, 8) == true)
-check("sponsor: offer ถูกใช้หมด กดซ้ำไม่ได้", cal.sponsorOffer == false)
-cal.day = 8
-local money0 = cal.money
-local blk = CalendarService.onDay(cal, rng0)
-check("วัน sponsor: เงินเข้า + block หาย",
-	blk.type == "Sponsor" and cal.money > money0 and cal.calendar[8] == nil)
-check("วันไม่มี block คืน nil", CalendarService.onDay(GameState.newGame(), rng0) == nil)
-
--- block หลายวัน + ย้าย (lock 21 ก.ค. — UX ทาง ก)
-local cal2 = GameState.newGame()
-cal2.day = 2
-check("วาง block 3 วัน ครองทุกช่อง", CalendarService.place(cal2, 5, { type = "Schedule", id = "Job", length = 3 }) == true
-	and cal2.calendar[5] ~= nil and cal2.calendar[7] ~= nil and cal2.calendar[5].startDay == 5)
-check("วางทับกลาง block ยาวไม่ได้", CalendarService.place(cal2, 6, { type = "Schedule" }) == false)
-check("ย้ายทั้งก้อนจากช่องกลางได้", CalendarService.moveBlock(cal2, 6, 10) == true
-	and cal2.calendar[5] == nil and cal2.calendar[7] == nil
-	and cal2.calendar[10].startDay == 10 and cal2.calendar[12] ~= nil)
-check("ย้ายไปวันผ่านแล้วไม่ได้ + block คืนที่เดิม",
-	CalendarService.moveBlock(cal2, 10, 1) == false and cal2.calendar[10] ~= nil and cal2.calendar[12] ~= nil)
-cal2.calendar[20] = { type = "Canon", id = "X", locked = true }
-check("ย้าย Canon ไม่ได้", CalendarService.moveBlock(cal2, 20, 25) == false)
-
--- block ยาว: ผลเกิดวันจบงาน
-local cal3 = GameState.newGame()
-cal3.day = 2
-CalendarService.place(cal3, 3, { type = "Sponsor", length = 2 })
-cal3.day = 3
-local m0 = cal3.money
-check("วันแรกของงานยาว: ยังไม่จ่าย แค่เคลียร์ช่อง",
-	CalendarService.onDay(cal3, rng0) == nil and cal3.money == m0 and cal3.calendar[3] == nil)
-cal3.day = 4
-local doneBlk = CalendarService.onDay(cal3, rng0)
-check("วันจบงาน: จ่ายเงิน + เคลียร์",
-	doneBlk ~= nil and doneBlk.type == "Sponsor" and cal3.money > m0 and cal3.calendar[4] == nil)
-end
 
 -- ===== SponsorService — งาน sponsor แบบ notification (แก้ดีไซน์ 9 ส.ค. แทนการวางลงปฏิทิน) =====
 -- ★ ครอบ do...end: ไฟล์นี้เป็น chunk เดียวยาวมาก ชนเพดาน local 200 ตัวของ Luau
@@ -1687,10 +1616,9 @@ bu.money = 999_999
 bu.upgrades.storage = 6 -- ระดับสูงสุด (ตัดกลับ 15→6 เมื่อ 12 ส.ค. 2569 (user) — ดูหมวดร้านค้าท้ายไฟล์)
 check("max level แล้วซื้อไม่ได้", MoneyService.buyUpgrade(bu, "storage") == false)
 check("item มั่วไม่ crash", MoneyService.buyUpgrade(bu, "รถ") == false)
--- ladder (resolution/storage/GB-ต่อคลิก) ยังยาว 15 ไว้เผื่อกลับมาใช้ — เกินระดับ 6 เป็น dead data ตอนนี้
--- UpgradeCosts ตัดจริงเหลือ 5 ขั้น (6 ระดับ) ตาม Shop 12 ส.ค. 2569 (user)
-check("ladder ดิบยังยาว 15 ไว้เผื่อ (dead เกินระดับ 6)", #Config.ResolutionLadder == 15
-	and #Config.StorageLadderGB == 15 and #Config.Record.footagePerClickGB == 15
+-- ladder (resolution/storage/GB-ต่อคลิก) = 6 ระดับ ตรงกับ UpgradeCosts 5 ขั้น (Shop 12 ส.ค. 2569, user)
+check("ladder ยาว 6 ตรงกับระดับที่ซื้อได้จริง", #Config.ResolutionLadder == 6
+	and #Config.StorageLadderGB == 6 and #Config.Record.footagePerClickGB == 6
 	and #Config.UpgradeCosts.camera == 5 and #Config.UpgradeCosts.storage == 5)
 check("เริ่มเกม = 480p/128GB", Config.ResolutionLadder[1] == "480p" and Config.StorageLadderGB[1] == 128)
 

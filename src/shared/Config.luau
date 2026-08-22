@@ -137,9 +137,6 @@ Config.Mental = {
 		CommentBadStreak3 = { mult = 2, kind = "drain", untilEvent = "activityOrGood", streak = 3 },
 		CommentGoodStreak3 = { mult = 1.25, kind = "recover", hours = 24, streak = 3 },
 		ViralStreak2 = { mult = 2, kind = "recover", hours = 36 },
-		-- dormant: dialogue ทางเดียวไม่มี choice (docs/02 §6) — เก็บไว้เผื่อดึง NPC choice กลับ
-		NpcBadStreak3 = { mult = 2, kind = "drain", untilEvent = "activityOrGood", streak = 3 },
-		NpcGoodStreak3 = { mult = 1.5, kind = "recover", hours = 24, streak = 3 },
 	},
 	modCap = 3, -- คูณซ้อนกันได้ไม่เกิน ×3 ทั้งสองฝั่ง
 	awakeHoursForNoSleep = 20,
@@ -212,23 +209,15 @@ Config.Staff = {
 
 -- Bank ⊖⊕ (PDF หน้า 9 — user lock 21 ก.ค., step/ผลใจเลือกโดย agent — docs/02 §9.7)
 -- ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step | ผลใจคิดตอนตัดรอบ 7 วัน
--- ★ 12 ส.ค. 2569 (user): เหลือ ⊖⊕ เฉพาะ "ค่าอาหาร" — ค่าเช่ากับค่าพนักงาน fixed แล้ว
---   min=max=0 → adjustSpending ปฏิเสธเองทุกทิศ (new อยู่นอกช่วง) ไม่ต้องแก้ logic ที่อื่น
---   ค่าเช่า = WeeklyExpenses[เฟส].rent ตรงๆ (สเกลตามเฟส 1,500/3,000/6,000)
---   ⚠️ ผลข้างเคียงที่ user รับทราบแล้ว: ทางลัด "จ่ายเช่าต่ำกว่าสัญญา = ค้างเช่าทุกรอบ" (missedAtOffset −2)
---      ยิงไม่ได้อีกต่อไป → Bad End ① เหลือทางเดียวคือ "เงินไม่พอจ่ายครบ 2 รอบ" (MoneyService.onDay)
---      missedAtOffset คงไว้ให้ logic เดิมอ่านได้ ไม่ error — แต่ offset ไปไม่ถึง −2 แล้ว (dead branch)
---   ค่าพนักงาน: เดิมเป็น "งบโบนัส" ที่ไม่เคยผูกผลจริง (ไม่ makesense) — ตัดทิ้ง เงินเดือนจริงมาจาก
---      StaffService.weeklySalary (คนที่จ้างจริง) หักแยกใน Main.server อยู่แล้ว
+-- ★ 12 ส.ค. 2569 (user): เหลือ ⊖⊕ เฉพาะ "ค่าอาหาร" — ค่าเช่า fixed (min=max=0 → adjustSpending ปฏิเสธเอง)
+--   ค่าเช่า = WeeklyExpenses[เฟส].rent ตรงๆ · เงินเดือนทีม = StaffService.weeklySalary (หักใน Main.server)
+--   Bad End ① = เงินไม่พอจ่ายครบ 2 รอบ (MoneyService.onDay)
 Config.Spending = {
 	food = { step = 200, minOffset = -1, maxOffset = 3, mentalUp = 2, mentalDown = -4 },
-	rent = { step = 500, minOffset = 0, maxOffset = 0, mentalUp = 1, mentalDown = -3, missedAtOffset = -2 },
-	staff = { step = 1_000, minOffset = 0, maxOffset = 0 },
+	rent = { step = 500, minOffset = 0, maxOffset = 0, mentalUp = 1, mentalDown = -3 },
 }
 
--- เคยขยายเป็น 15 ระดับ (28 ก.ค.) แล้วถอดกลับเหลือ 6 (12 ส.ค. 2569, user) — ระดับ 7-15 ไม่เคย lock
--- ราคา/ladder ของระดับ 7-15 ยังอยู่ที่ ResolutionLadder/StorageLadderGB/footagePerClickGB ข้างล่าง (เผื่อกลับมาใช้)
--- แต่ตัดออกจาก UpgradeCosts/ShopCatalog แล้ว = ซื้อไม่ได้จริง ตัน (clamp) ที่ระดับ 6 ทั้งฝั่ง server และ UI
+-- เคยขยายเป็น 15 ระดับ (28 ก.ค.) แล้วถอดกลับเหลือ 6 (12 ส.ค. 2569, user) — ล็อกที่ 6 ทั้ง server และ UI
 --
 -- 💰 เงินทั้งเกมมีจำกัด: 10K×0.8 + 90K×1.2 + 900K×1.5 ≈ 1.47 ล้าน หักค่าใช้จ่ายเหลือ ~1.3 ล้าน
 --    → ระดับ 1-6 ทั้ง 2 สาย (กล้อง+ที่เก็บ) รวม 842,500 — เหลือเงินส่วนเกิน ~460,000 ไม่มีอะไรให้ซื้อต่อ
@@ -241,19 +230,14 @@ Config.UpgradeCosts = {
 	-- ขายของที่ไม่มีผล = หลอกผู้เล่นให้ทิ้งเงินฟรี (เงินมีเพดาน ~1.3 ล้าน ทุกบาทมีค่า) · docs/02 §9.5 อัปแล้ว
 }
 
--- 1-6 ล็อก (480p→4320p) · 7-15 ต่อยอดเป็น fps/RAW เพราะ resolution ชนเพดานจริงแล้ว
-Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p",
-	"4320p 60fps", "4320p 120fps", "8640p", "8640p 60fps",
-	"8640p 120fps", "8640p RAW", "8640p 240fps", "17280p", "17280p RAW" }
+-- 480p→4320p (6 ระดับ ตรงกับ Shop)
+Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p" }
 
--- 1-6 ล็อก (128GB→8TB) · 7-15 ต่อ ×2 ถึง 16PB
-Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192,
-	16_384, 32_768, 65_536, 131_072, 262_144,
-	524_288, 1_048_576, 4_194_304, 16_777_216 }
+-- 128GB→8TB (6 ระดับ)
+Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192 }
 
--- โมเดล Tool ใน ReplicatedStorage.ToolModels มีถึง Camera_6 เท่านั้น (ระดับกล้องมี 15)
--- ระดับ 7+ ใช้โมเดลตัวท้ายสุดแทน — ไม่งั้น ToolService หาโมเดลไม่เจอ = ผู้เล่นไม่มีกล้องในมือเลย
--- ทีมปั้นโมเดลเพิ่มเมื่อไหร่ ขยับเลขนี้ตาม
+-- โมเดล Tool ใน ReplicatedStorage.ToolModels มีถึง Camera_6 = ครบทุกระดับกล้อง (6)
+-- กันเหนียว: ถ้าระดับกล้องเกินจำนวนโมเดล ToolService ใช้โมเดลตัวท้ายสุดแทน (ไม่งั้นมือเปล่า)
 Config.CameraModelCount = 6
 
 -- ★ ระดับ 6 = Tool "Camera_6" ทำหน้าที่ **รีโมทเรียกรถเข็นกล้อง IMAX** (แก้ดีไซน์ 5 ส.ค.)
@@ -293,9 +277,7 @@ Config.ShopCatalog = {
 -- สูตรต่อคลิก: GB = footagePerClickGB[กล้อง] × (bonus? bonusMult : 1) × (ในโซน? zoneMult : 1)
 Config.Record = {
 	-- GB ต่อคลิก ตามระดับกล้อง — เต็ม storage ระดับเดียวกัน ~128 คลิก (L5-6 ~256 จงใจ บังคับพึ่งโซน/พนักงาน)
-	-- 1-6 ล็อก · 7-15 คุมอัตราส่วน storage[N]/perClick[N] = 256 เท่าเดิม (จำนวนคลิกต่อเต็มถังคงที่)
-	footagePerClickGB = { 1, 2, 4, 8, 16, 32,
-		64, 128, 256, 512, 1_024, 2_048, 4_096, 16_384, 65_536 },
+	footagePerClickGB = { 1, 2, 4, 8, 16, 32 },
 	clickCooldownSeconds = 0.6, -- กันสแปมแบบ simulator (user feedback 21 ก.ค.)
 	-- Bonus proc (PDF หน้า 7 "+2.4 Bonus!") — เกิดได้ทุกที่ ซ้อนกับโซนได้
 	bonusChance = 0.1,
@@ -383,7 +365,7 @@ Config.SponsorUnlockFollowers = 10_000
 Config.SponsorOfferChance = 0.05 -- PDF หน้า 6: offer เด้งเอง 5%/วัน (เฟส 2-3) ไม่ใช่ปุ่มกดเรียก
 Config.SponsorOfferMinPhase = 2
 -- ★ แก้ดีไซน์ 9 ส.ค. (user): sponsor ไม่ต้องเลือกวางวันในปฏิทินแล้ว — offer เด้งเป็น notification
---   กดรับ = ได้ buff "เงินจากคลิป ×Mult" ทันที นาน Days วันในเกม (ปฏิทินถูกพับไว้ ดู CalendarService)
+--   กดรับ = ได้ buff "เงินจากคลิป ×Mult" ทันที นาน Days วันในเกม
 --   offer ที่ไม่กดรับหมดอายุตอนขึ้นวันใหม่ (ไม่งั้นค้าง = สุ่มใบใหม่ไม่ได้ตลอดกาล เพราะไม่มี UI ปฏิทินให้เปิดดูแล้ว)
 Config.SponsorBuffMult = 2 -- เงินจากคลิปที่อัปโหลดระหว่าง buff ×เท่านี้ (follower ไม่คูณ — คูณเฉพาะเงิน)
 Config.SponsorBuffDays = 1 -- buff อยู่กี่วันในเกมนับจากวันที่กดรับ
@@ -393,7 +375,7 @@ Config.SponsorBuffDays = 1 -- buff อยู่กี่วันในเกม
 --   จ่ายตอนผู้เล่นกดปุ่มรับใน DM (แอป Inbox) → SponsorService.claimDM ตัดสินฝั่ง server
 --   key ต้องตรงกับ `payoutId` ของก้อน DM ใน Shared/Content/DMs.luau
 --
---   ที่มาของตัวเลข — อ้างสูตรเดิมที่ design doc เก็บไว้ `Formulas.sponsorPay` (คลิปเฉลี่ยของเฟส × 2–4):
+--   ที่มาของตัวเลข — อิงสูตร design doc "คลิปเฉลี่ยของเฟส × 2–4":
 --     เฟส 2 = (1,400+2,600)/2 × 1.2 = 2,400 → ช่วง 4,800–9,600
 --     เฟส 3 = (9,000+15,000)/2 × 1.5 = 18,000 → ช่วง 36,000–72,000
 --

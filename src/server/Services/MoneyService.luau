@@ -29,7 +29,6 @@ function MoneyService.weeklyTotal(state): number
 	return math.max(0, w.rent + (sp.rent or 0) * S.rent.step)
 		+ w.internet
 		+ math.max(0, w.food + (sp.food or 0) * S.food.step)
-		+ math.max(0, (sp.staff or 0) * S.staff.step)
 end
 
 -- ผลใจจากไลฟ์สไตล์ (กิน/เช่า) ตอนตัดรอบ — Main เอาไป applyDelta
@@ -48,10 +47,6 @@ end
 function MoneyService.onDay(state): (boolean, boolean)
 	if state.day <= 1 or (state.day - 1) % 7 ~= 0 then return false, false end
 	local total = MoneyService.weeklyTotal(state)
-	-- จ่ายเช่าต่ำกว่าสัญญา (offset ≤ missedAtOffset) = นับค้างเช่าแม้มีเงิน
-	if (state.spending and state.spending.rent or 0) <= Config.Spending.rent.missedAtOffset then
-		state.flags.rentMissed = (state.flags.rentMissed or 0) + 1
-	end
 	if state.money >= total then
 		state.money -= total
 		return false, true

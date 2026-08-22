@@ -5,8 +5,7 @@
 --   buff = เงินจากคลิปที่อัปโหลด ×Config.SponsorBuffMult นาน Config.SponsorBuffDays วัน
 --   (คูณเฉพาะเงิน ไม่แตะ follower — สูตร follower ล็อกอยู่ใน docs/02 §2 ห้ามขยับ)
 --
--- ★ ปฏิทินถูก "พับ" ไม่ใช่ลบ: `CalendarService.luau` + `CalendarApp.luau` ยังอยู่ครบ
---   แค่ถอด wiring ออกจาก Main.server/Main.client — จะรื้อกลับมาต่อ wire 4 บรรทัดเดิม
+-- ★ ระบบปฏิทินเดิม (วางงานลงวัน) ถอดออกแล้ว 22 ส.ค. 2569 — เหลือ toast กดรับทันที
 --
 -- เงื่อนไขสุ่ม offer ยังเป็นของเดิมทุกตัว (Config.SponsorOffer*) — ไม่ได้ขยับ balance ฝั่งนั้น
 local isStudio = script ~= nil
@@ -22,7 +21,6 @@ local DMs = if isStudio
 local SponsorService = {}
 
 -- สุ่ม offer รายวัน: เฟส 2-3 + ปลดล็อค 10K → 5%/วัน · มีค้างได้ทีละใบ
--- (ย้ายมาจาก CalendarService.rollSponsorOffer ตอนพับปฏิทิน — เงื่อนไขเหมือนเดิมเป๊ะ)
 function SponsorService.rollOffer(state, rng): boolean
 	if state.sponsorOffer then return false end
 	if state.phase < Config.SponsorOfferMinPhase then return false end

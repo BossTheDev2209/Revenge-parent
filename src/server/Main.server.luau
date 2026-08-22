@@ -11,8 +11,7 @@ local MentalService = require(SSS.Services.MentalService)
 local FollowerService = require(SSS.Services.FollowerService)
 local MoneyService = require(SSS.Services.MoneyService)
 local CommentService = require(SSS.Services.CommentService)
--- ★ CalendarService ถูกพับไว้ 9 ส.ค. (user) — sponsor ย้ายไปเป็น notification ดู SponsorService
---   ไฟล์ CalendarService.luau + CalendarApp.luau ยังอยู่ครบ แค่ไม่ wire · จะรื้อกลับมา require ตรงนี้
+-- ★ sponsor เป็น notification (toast กดรับ) ดู SponsorService — ระบบปฏิทินเดิมถอดออกแล้ว (22 ส.ค. 2569)
 local SponsorService = require(SSS.Services.SponsorService)
 local EndingService = require(SSS.Services.EndingService)
 local StaffService = require(SSS.Services.StaffService)

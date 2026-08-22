@@ -1,6 +1,7 @@
--- EditQTE.luau — มินิเกมตัดคลิป (docs/07 §3.4 + PDF หน้า 7): เลือกขนาด footage ก่อน แล้ว QTE วงแหวน
---   ขนาด↑ (Config.ClipSizes) = วง/จอเยอะ+หดเร็ว+วงมาก แลก reward ×(gb/32) · คะแนน normalize เป็น 0–200 (VidQ)
--- pure: scoreFor / normalizeScore / clipSizesFor / pickKeys (lune เทส) | UI glue: start() overlay สร้างเอง
+-- EditQTE — มินิเกมตัดคลิป: เลือกขนาด footage ก่อน แล้ว QTE วงแหวน
+--   ขนาด↑ (Config.ClipSizes: hits/maxOnScreen/spawnInterval/approach) = ยากขึ้น แลก reward ×(gb/32)
+--   คะแนน normalize เป็น 0–200 (VidQ) · เพิ่ม/แก้ความยาก = แก้ Config.ClipSizes ที่เดียว
+-- pure: scoreFor / normalizeScore / clipSizesFor / pickKeys (lune) | UI glue: start() overlay สร้างเอง
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -12,20 +13,8 @@ local Formulas = if isStudio
 local EditQTE = {}
 EditQTE.running = false
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 🎮 ความยาก/จำนวนวง = ต่อ "ขนาด footage" ที่ผู้เล่นเลือก → อยู่ที่ Config.ClipSizes
---   (แถว gb=32 = baseline เดิม "duo" · เพิ่ม/แก้ตัวเลขได้ที่นั่นที่เดียว)
---   • hits = จำนวนวง/คลิป · maxOnScreen = วงสูงสุดบนจอพร้อมกัน
---   • spawnInterval = ห่างการเด้งวงถัดไป (วิ) · approach = เวลาวงแหวนหดจนทับ (สั้น=ยาก)
--- ═══════════════════════════════════════════════════════════════════════════
-
--- ═══════════════════════════════════════════════════════════════════════════
--- 🔊 ระบบเสียง QTE — user สาย A แก้ตรงนี้ได้เลย (ไม่ต้องแตะ logic)
---   เล่นเสียง 1 ครั้งตอนกดแต่ละวง ตามเกรดที่ได้ (S/A/B/C)
---   ค่าคือ "ชื่อ Sound" ที่วางไว้ใน SoundService.SFX (ทีมเสียงวาง Sound object ตั้งชื่อตามนี้ จบ)
---   • เปลี่ยนเสียง: แก้ชื่อให้ตรงกับ Sound ที่มี หรือวาง Sound ใหม่ใน SoundService.SFX ใช้ชื่อนี้
---   • ปิดเสียงเกรดไหน: ใส่ "" · ระดับเสียงรวมคุมผ่านแอปตั้งค่า (master SoundGroup) อัตโนมัติ
--- ═══════════════════════════════════════════════════════════════════════════
+-- เสียง QTE (user แก้ได้ ไม่ต้องแตะ logic): เล่น 1 ครั้งตอนกดแต่ละวงตามเกรด · ค่า = ชื่อ Sound ใน SoundService.SFX
+--   เปลี่ยน = แก้ชื่อ/วาง Sound ใหม่ · ปิดเกรดไหน = ใส่ "" · ระดับเสียงคุมผ่าน master SoundGroup
 EditQTE.SFX = {
 	S = "qte_perfect", -- กดเป๊ะ (เขียว)
 	A = "qte_good",    -- ดี (ฟ้า)
@@ -33,14 +22,13 @@ EditQTE.SFX = {
 	C = "qte_miss",    -- พลาด/หมดเวลา (แดง)
 }
 
--- คะแนนต่อวง: พีคตอนวงแหวนหดมาเท่าวงเป้าหมายพอดี (t=window) ไล่เส้นตรงจาก 0 (เพิ่งโผล่)
--- redesign 8 ส.ค. — เดิมพีคกลาง window (10×(1-|t-half|/half)) เปลี่ยนให้ตรงกับภาพ "วงบีบมาทับกันพอดี = perfect"
+-- คะแนนต่อวง: พีคตอนวงแหวนหดมาเท่าวงเป้าหมายพอดี (t=window) ไล่เส้นตรงจาก 0
 function EditQTE.scoreFor(t: number, window: number): number
 	if t <= 0 or window <= 0 then return 0 end
 	return math.clamp(math.floor(10 * math.min(t, window) / window), 0, 10)
 end
 
--- 9-10=S(เขียว) 6-8=A(ฟ้า) 3-5=B(เหลือง) 0-2=C(แดง) — พลาด/หมดเวลาก็เข้า C ผ่าน points=0
+-- 9-10=S 6-8=A 3-5=B 0-2=C (พลาด/หมดเวลาเข้า C ผ่าน points=0)
 function EditQTE.tierFor(points: number): string
 	if points >= 9 then
 		return "S"
@@ -57,18 +45,17 @@ local TIER_COLOR = {
 	S = Color3.fromRGB(80, 230, 140), -- เขียว
 	A = Color3.fromRGB(90, 170, 255), -- ฟ้า
 	B = Color3.fromRGB(255, 210, 80), -- เหลือง
-	C = Color3.fromRGB(255, 90, 90), -- แดง (รวมกรณีพลาด/หมดเวลา)
+	C = Color3.fromRGB(255, 90, 90), -- แดง (รวมพลาด/หมดเวลา)
 }
 function EditQTE.colorFor(tier: string): Color3
 	return TIER_COLOR[tier] or TIER_COLOR.C
 end
 
--- ชุดคีย์สำหรับ PC — โซนซ้ายมือ เอื้อมง่าย ไม่ต้องขยับมือจากเมาส์มาก
+-- ชุดคีย์ PC — โซนซ้ายมือ เอื้อมง่าย
 local KEY_POOL = { "Q", "W", "E", "R", "A", "S", "D", "F" }
 EditQTE.KEY_POOL = KEY_POOL
 
--- เลือกคีย์ว่าง 1 ตัว (ไม่ชนกับวงที่ยัง active) — chain มีหลายวงพร้อมกัน คีย์ต้องไม่ซ้ำ
--- used = set { [keyName]=true } ของคีย์ที่ถูกใช้อยู่ · ไม่มีว่าง = คืนสุ่มทั้ง pool (เกิดยาก pool 8 > concurrent ~3)
+-- เลือกคีย์ว่าง 1 ตัว (ไม่ชนวง active) · used = set คีย์ที่ใช้อยู่ · ไม่มีว่าง = สุ่มทั้ง pool (เกิดยาก)
 function EditQTE.pickFreeKey(pool, used, rng): string
 	rng = rng or math.random
 	local free = {}
@@ -81,9 +68,7 @@ function EditQTE.pickFreeKey(pool, used, rng): string
 	return bag[math.floor(rng() * #bag) + 1]
 end
 
--- สุ่ม 1 ตำแหน่งในกรอบ (0,0)-(1,1) เว้น margin ขอบ — เลือกจุดที่ "ไกลจากวง active มากสุด"
--- (best-of-N: สุ่มผู้สมัคร 12 จุด เลือกอันห่างสุด) กันวงใหม่โผล่ทับวงเดิมจนมองไม่เห็น
--- มีที่ว่าง = ไม่ทับแน่นอน · จอเต็ม = เลือกที่ห่างสุดเท่าที่ได้ (ดีกว่า retry แล้วยอมทับ)
+-- สุ่มตำแหน่งใน (0,0)-(1,1) เว้น margin — best-of-12 เลือกจุดไกลจากวง active สุด (กันโผล่ทับ)
 function EditQTE.pickPosition(margin: number, avoid, rng): { x: number, y: number }
 	rng = rng or math.random
 	local best, bestDist = nil, -1
@@ -106,8 +91,7 @@ function EditQTE.pickPosition(margin: number, avoid, rng): { x: number, y: numbe
 	return best
 end
 
--- รูป preview กลางจอ (ปกคลิปที่กำลังตัด) ตามเฟส — "เปลี่ยนตาม progress เนื้อเรื่อง"
---   เฟส 1 → clip_cover_1/2 · เฟส 2 → 3/4 · เฟส 3 → 5/6 (สุ่มในคู่) · คืนชื่อคีย์ UIAssets
+-- รูป preview กลางจอตามเฟส: เฟส 1 → cover 1/2 · เฟส 2 → 3/4 · เฟส 3 → 5/6 (สุ่มในคู่)
 function EditQTE.previewCoverKey(phase: number, rng): string
 	rng = rng or math.random
 	local p = math.clamp(phase or 1, 1, 3)
@@ -115,15 +99,13 @@ function EditQTE.previewCoverKey(phase: number, rng): string
 	return "clip_cover_" .. pick
 end
 
--- footage พอตัดคลิปขนาด footageGB ไหม (pure — กติกาเดียวกับ RecordService ฝั่ง server)
--- footageGB ไม่ส่ง = 32 baseline (backward-compat) · ใช้เช็คขนาดเจาะจง
+-- footage พอตัดคลิปขนาด footageGB ไหม (pure — กติกาเดียวกับ RecordService)
 function EditQTE.canEdit(state, footageGB): boolean
 	local cost = tonumber(footageGB) or Config.Record.footagePerClipGB
 	return state ~= nil and (state.footageGB or 0) >= cost
 end
 
--- รายการขนาดคลิปที่ผู้เล่นเลือกได้ตอนนี้ = ขนาดใน Config.ClipSizes ที่ footage ปัจจุบัน ≥ gb
--- คืน list (เรียงเล็ก→ใหญ่ตาม Config) · footage ไม่พอขนาดเล็กสุด = คืน {} (เปิดหน้าตัดไม่ได้)
+-- ขนาดคลิปที่เลือกได้ตอนนี้ = Config.ClipSizes ที่ footage ปัจจุบัน ≥ gb · footage ไม่พอตัวเล็กสุด = {}
 function EditQTE.clipSizesFor(state): { any }
 	local have = (state and state.footageGB) or 0
 	local out = {}
@@ -135,8 +117,7 @@ function EditQTE.clipSizesFor(state): { any }
 	return out
 end
 
--- normalize คะแนนรวมเป็นสเกล 0–200 (VidQ คงที่) — hits แปรผันตามขนาด แต่ VidQ ต้องวัด %ความแม่น
--- total = ผลรวม points (แต่ละวง 0–10) · hits = จำนวนวงของคลิปนั้น → max = hits×10
+-- normalize คะแนนรวมเป็น 0–200 (VidQ คงที่แม้ hits ต่างกัน) · total = ผลรวม points (วงละ 0–10)
 function EditQTE.normalizeScore(total: number, hits: number): number
 	if not hits or hits <= 0 then return 0 end
 	local maxRaw = hits * 10
@@ -144,7 +125,7 @@ function EditQTE.normalizeScore(total: number, hits: number): number
 	return math.clamp(math.floor(scaled + 0.5), 0, Config.MaxClipAccuracy)
 end
 
--- ข้อความเตือนกลางจอ 2 วิ (ใช้ตอน footage ไม่พอ)
+-- ข้อความเตือนกลางจอ 2 วิ (footage ไม่พอ)
 function EditQTE.toast(playerGui, text: string)
 	local g = Instance.new("ScreenGui")
 	g.ResetOnSpawn = false
@@ -160,20 +141,16 @@ function EditQTE.toast(playerGui, text: string)
 	task.delay(2, function() g:Destroy() end)
 end
 
--- ===== UI glue (Studio เท่านั้น) =====
--- osu-style redesign (8 ส.ค.): chain 20 วงไหลต่อเนื่อง (ไม่แบ่ง block) + เสียงตามเกรด
---   PC = กดตัวอักษร · มือถือ = แตะเลข · เสียงเล่นตอนกดแต่ละวงตาม tier (EditQTE.SFX)
+-- osu-style: chain วงไหลต่อเนื่อง + เสียงตามเกรด · PC = กดตัวอักษร · มือถือ = แตะเลข
 local UIAssets = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.UIAssets)
 	else nil
--- EditQTE (ใน Apps) ย้ายไปอยู่ StarterGui.UI.Apps (9 ส.ค.) — AudioService ยังอยู่ StarterPlayerScripts เดิม
--- ต้อง absolute path ผ่าน PlayerScripts (ความลึกเดิม script.Parent.Parent.Parent ใช้ไม่ได้แล้ว)
+-- AudioService อยู่ StarterPlayerScripts — absolute path (ความลึกเดิมใช้ไม่ได้หลังย้าย EditQTE ไป StarterGui)
 local AudioService = if isStudio
 	then require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
 	else nil
 
--- เล่นเสียงตามเกรด — ผ่านระบบกลาง AudioService.sfx (คุม master volume ให้เอง)
--- ชื่อเสียงมาจาก EditQTE.SFX (user แก้ได้) ต้องมี Sound ชื่อนั้นใน SoundService.SFX ไม่งั้นเงียบ (ไม่พัง)
+-- เล่นเสียงตามเกรด (ผ่าน AudioService.sfx คุม master volume) · ไม่มี Sound ชื่อนั้น = เงียบ (ไม่พัง)
 local function playGradeSfx(tier: string)
 	local name = EditQTE.SFX[tier]
 	if AudioService and name and name ~= "" then
@@ -192,7 +169,7 @@ local COLORS = {
 	ring = Color3.fromRGB(220, 224, 236),
 }
 
-local PLAY_MARGIN = 0.22 -- scale — เว้นขอบกันวงแหวนขนาดใหญ่สุดล้นขอบ play area
+local PLAY_MARGIN = 0.22 -- เว้นขอบกันวงแหวนใหญ่สุดล้น play area
 
 local function mk(class, parent, props)
 	local o = Instance.new(class)
@@ -203,11 +180,9 @@ local function mk(class, parent, props)
 	return o
 end
 
--- 1 วงกลม: วงเป้าหมาย (ปุ่มกดจริง label ตรงกลาง) + วงแหวนหดเข้าหา (โผล่ปุ๊บเริ่มหดเลย)
---   labelText = ตัวอักษร (PC) หรือเลขลำดับ (mobile) · approachTime = เวลาหดจนทับ (จาก preset)
---   คืน press() = ฟังก์ชัน resolve วงนี้ (คีย์บอร์ด PC เรียกผ่านตัวนี้ · เมาส์/แตะเรียกเองผ่าน .Activated)
+-- 1 วง: วงเป้าหมาย (ปุ่มกด) + วงแหวนหดเข้าหา (โผล่ปุ๊บเริ่มหด) · คืน press() = resolve วงนี้ (คีย์ PC เรียกผ่าน)
 -- onResolve(points, tier) = ตอนกด/หมดเวลา (คิดคะแนน+เสียงทันที) · onCleared() = ตอนวงหายจากจอจริง
---   แยกกันเพราะวงโชว์สี tier ค้าง 0.25 วิ ก่อนหาย — ต้องยังนับเป็น "วงบนจอ" ช่วงนั้น (cap/กันซ้อน)
+--   แยกกันเพราะวงโชว์สี tier ค้าง 0.25 วิ ก่อนหาย — ช่วงนั้นยังนับเป็น "วงบนจอ" (cap/กันซ้อน)
 local function spawnCircle(RunService, parent, posScale, labelText: string, approachTime: number, onResolve, onCleared)
 	local SIZE_TARGET = 84
 	local SIZE_START = 190
@@ -236,14 +211,14 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, appr
 	})
 	mk("UICorner", btn, { CornerRadius = UDim.new(1, 0) })
 	mk("UIStroke", btn, { Thickness = 3, Color = COLORS.accent, Transparency = 0.15 })
-	local pad = mk("UIPadding", btn, {}) -- กัน label ชิดขอบวงกลมตอน TextScaled
+	local pad = mk("UIPadding", btn, {}) -- กัน label ชิดขอบวงตอน TextScaled
 	pad.PaddingLeft = UDim.new(0, 18)
 	pad.PaddingRight = UDim.new(0, 18)
 	pad.PaddingTop = UDim.new(0, 18)
 	pad.PaddingBottom = UDim.new(0, 18)
 
 	local resolved = false
-	local startAt = os.clock() -- โผล่ปุ๊บวงแหวนเริ่มหดทันที
+	local startAt = os.clock() -- โผล่ปุ๊บวงแหวนเริ่มหด
 
 	local function finish(points: number)
 		if resolved then return end
@@ -252,14 +227,13 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, appr
 		btn.BackgroundColor3 = EditQTE.colorFor(tier)
 		ring.Visible = false
 		onResolve(points, tier) -- คะแนน/เสียง/done ทันทีที่กด
-		task.delay(0.25, function() -- โชว์สี tier ค้างแป๊บ แล้วค่อยหาย + ปลด slot บนจอ
+		task.delay(0.25, function() -- โชว์สี tier ค้าง แล้วหาย + ปลด slot บนจอ
 			btn:Destroy()
 			ring:Destroy()
 			if onCleared then onCleared() end
 		end)
 	end
 
-	-- กด (คีย์/เมาส์/แตะ) — คิดคะแนนจากเวลาเทียบ startAt
 	local function press()
 		finish(EditQTE.scoreFor(os.clock() - startAt, approachTime))
 	end
@@ -281,17 +255,15 @@ local function spawnCircle(RunService, parent, posScale, labelText: string, appr
 	return press
 end
 
--- ฉากหลังจำลอง "หน้าโปรแกรมตัดต่อ" (ใช้เมื่อยังไม่มีรูป UIAssets.edit_workspace_bg)
--- ทุกชิ้น ZIndex 0-1 → อยู่ใต้วงกลม QTE (ZIndex 2-3) เสมอ · ใส่รูปจริงทีหลัง = ImageLabel ทับ mock นี้
--- โครง (อ้าง Premiere): toolbar บน · media bin ซ้าย · preview กลาง (รูปตามเฟส) · effect panel ขวา · timeline ล่าง
---   coverImg = asset id ปกคลิปกลางจอ ("" = placeholder) · phaseText = ข้อความบอกเฟสตอนไม่มีรูป
+-- ฉากหลังจำลอง "หน้าโปรแกรมตัดต่อ" (ใช้เมื่อไม่มี UIAssets.edit_workspace_bg) · ทุกชิ้น ZIndex 0-1 อยู่ใต้วง QTE (2-3)
+-- โครง (อ้าง Premiere): toolbar · media bin ซ้าย · preview กลาง (รูปตามเฟส) · effect panel ขวา · timeline ล่าง
 local function buildEditorMock(area, coverImg: string, phaseText: string)
 	local BG = Color3.fromRGB(22, 24, 33)
 	local PANEL2 = Color3.fromRGB(30, 33, 45)
 	local LINE = Color3.fromRGB(46, 50, 66)
 	area.BackgroundColor3 = BG
 
-	-- ===== toolbar บนสุด =====
+	-- toolbar บนสุด
 	local bar = mk("Frame", area, { Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
 	for i, c in { Color3.fromRGB(230, 90, 90), Color3.fromRGB(235, 190, 80), Color3.fromRGB(90, 200, 120) } do
 		local d = mk("Frame", bar, { Size = UDim2.fromOffset(9, 9), Position = UDim2.fromOffset(10 + (i - 1) * 14, 8), BackgroundColor3 = c, BorderSizePixel = 0, ZIndex = 1 })
@@ -302,7 +274,7 @@ local function buildEditorMock(area, coverImg: string, phaseText: string)
 		mk("UICorner", s, { CornerRadius = UDim.new(0, 3) })
 	end
 
-	-- ===== media bin ซ้าย (คลังคลิป) =====
+	-- media bin ซ้าย
 	local bin = mk("Frame", area, { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(0, 120, 1, -136), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
 	for r = 0, 3 do
 		local th = mk("Frame", bin, { Position = UDim2.fromOffset(10, 10 + r * 46), Size = UDim2.fromOffset(100, 38), BackgroundColor3 = LINE, BorderSizePixel = 0, ZIndex = 1 })
@@ -310,7 +282,7 @@ local function buildEditorMock(area, coverImg: string, phaseText: string)
 		mk("UIGradient", th, { Color = ColorSequence.new(Color3.fromRGB(62, 68, 92), Color3.fromRGB(38, 42, 56)), Rotation = 30 })
 	end
 
-	-- ===== preview กลาง (รูปคลิปที่กำลังตัด — เปลี่ยนตามเฟส) — เว้นที่ให้ panel ขวา 140px =====
+	-- preview กลาง (รูปคลิปตามเฟส) — เว้นที่ให้ panel ขวา 140px
 	local pv = mk("Frame", area, { Position = UDim2.fromOffset(120, 26), Size = UDim2.new(1, -260, 1, -136), BackgroundColor3 = Color3.fromRGB(12, 13, 18), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 0 })
 	if coverImg and coverImg ~= "" then
 		mk("ImageLabel", pv, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = coverImg, ScaleType = Enum.ScaleType.Crop, ZIndex = 0 })
@@ -320,7 +292,7 @@ local function buildEditorMock(area, coverImg: string, phaseText: string)
 		mk("TextLabel", pv, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "🎞️ " .. (phaseText or "PREVIEW"), TextColor3 = Color3.fromRGB(70, 76, 98), TextSize = 20, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 0 })
 	end
 
-	-- ===== effect panel ขวา (Effect Controls แบบ Premiere) =====
+	-- effect panel ขวา
 	local rp = mk("Frame", area, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 26), Size = UDim2.new(0, 140, 1, -136), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
 	mk("TextLabel", rp, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 15), BackgroundTransparency = 1, Text = "Effect Controls", TextColor3 = Color3.fromRGB(150, 156, 178), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, FontFace = Font.fromEnum(Enum.Font.GothamMedium), ZIndex = 1 })
 	for i, name in { "Motion", "Position", "Scale", "Rotation", "Opacity", "Time Remap" } do
@@ -330,7 +302,7 @@ local function buildEditorMock(area, coverImg: string, phaseText: string)
 		mk("UICorner", val, { CornerRadius = UDim.new(0, 3) })
 	end
 
-	-- ===== timeline ล่าง =====
+	-- timeline ล่าง
 	local tl = mk("Frame", area, { Position = UDim2.new(0, 0, 1, -110), Size = UDim2.new(1, 0, 0, 110), BackgroundColor3 = PANEL2, BorderSizePixel = 0, ZIndex = 0 })
 	local ruler = mk("Frame", tl, { Size = UDim2.new(1, 0, 0, 16), BackgroundColor3 = Color3.fromRGB(26, 28, 38), BorderSizePixel = 0, ZIndex = 1 })
 	for i = 0, 20 do
@@ -350,12 +322,11 @@ local function buildEditorMock(area, coverImg: string, phaseText: string)
 	mk("Frame", ph, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(10, 8), Position = UDim2.new(0.5, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(235, 90, 90), BorderSizePixel = 0, ZIndex = 1 })
 end
 
--- fireAction = function(actionTable) ยิงเข้า Remotes.Action (Main.client ส่งมา)
--- getState = function() คืน state ล่าสุด (ใช้เช็ค footage ก่อนตัดทุกรอบ)
+-- fireAction = ยิงเข้า Remotes.Action · getState = คืน state ล่าสุด (เช็ค footage ก่อนตัดทุกรอบ)
 function EditQTE.start(playerGui, fireAction, getState)
 	if EditQTE.running then return end
 	getState = getState or function() return nil end
-	-- gate เปิดหน้าตัด = มี footage ≥ ขนาดเล็กสุดที่เลือกได้ (ClipSizes[1].gb) ไม่ใช่ 32 ตายตัว
+	-- gate เปิดหน้าตัด = มี footage ≥ ขนาดเล็กสุดที่เลือกได้ (ClipSizes[1].gb)
 	if #EditQTE.clipSizesFor(getState()) == 0 then
 		EditQTE.toast(playerGui, ("footage ไม่พอ! ต้องมีอย่างน้อย %d GB — ออกไปอัดคลิปก่อน")
 			:format(Config.ClipSizes[1].gb))
@@ -367,12 +338,11 @@ function EditQTE.start(playerGui, fireAction, getState)
 	local GuiService = game:GetService("GuiService")
 	local UIS = game:GetService("UserInputService")
 
-	-- มือถือ/แท็บเล็ต (touch ไม่มีคีย์บอร์ด) = แตะเลข · PC/มีคีย์บอร์ด = กดตัวอักษร
+	-- มือถือ (touch ไม่มีคีย์บอร์ด) = แตะเลข · PC = กดตัวอักษร
 	local useTouch = UIS.TouchEnabled and not UIS.KeyboardEnabled
 
 	local PANEL_W, PANEL_H = 720, 560
 
-	-- IgnoreGuiInset = พื้นดำ dim คลุมเต็มจอถึงแถบบนสุด (ไม่เว้นช่อง topbar ~36px)
 	local gui = mk("ScreenGui", nil, { Name = "Gui_EditQTE", ResetOnSpawn = false, DisplayOrder = 8, IgnoreGuiInset = true })
 	mk("Frame", gui, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5 })
 
@@ -415,7 +385,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		FontFace = Font.fromEnum(Enum.Font.GothamBold),
 	})
 
-	-- ★ พื้นหลังโปรแกรมตัดต่อ — มีรูป (UIAssets.edit_workspace_bg) ใช้เลย · ไม่มี = mock วาดด้วยโค้ด
+	-- พื้นหลังโปรแกรมตัดต่อ — มีรูป (UIAssets.edit_workspace_bg) ใช้เลย · ไม่มี = mock วาดด้วยโค้ด
 	local workspaceArea = mk("Frame", panel, {
 		Position = UDim2.fromOffset(20, 60),
 		Size = UDim2.new(1, -40, 0, 380),
@@ -423,7 +393,6 @@ function EditQTE.start(playerGui, fireAction, getState)
 		ClipsDescendants = true,
 	})
 	mk("UICorner", workspaceArea, { CornerRadius = UDim.new(0, 12) })
-	-- รูป preview กลาง + ป้ายเฟส ตาม progress เนื้อเรื่อง (clip_cover ตามเฟส — ยังว่าง = placeholder)
 	local curPhase = (getState() and getState().phase) or 1
 	local coverImg = (UIAssets and UIAssets[EditQTE.previewCoverKey(curPhase)]) or ""
 	local phaseText = "คลิปเฟส " .. curPhase
@@ -436,7 +405,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			ZIndex = 0,
 		})
 	else
-		buildEditorMock(workspaceArea, coverImg, phaseText) -- จำลองหน้าโปรแกรมตัดต่อ (ทับได้ด้วยรูปจริงทีหลัง)
+		buildEditorMock(workspaceArea, coverImg, phaseText)
 	end
 
 	local waveInfo = mk("TextLabel", panel, {
@@ -449,7 +418,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		Text = "",
 	})
 
-	-- ---------- จอสรุป (ซ่อนไว้ก่อน) ----------
+	-- จอสรุป (ซ่อนไว้ก่อน)
 	local summary = Instance.new("Frame")
 	summary.Position = UDim2.new(0, 20, 0, 60)
 	summary.Size = UDim2.new(1, -40, 0, 418)
@@ -506,15 +475,15 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 	local round, showSizeSelect
 
-	-- 1 รอบ QTE = ตัด 1 คลิปขนาด size.gb · size = แถวจาก Config.ClipSizes (hits/maxOnScreen/…)
+	-- 1 รอบ QTE = ตัด 1 คลิปขนาด size.gb · size = แถวจาก Config.ClipSizes
 	round = function(size)
 		local total = 0
 		local done = 0
-		local active = 0 -- วงที่โชว์อยู่บนจอตอนนี้ (spawn แล้วยังไม่ resolve) — ใช้ cap maxOnScreen
+		local active = 0 -- วงที่โชว์อยู่ตอนนี้ (spawn แล้วยังไม่ resolve) — ใช้ cap maxOnScreen
 		local buckets = { S = 0, A = 0, B = 0, C = 0 }
-		local activeKeys = {} -- คีย์ที่วง active ใช้อยู่ (PC — กันคีย์ซ้ำในวงที่ซ้อนเวลากัน)
-		local activePos = {} -- ตำแหน่งวง active (กันวงใหม่โผล่ทับวงเดิม)
-		local byKey = {} -- ชื่อคีย์ → press() ของวง active ตัวนั้น (PC)
+		local activeKeys = {} -- คีย์ที่วง active ใช้ (กันคีย์ซ้ำในวงที่ซ้อนเวลา)
+		local activePos = {} -- ตำแหน่งวง active (กันโผล่ทับ)
+		local byKey = {} -- ชื่อคีย์ → press() ของวง active (PC)
 		summary.Visible = false
 		workspaceArea.Visible = true
 		waveInfo.Visible = true
@@ -532,8 +501,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		local howto = if useTouch then "แตะวงตามเลข" else "กดตัวอักษรบนวง"
 		-- chain: เด้งวงทีละอัน · cap ไม่เกิน size.maxOnScreen อันบนจอ · ตำแหน่งไม่ทับวง active
 		for i = 1, size.hits do
-			-- รอให้มีที่ว่าง (จำนวนวงบนจอไม่เกิน maxOnScreen) ก่อนเด้งอันใหม่
-			while active >= size.maxOnScreen do
+			while active >= size.maxOnScreen do -- รอมีที่ว่างก่อนเด้งอันใหม่
 				RunService.Heartbeat:Wait()
 			end
 			waveInfo.Text = ("อันที่ %d/%d — %s ตอนวงแหวนหดมาทับพอดี  |  %d GB ×%.2f")
@@ -548,13 +516,13 @@ function EditQTE.start(playerGui, fireAction, getState)
 
 			local press
 			press = spawnCircle(RunService, workspaceArea, pos, label, size.approach,
-				function(points, tier) -- onResolve: ทันทีที่กด/หมดเวลา
+				function(points, tier) -- onResolve
 					total += points
 					buckets[tier] += 1
 					done += 1
 					playGradeSfx(tier)
 				end,
-				function() -- onCleared: วงหายจากจอจริง (หลังโชว์สี 0.25 วิ) → คืน slot + ตำแหน่ง + คีย์
+				function() -- onCleared: วงหายจริง → คืน slot + ตำแหน่ง + คีย์
 					active -= 1
 					if key then
 						activeKeys[key] = nil
@@ -571,7 +539,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			task.wait(size.spawnInterval)
 		end
 
-		-- รอวงที่ยังค้างบนจอ (spawn ครบแล้วแต่ยังหดไม่จบ) ให้ resolve หมดก่อนสรุป
+		-- รอวงที่ยังค้างบนจอ resolve หมดก่อนสรุป
 		while done < size.hits do
 			RunService.Heartbeat:Wait()
 		end
@@ -579,11 +547,11 @@ function EditQTE.start(playerGui, fireAction, getState)
 			keyConn:Disconnect()
 		end
 
-		-- normalize เป็น 0–200 (VidQ คงที่แม้ hits ต่างกัน) แล้วส่งขนาดที่เลือกไปหัก footage + คูณ reward
+		-- normalize เป็น 0–200 แล้วส่งขนาดที่เลือกไปหัก footage + คูณ reward
 		local score = EditQTE.normalizeScore(total, size.hits)
 		fireAction({ type = "FinishEdit", score = score, footageGB = size.gb })
 
-		-- จอสรุป: Edit more = เลือกขนาดใหม่แล้วตัดต่อ | Done = ออก (อัปที่แอป Upload)
+		-- จอสรุป: Edit more = เลือกขนาดใหม่ | Done = ออก
 		local tier = Formulas.vidqTier(score)
 		workspaceArea.Visible = false
 		waveInfo.Visible = false
@@ -632,12 +600,10 @@ function EditQTE.start(playerGui, fireAction, getState)
 		end)
 	end
 
-	-- ── หน้าเลือกขนาด footage ก่อนตัด (สไลเดอร์ snap ตามขนาดที่ซื้อได้) ──
-	-- แตะราง/ลากหัวเลื่อน = เลือกขนาด · ใหญ่ = reward สูงแต่ QTE โหด (ดูตัวเลขสดในกล่องข้อมูล)
+	-- หน้าเลือกขนาด footage (สไลเดอร์ snap ตามขนาดที่ซื้อได้) · ใหญ่ = reward สูงแต่ QTE โหด
 	showSizeSelect = function()
 		local haveGB = math.floor((getState() and getState().footageGB) or 0)
-		-- โชว์ "ทุก level" เสมอ (เห็น progression) — ตัวที่ footage ไม่พอ = ล็อก เลือกไม่ได้
-		local sizes = Config.ClipSizes
+		local sizes = Config.ClipSizes -- โชว์ทุก level เสมอ (เห็น progression) · ตัวที่ footage ไม่พอ = ล็อก
 		local n = #sizes
 		local maxIdx = 0 -- ตัวใหญ่สุดที่ footage พอ (0 = ไม่พอแม้ตัวเล็กสุด)
 		for i, s in sizes do
@@ -654,7 +620,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 		workspaceArea.Visible = true
 		waveInfo.Visible = false
 
-		local L, W = 0.09, 0.82 -- ราง: เริ่ม 9% กว้าง 82% ของ sel (เว้นขอบ)
+		local L, W = 0.09, 0.82 -- ราง: เริ่ม 9% กว้าง 82% ของ sel
 		local LOCKED_COL = Color3.fromRGB(96, 100, 116)
 		local function fracAt(i) return if n == 1 then 0.5 else (i - 1) / (n - 1) end
 
@@ -679,7 +645,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 			TextSize = 15, FontFace = Font.fromEnum(Enum.Font.Gotham),
 		})
 
-		-- ราง: เส้นเทาเต็ม (พื้น) + fill ฟ้าถึงหัวเลื่อนเท่านั้น + จุด tick ทุกขนาด + ป้าย GB
+		-- ราง: เส้นเทา (พื้น) + fill ฟ้าถึงหัวเลื่อน + จุด tick ทุกขนาด + ป้าย GB
 		local trackY = 128
 		local track = mk("TextButton", sel, {
 			Position = UDim2.new(L, 0, 0, trackY), Size = UDim2.new(W, 0, 0, 40),
@@ -704,8 +670,7 @@ function EditQTE.start(playerGui, fireAction, getState)
 				BorderSizePixel = 0, ZIndex = 4,
 			})
 			mk("UICorner", dot, { CornerRadius = UDim.new(1, 0) })
-			-- ป้าย: GB + ตัวคูณ reward (เห็น progression) · ล็อก = จาง + 🔒
-			mk("TextLabel", sel, {
+			mk("TextLabel", sel, { -- ป้าย GB + ตัวคูณ reward · ล็อก = จาง + 🔒
 				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(L + W * f, 0, 0, trackY + 34),
 				Size = UDim2.fromOffset(96, 34), BackgroundTransparency = 1,
 				Text = ("%s%d GB\n×%.2f"):format(if locked then "🔒 " else "", s.gb, Formulas.clipSizeMult(s.gb)),
@@ -737,18 +702,18 @@ function EditQTE.start(playerGui, fireAction, getState)
 			local s = sizes[idx]
 			local f = fracAt(idx)
 			handle.Position = UDim2.new(f, 0, 0.5, 0)
-			fill.Size = UDim2.new(f, 0, 0, 6) -- ฟ้าถึงหัวเลื่อนเท่านั้น
+			fill.Size = UDim2.new(f, 0, 0, 6)
 			info.Text = ("ขนาด : %d GB          รางวัล  ×%.2f\n\nความยาก : สูงสุด %d วงบนจอ · %d วง · หด %.2fs/วง\n\nใช้ footage %d GB   →   เหลือ %d GB")
 				:format(s.gb, Formulas.clipSizeMult(s.gb), s.maxOnScreen, s.hits, s.approach, s.gb, haveGB - s.gb)
 		end
-		-- clamp ที่ maxIdx = เลือกได้เฉพาะขนาดที่ปลดล็อก (ลากเลยไปตัวที่ล็อกไม่ได้)
+		-- clamp ที่ maxIdx = เลือกได้เฉพาะขนาดที่ปลดล็อก
 		local function setIdx(i)
 			idx = math.clamp(i, 1, maxIdx)
 			refresh()
 		end
 		refresh()
 
-		-- ลาก/แตะราง → snap จุดใกล้สุด (map ทุก tick แล้ว clamp เป็นตัวปลดล็อกใน setIdx)
+		-- ลาก/แตะราง → snap จุดใกล้สุด
 		local function pickFromX(px)
 			local ax, aw = track.AbsolutePosition.X, track.AbsoluteSize.X
 			if aw <= 0 then return end

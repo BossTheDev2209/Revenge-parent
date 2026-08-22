@@ -1,29 +1,9 @@
--- AudioService.luau — เครื่องเสียงทั้งเกม (client) — docs/02 §9.9
---
--- ★ ทีมทำแค่: อัปโหลดเสียง → วาง Sound object ตามโครงข้างล่าง → ตั้งชื่อ → **จบ ไม่ต้องแตะโค้ด**
---
---   SoundService/
---     BGM/       เพลงพื้นหลัง (ตั้ง Looped = true)   เช่น Street, Apartment, House, Menu
---     Ambient/   เสียงบรรยากาศซ้อนเพลง (Looped)      เช่น rain, city, room_tone
---     Voice/     blip ตอนพิมพ์บท 1 ตัวอักษร (สั้นมาก) เช่น Default, Friend1, CC1, Hater
---     SFX/       เสียงสั้นครั้งเดียว                    เช่น ui_click, upload_done, viral
---
--- โซนเพลง: Part ชื่อ `Zone_<อะไรก็ได้>` + Attribute `Music` = ชื่อใน BGM
---          (ใส่ `Ambient` = ชื่อใน Ambient / `Priority` = number ก็ได้ ทับซ้อนกันเอาเลขมากกว่า)
---
--- ไม่มีเสียงชื่อนั้น = warn ครั้งเดียวแล้วเงียบ **เกมไม่พัง**
---
---   SFX/ ที่ยังไม่มีเสียง (wire ไว้แล้วในโค้ด รอทีมอัดเสียงใส่):
---     qte_tick             เข็ม skillcheck แตะเข้าโซน good
---     qte_hit_perfect / qte_hit_good / qte_hit_miss   ผลแต่ละครั้งที่กด
---     qte_jackpot           จบรอบด้วย perfect ล้วน
---     record_bonus / record_gain   ตัวเลขลอย +Bonus / +ปกติ (ตัดเสียงชัตเตอร์กล้องออกแล้ว 10 ส.ค. — กดรัวๆ ซ้อนกับเสียง gain ฟังรำคาญ)
---     notebook_place          วางโน้ตบุ๊คลงพื้น
---     zone_enter / zone_exit    เข้า/ออกวงโซนถ่าย
---     app_open / app_close      เปิด/ปิดแอปในคอม
---     pc_off                    ปิดหน้าจอคอมทั้งจอ
---
--- pure: insideBox / bestZone (เทสใน lune ได้) | glue: ที่เหลือ
+-- AudioService — เครื่องเสียงทั้งเกม (client)
+-- ทีมทำแค่ วาง Sound object ใน SoundService/{BGM,Ambient,Voice,SFX}/ ตั้งชื่อ — ไม่ต้องแตะโค้ด
+--   BGM/Ambient = Looped · Voice = blip พิมพ์บท · SFX = เสียงสั้นครั้งเดียว
+-- โซนเพลง: Part ชื่อ Zone_* + Attribute Music/Ambient/Priority (ซ้อนกัน = Priority มากชนะ)
+-- ไม่มีเสียงชื่อนั้น = warn ครั้งเดียวแล้วเงียบ ไม่พัง
+-- pure: insideBox / bestZone (เทส lune) | glue: ที่เหลือ
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -31,16 +11,14 @@ local Config = if isStudio
 
 local AudioService = {}
 
--- ===== pure =====
-
--- จุดอยู่ในกล่องไหม (พิกัดแปลงเป็น local ของกล่องแล้ว) — p/size = {x=,y=,z=}
+-- จุดอยู่ในกล่องไหม (พิกัดแปลงเป็น local ของกล่องแล้ว)
 function AudioService.insideBox(p, size): boolean
 	return math.abs(p.x) <= size.x / 2
 		and math.abs(p.y) <= size.y / 2
 		and math.abs(p.z) <= size.z / 2
 end
 
--- โซนที่ชนะเมื่อยืนซ้อนหลายโซน = priority มากสุด (เท่ากัน = ตัวแรกที่เจอ)
+-- โซนที่ชนะเมื่อยืนซ้อนหลายโซน = priority มากสุด (เท่ากัน = ตัวแรก)
 function AudioService.bestZone(zones)
 	local best = nil
 	for _, z in zones do
@@ -48,8 +26,6 @@ function AudioService.bestZone(zones)
 	end
 	return best
 end
-
--- ===== glue (Studio เท่านั้น) =====
 
 local SoundService = if isStudio then game:GetService("SoundService") else nil
 local warned = {}
@@ -76,7 +52,7 @@ function AudioService.setVolume(v: number)
 	master().Volume = math.clamp(v, 0, 1)
 end
 
--- เสียงแยกกลุ่มย่อยใต้ Master: Music(เพลง)/SFX/Ambient — สไลเดอร์คุมแยก · Master คุมรวมทั้งหมด
+-- กลุ่มย่อยใต้ Master: Music/SFX/Ambient — สไลเดอร์คุมแยก · Master คุมรวม
 local groups = {}
 local function group(name)
 	if not groups[name] then
@@ -89,7 +65,7 @@ end
 local function music() return group("Music") end
 local KIND = { bgm = "Music", sfx = "SFX", ambient = "Ambient" }
 
--- stateless: อ่าน/เขียน Volume ของ SoundGroup ตรงๆ — coherent กับแผงตั้งค่าที่ยุ่ง SoundGroup ตรงเหมือนกัน (มัน sandboxed, require ไม่ได้)
+-- stateless: อ่าน/เขียน Volume ของ SoundGroup ตรงๆ (coherent กับแผงตั้งค่าที่ sandboxed require ไม่ได้)
 function AudioService.setGroupVolume(kind: string, v: number)
 	group(KIND[kind] or "SFX").Volume = math.clamp(v, 0, 1)
 end
@@ -98,7 +74,7 @@ function AudioService.getGroupVolume(kind: string): number
 	return group(KIND[kind] or "SFX").Volume
 end
 
--- mute เพลง: จำระดับก่อน mute ไว้ที่ attribute PreMute (คืนค่าเดิมตอนเลิก mute)
+-- mute เพลง: จำระดับก่อน mute ที่ attribute PreMute (คืนตอนเลิก mute)
 function AudioService.setMusicMuted(on: boolean)
 	local m = music()
 	if on then
@@ -128,7 +104,7 @@ local function findSound(folderName: string, soundName: string)
 	return snd
 end
 
--- เสียงสั้น: clone แล้วเล่นทับกันได้ ไม่ตัดกันเอง · volumeScale = คูณ Volume เดิม (เบาลง เช่น toast)
+-- เสียงสั้น: clone แล้วเล่นทับกันได้ · volumeScale = คูณ Volume เดิม
 function AudioService.sfx(name: string, pitchVary: number?, volumeScale: number?)
 	local src = findSound("SFX", name)
 	if not src then return end
@@ -162,8 +138,8 @@ end
 
 -- เพลง: เปลี่ยนแบบ fade | ชื่อเดิม = ไม่ทำอะไร | nil/"" = เงียบ
 local currentBGM, bgmName = nil, nil
-local bgmTargetVol = 0 -- ระดับเสียงเต็มของเพลงปัจจุบัน (ก่อน duck)
-local ducked = false   -- หรี่เพลงอยู่ไหม (ตอนคุย NPC)
+local bgmTargetVol = 0 -- ระดับเต็มของเพลงปัจจุบัน (ก่อน duck)
+local ducked = false
 local DUCK_LEVEL = 0.22
 local function fadeOut(snd, t)
 	if not snd then return end
@@ -190,7 +166,7 @@ function AudioService.bgm(name: string?, fadeTime: number?)
 	currentBGM = s
 end
 
--- หรี่เพลงชั่วคราว (ตอนคุย NPC ให้ได้ยิน blip ชัด) แล้วคืนตอนคุยจบ — ไม่เปลี่ยนเพลง แค่ปรับ volume
+-- หรี่เพลงชั่วคราวตอนคุย NPC (ให้ได้ยิน blip ชัด) แล้วคืน — ไม่เปลี่ยนเพลง แค่ปรับ volume
 function AudioService.duckBGM(on: boolean, fadeTime: number?)
 	ducked = on
 	if not currentBGM then return end
@@ -217,7 +193,7 @@ function AudioService.ambient(name: string?)
 	currentAmb = s
 end
 
--- ===== โซนเพลง: Part ชื่อ Zone_* + Attribute Music/Ambient/Priority =====
+-- โซนเพลง: Part ชื่อ Zone_* + Attribute Music/Ambient/Priority
 local zoneParts = {}
 local function collectZones()
 	table.clear(zoneParts)
@@ -254,8 +230,6 @@ local function updateZone(root)
 	AudioService.bgm(z and z.name or Config.Audio.defaultBGM)
 	AudioService.ambient(z and z.ambient or nil)
 end
-
--- เสียงเดิน: ใช้ footstep script แบบ material-based (ServerScriptService) แทน — ถอดของเดิมออกแล้ว
 
 -- เรียกครั้งเดียวจาก Main.client
 function AudioService.init(player)

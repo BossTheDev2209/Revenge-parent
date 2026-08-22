@@ -1,15 +1,11 @@
 --!strict
 -- Config.luau — ตัวเลข canon ทั้งหมด ถอดมาจาก docs/02-game-design-locked.md
---
--- กฎ: ห้าม hardcode ตัวเลข balance ที่อื่น อ่านจากไฟล์นี้เท่านั้น
--- ถ้า design doc เปลี่ยน → แก้ที่นี่ที่เดียว → test ใน tests/ ต้องยังผ่าน
--- ถ้าไฟล์นี้ขัดกับ design doc → design doc ถูก แก้ไฟล์นี้ตาม อย่าแก้ doc ตามโค้ด
+-- กฎ: ห้าม hardcode ตัวเลข balance ที่อื่น · design doc เปลี่ยน → แก้ที่นี่ที่เดียว → เทสต้องยังผ่าน
+-- ไฟล์นี้ขัดกับ design doc = design doc ถูก แก้ไฟล์นี้ตาม
 
 local Config = {}
 
--- ★ ไม่ใช่ balance number — allowlist คนใช้ /dev นอก Studio (docs/15-dev-console.md)
--- Studio เปิดให้ทุกคนเสมอ (ไม่ต้องอยู่ list นี้) · list นี้คุมสิทธิ์เฉพาะตอนเข้าเล่นเกม published จริง
--- CoolingLikeAir, mikmikrobolx, tanxddddd (resolve ด้วย Players:GetUserIdFromNameAsync 10 ส.ค. 2569)
+-- allowlist คนใช้ /dev นอก Studio (Studio เปิดให้ทุกคนเสมอ) — ไม่ใช่ balance number
 Config.DevUserIds = { 3010077941, 183036806, 632366901 }
 
 -- §1 Phase gate — ตัดจาก follower ปัจจุบันเท่านั้น ไม่ผูกจำนวนคลิป
@@ -19,12 +15,10 @@ Config.PhaseGates = {
 	{ phase = 3, min = 100_000, max = 1_000_000 },
 }
 
--- แอปบนจอคอมที่ต้องรอเฟส (12 ส.ค. 2569, user) — เฟส 1 มีแค่ shop/edit/upload/feedback
--- key = app.id ใน PC_APPS (Main.client.luau) · ไม่มีชื่ออยู่ในนี้ = เข้าได้ตั้งแต่เฟส 1 เสมอ
--- Formulas.appUnlocked(phase, id) อ่านตารางนี้ · MoneyService.adjustSpending เช็คซ้ำฝั่ง server (Bank)
+-- แอปบนจอคอมที่ต้องรอเฟส · ไม่มีชื่อในนี้ = เข้าได้ตั้งแต่เฟส 1 (Formulas.appUnlocked)
 Config.AppMinPhase = { bank = 2, message = 2 }
--- Canon event ทั้งหมด (docs/02 §9.4 — ตาม timeline PDF หน้า 4 หลังตัดพ่อแม่โทรมา/งานเสริม)
--- ทุกตัวยิง dialogue จาก Content.CanonEvents["milestone_"..เลข] + drain mod ×1.25 24 ชม.
+
+-- Canon event: ยิง dialogue จาก Content.CanonEvents["milestone_"..เลข] + drain mod ×1.25 24 ชม.
 Config.StoryMilestones = {
 	1_000, -- ยังอยู่เฟส 1 (Homeless)
 	10_000, -- เข้าเฟส 2 + recruit เพื่อน 1
@@ -36,17 +30,15 @@ Config.StoryMilestones = {
 }
 Config.BetrayalMilestone = 500_000
 Config.BetrayalMentalPenalty = -25
--- faasai เข้าร่วม (StoryBeat เคาะประตู→นั่งเตียง) — ยิงตอน follower ถึงค่านี้ในเฟส 2 (ปรับได้)
-Config.FaasaiJoinFollower = 30_000
-Config.FaasaiParkFollower = 60_000 -- เดทที่สวน เฟส 2 (12 ส.ค.) — ตัวเลขชั่วคราว ไม่ใช่ค่าที่ล็อกใน docs/02, ปรับได้อิสระ
--- BCA (Bangkok Creator Award) — คิวต่อท้ายทันทีหลัง milestone 1M ก่อน ending cutscene
--- ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี follower ไม่มีทางเกิน
+Config.FaasaiJoinFollower = 30_000 -- faasai เข้าร่วม (StoryBeat เคาะประตู) — เฟส 2
+Config.FaasaiParkFollower = 60_000 -- เดทที่สวน เฟส 2 · ปรับได้อิสระ (ไม่ล็อกใน docs)
+-- BCA คิวต่อท้ายทันทีหลัง 1M (ไม่ใช้ตัวเลข milestone เพราะเวลาหยุดที่ 1M พอดี)
 Config.BCAEventId = "bca"
 Config.BCAAfterMilestone = 1_000_000
 Config.TrueEnding = {
 	suitShirtId = "", -- ⏳ รอ user ให้ rbxassetid
 	suitPantsId = "", -- ⏳ รอ user ให้ rbxassetid
-	walkTarget = "BCA_PodiumMark", -- Part ใน Workspace ที่ผู้เล่นต้องเดินไปถึง (ทีมวางในแมพ)
+	walkTarget = "BCA_PodiumMark", -- Part ใน Workspace ที่ต้องเดินไปถึง (ทีมวางในแมพ)
 	walkTimeout = 30, -- กันค้างถ้าเดินหลงทาง
 }
 
@@ -79,7 +71,7 @@ Config.Mental = {
 	drainPercent = 1,
 	drainEverySeconds = 4.5,
 	introducedInPhase = 2,
-	-- โซน: cap โบนัสที่ 1.25 จงใจ ห้าม stack กับ viral(×4–8) + S(×2) จน pacing พัง
+	-- cap โบนัสที่ 1.25 จงใจ — ห้าม stack กับ viral(×4–8) + S(×2) จน pacing พัง
 	zones = {
 		{ min = 70, max = 100, multMin = 1.0, multMax = 1.25 },
 		{ min = 40, max = 69, multMin = 1.0, multMax = 1.0 },
@@ -91,28 +83,21 @@ Config.Mental = {
 		npcChoiceBad = -10,
 		rentMissed = -15,
 		npcChoiceGood = 15,
-		-- ตอบ comment (PDF หน้า 8 ล่าง — user lock 21 ก.ค.)
 		commentHeartPos = 10, -- กดใจ comment ⊕
 		commentHeartNeg = -10, -- กดใจ comment ⊖
 		commentAccept = 10, -- ยอมรับปัญหา (⊖/◎)
 		commentSarcasm = -5, -- ประชด (⊖/◎)
 		commentInsult = -10, -- ด่า (⊖ เท่านั้น)
 		viralClip = 25,
-		-- ★ แก้ 9 ส.ค. (user): ตัดหน่วยเวลาที่เคยผูกไว้ทิ้ง เอาแค่ค่าใจที่เพิ่มจริงในหลอด (เดิม 20/25/15)
 		activityExercise = 30,
 		activityRest = 40,
 		activityEat = 20,
 	},
-	-- Activity system (PDF หน้า 6): ทำติดกันเกิน maxStreak → cooldown ข้ามวัน
+	-- ทำ activity ติดกันเกิน maxStreak → cooldown ข้ามวัน
 	activity = { maxStreak = 3, cooldownDays = 1 },
 
-	-- ★ ฉากสั้นตอนทำ activity (docs/02 §3 + §9 "cutscene 5–10 วิ + ฟื้น mental") — ยังว่างทุกตัว 9 ส.ค.
-	--   ว่าง = กดแล้วได้ผลใจทันทีไม่มีฉากคั่น (เกมเล่นได้ครบ ไม่ค้างรอ content)
-	--   ใส่ steps เมื่อไหร่ = เล่นฉากทันที **ไม่ต้องแก้โค้ดที่ไหนเลย** (ActivityCutscene อ่านตารางนี้ตรงๆ)
-	--   รูปแบบ step เหมือน CutscenePlayer ทุกอย่าง: camera / text / wait / anim / face / sound / bgm / move / focus
-	--   ตัวอย่างที่จะใส่ทีหลัง:
-	--     Bed = { { type = "camera", cam = "Cam_BedRest", t = 1 }, { type = "anim", actor = "player", name = "Sleep" },
-	--             { type = "text", text = "หลับตาสักครู่..." }, { type = "wait", t = 5 } }
+	-- ฉากสั้นตอนทำ activity · ว่าง = ได้ผลใจทันทีไม่มีฉากคั่น
+	-- ใส่ steps เมื่อไหร่ = เล่นฉากทันที ไม่ต้องแก้โค้ด (ActivityCutscene อ่านตารางนี้ · รูปแบบ step = CutscenePlayer)
 	activityCutscenes = {
 		Bed = {},
 		Kitchen = {},
@@ -127,7 +112,6 @@ Config.Mental = {
 		},
 	},
 
-	-- Drain/Recovery modifiers (lock 19 ก.ค. — docs/02 §3)
 	-- kind: "drain" = คูณอัตรา drain | "recover" = คูณ delta ฝั่งบวก
 	-- อายุ: hours = หมดตามชั่วโมงเกม | untilEvent = "sleep"|"activity"|"activityOrGood"
 	mods = {
@@ -145,25 +129,20 @@ Config.Mental = {
 -- §4 Economy
 Config.MoneyRatePerFollower = { [1] = 0.8, [2] = 1.2, [3] = 1.5 }
 
--- ค่าใช้จ่ายรอบ 7 วันในเกม ไม่นับจำนวนคลิป
+-- ค่าใช้จ่ายรอบ 7 วัน ไม่นับจำนวนคลิป · เฟส 1 ไม่มีค่าเช่า (Homeless)
 Config.WeeklyExpenses = {
-	-- ★ เฟส 1 ไม่มีค่าเช่า (12 ส.ค. 2569, user) — เฟส 1 = Homeless อยู่ข้างถนน/สะพานลอย (docs/02 §9.4)
-	--   เดิมเก็บ 1,500 ซึ่งขัดกับนิยามเฟสของ design doc เอง (คนไร้บ้านจ่ายค่าเช่าให้ใคร?) · รวมเหลือ 700
 	[1] = { rent = 0, internet = 300, food = 400 }, -- รวม 700
 	[2] = { rent = 3_000, internet = 500, food = 600 }, -- รวม 4,100
 	[3] = { rent = 6_000, internet = 800, food = 900 }, -- รวม 7,700
 }
 
--- อุปกรณ์ 6 ระดับ (user lock 21 ก.ค. — เริ่มฟรีระดับ 1, ซื้อเพิ่ม 5 ครั้ง/สาย)
--- ราคา: costs[ระดับปัจจุบัน] = ราคาซื้อระดับถัดไป
--- ระบบพนักงาน (docs/02 §9.8 — lock 21 ก.ค.)
--- คลิป auto: ไม่กิน footage, ไม่มี viral, ไม่คูณ mental | นับ VidQ% ครึ่งเดียว | สร้าง comment ปกติ
+-- ระบบพนักงาน — คลิป auto: ไม่กิน footage, ไม่มี viral, ไม่คูณ mental, นับ VidQ% ครึ่งเดียว
 Config.Staff = {
 	clipsPerDayPerSpeed = 20, -- คลิป/วัน = speed / 20
 	hireCap = 4,              -- จ้างพร้อมกันได้ 4 (companion ไม่นับ)
 	vidqWeight = 0.5,         -- คลิปพนักงานนับเข้า VidQ% ครึ่งเดียว (กัน ending ถูกทีมกลบ)
 
-	-- quality → โอกาสได้ tier (สุ่มทุกคลิป) — ช่วงเรียงจากน้อยไปมาก
+	-- quality → โอกาสได้ tier (สุ่มทุกคลิป)
 	tierChanceByQuality = {
 		{ maxQuality = 40, C = 0.60, B = 0.30, A = 0.10, S = 0.00 },
 		{ maxQuality = 70, C = 0.20, B = 0.45, A = 0.30, S = 0.05 },
@@ -171,35 +150,26 @@ Config.Staff = {
 		{ maxQuality = math.huge, C = 0.00, B = 0.10, A = 0.40, S = 0.50 },
 	},
 
-	-- roster จ้าง: ปลดต้องครบทั้ง phase และ follower | pool คงที่ ไม่สุ่ม stat
-	-- 2 แกน trade-off: speed = ปริมาณคลิป (โต follower) · quality = เกรด tier (ปกป้อง VidQ%/ending)
-	--   speed สูง/quality ต่ำ = follower พุ่งแต่ลาก VidQ% ลง (คลิปทีมนับ VidQ ครึ่งเดียว) = เสี่ยง ending แย่
-	--   salary กินเพดานเงิน 1.47M = แย่งงบกับ upgrade · hireCap 4 บังคับเลือกสาย
-	-- flag (optional) = ปลดต่อเมื่อ state.flags[flag] ติด (ทีมล้างแค้นหลัง faasai ทรยศ)
-	-- leavesOnSplit = true → ลาออกตอน event ตีกัน (StaffService.splitStaff · flags.staffSplit)
-	-- ตัว believer ไม่ tag = อยู่ต่อ · default นี้ปรับได้หลัง playtest
-	-- model = ชื่อโมเดลใน Workspace.NPC.HirableNPC ที่ Manage app เอาไป render ลง ViewportFrame (12 ส.ค. 2569, user)
-	--   ไล่ 001-008 ตามลำดับ roster · ไม่มี field นี้ / หาโมเดลไม่เจอ = การ์ดตกกลับไปโชว์ emoji เหมือนเดิม (ไม่พัง)
+	-- roster จ้าง: ปลดต้องครบทั้ง phase และ follower
+	-- trade-off: speed = ปริมาณคลิป (โต follower) · quality = เกรด tier (ปกป้อง VidQ%/ending)
+	-- flag = ปลดต่อเมื่อ state.flags[flag] ติด · leavesOnSplit = ลาออกตอน event ตีกัน
+	-- model = โมเดลใน Workspace.NPC.HirableNPC ให้ Manage app render (หาไม่เจอ = โชว์ emoji แทน)
 	roster = {
-		-- เฟส 2: trade-off ชัด เลือกได้สายเดียว
-		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000,  leavesOnSplit = true, model = "NPC_พนักงาน001" }, -- สายเร็ว transactional
-		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000, model = "NPC_พนักงาน002" }, -- สายคุณภาพ (อยู่ต่อ)
-		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000, model = "NPC_พนักงาน003" }, -- all-rounder (อยู่ต่อ)
-		-- เฟส 3: เก่งหลายด้าน (multi-skill) salary แพง
+		{ id = "hire_editor",    phase = 2, follower = 15_000,  speed = 32, quality = 30, salary = 9_000,  leavesOnSplit = true, model = "NPC_พนักงาน001" }, -- สายเร็ว
+		{ id = "hire_artisan",   phase = 2, follower = 30_000,  speed = 15, quality = 65, salary = 11_000, model = "NPC_พนักงาน002" }, -- สายคุณภาพ
+		{ id = "hire_allround2", phase = 2, follower = 60_000,  speed = 22, quality = 45, salary = 10_000, model = "NPC_พนักงาน003" }, -- all-rounder
 		{ id = "hire_pro",       phase = 3, follower = 150_000, speed = 45, quality = 70, salary = 32_000, leavesOnSplit = true, model = "NPC_พนักงาน004" }, -- โปรตามเงิน
-		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000, leavesOnSplit = true, model = "NPC_พนักงาน005" }, -- mercenary ตามยอด
-		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000, model = "NPC_พนักงาน006" }, -- สายคราฟต์ (อยู่ต่อ)
-		-- ทีมล้างแค้น: ปลดเมื่อ faasai ทรยศ (flags.betrayed ตั้งที่ BetrayalMilestone 500K พร้อม companion_1 ออก)
+		{ id = "hire_volume",    phase = 3, follower = 250_000, speed = 70, quality = 50, salary = 42_000, leavesOnSplit = true, model = "NPC_พนักงาน005" }, -- mercenary
+		{ id = "hire_master",    phase = 3, follower = 450_000, speed = 35, quality = 90, salary = 46_000, model = "NPC_พนักงาน006" }, -- สายคราฟต์
+		-- ทีมล้างแค้น: ปลดเมื่อ faasai ทรยศ (flags.betrayed ที่ 500K)
 		{ id = "hire_fierce1",   phase = 3, follower = 500_000, speed = 60, quality = 78, salary = 55_000, flag = "betrayed", model = "NPC_พนักงาน007" },
 		{ id = "hire_fierce2",   phase = 3, follower = 500_000, speed = 55, quality = 85, salary = 58_000, flag = "betrayed", model = "NPC_พนักงาน008" },
 	},
 
-	-- worldNPC ผู้ภักดี: auto-hire ตอน split (ไม่อยู่ใน roster = player จ้างเองไม่ได้) การันตีมีคนเหลือเสมอ
-	-- มี salary ปกติ · ไม่นับ hireCap ตอน force-add · Boss เอา model worldNPC มาใส่ (ตั้งชื่อโมเดลตาม id)
+	-- worldNPC ผู้ภักดี: auto-hire ตอน split (จ้างเองไม่ได้) การันตีมีคนเหลือเสมอ
 	loyalAfterSplit = { id = "hire_loyal", speed = 30, quality = 60, salary = 18_000 },
 
-	-- เพื่อนร่วมทาง: auto มาตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap
-	-- companion_1 โต exponential ตอนเข้าเฟส 3 แล้วหายที่ 500K (ทรยศ)
+	-- เพื่อนร่วมทาง: auto ตามเนื้อเรื่อง ฟรี ไล่ไม่ได้ ไม่นับ cap
 	companions = {
 		{ id = "companion_1", joinFollower = 10_000, speed = 20, quality = 30,
 			growAtPhase = 3, grownSpeed = 45, grownQuality = 75, leavesOnBetrayal = true },
@@ -207,27 +177,19 @@ Config.Staff = {
 	},
 }
 
--- Bank ⊖⊕ (PDF หน้า 9 — user lock 21 ก.ค., step/ผลใจเลือกโดย agent — docs/02 §9.7)
--- ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step | ผลใจคิดตอนตัดรอบ 7 วัน
--- ★ 12 ส.ค. 2569 (user): เหลือ ⊖⊕ เฉพาะ "ค่าอาหาร" — ค่าเช่า fixed (min=max=0 → adjustSpending ปฏิเสธเอง)
---   ค่าเช่า = WeeklyExpenses[เฟส].rent ตรงๆ · เงินเดือนทีม = StaffService.weeklySalary (หักใน Main.server)
---   Bad End ① = เงินไม่พอจ่ายครบ 2 รอบ (MoneyService.onDay)
+-- Bank ⊖⊕: ยอดจ่ายจริง/สัปดาห์ = WeeklyExpenses base + offset×step · ผลใจคิดตอนตัดรอบ
+-- เหลือ ⊖⊕ เฉพาะค่าอาหาร · ค่าเช่า fixed (min=max=0) · Bad End ① = เงินไม่พอ 2 รอบ (MoneyService.onDay)
 Config.Spending = {
 	food = { step = 200, minOffset = -1, maxOffset = 3, mentalUp = 2, mentalDown = -4 },
 	rent = { step = 500, minOffset = 0, maxOffset = 0, mentalUp = 1, mentalDown = -3 },
 }
 
--- เคยขยายเป็น 15 ระดับ (28 ก.ค.) แล้วถอดกลับเหลือ 6 (12 ส.ค. 2569, user) — ล็อกที่ 6 ทั้ง server และ UI
---
--- 💰 เงินทั้งเกมมีจำกัด: 10K×0.8 + 90K×1.2 + 900K×1.5 ≈ 1.47 ล้าน หักค่าใช้จ่ายเหลือ ~1.3 ล้าน
---    → ระดับ 1-6 ทั้ง 2 สาย (กล้อง+ที่เก็บ) รวม 842,500 — เหลือเงินส่วนเกิน ~460,000 ไม่มีอะไรให้ซื้อต่อ
---    → balance hole นี้ยังไม่ปิด (docs/02 §9.5 ธง) ไม่ใช่ blocker ของ deadline
+-- อุปกรณ์ 6 ระดับ · ราคา costs[ระดับปัจจุบัน] = ราคาขึ้นระดับถัดไป (5 ขั้น)
+-- 💰 เพดานเงินทั้งเกม ≈ 1.47M หักรายจ่ายเหลือ ~1.3M · upgrade 2 สายรวม 842,500
+--    เหลือส่วนเกิน ~460K ไม่มีอะไรซื้อต่อ = balance hole ที่ยังไม่ปิด (ไม่ใช่ blocker)
 Config.UpgradeCosts = {
-	-- ราคา = จ่ายตอนอยู่ระดับ N เพื่อขึ้น N+1 → 5 ขั้นสำหรับ 6 ระดับ (1-6 ล็อก docs/02 §4)
 	camera = { 2_000, 8_000, 30_000, 120_000, 300_000 },
 	storage = { 1_500, 6_000, 25_000, 100_000, 250_000 },
-	-- สาย pc (คอมพิวเตอร์) ถอดออก 11 ส.ค. 2569 (user) — เคยซื้อได้แต่ unwired ไม่มีผลกับเกม
-	-- ขายของที่ไม่มีผล = หลอกผู้เล่นให้ทิ้งเงินฟรี (เงินมีเพดาน ~1.3 ล้าน ทุกบาทมีค่า) · docs/02 §9.5 อัปแล้ว
 }
 
 -- 480p→4320p (6 ระดับ ตรงกับ Shop)
@@ -236,33 +198,24 @@ Config.ResolutionLadder = { "480p", "720p", "1080p", "1440p", "2160p", "4320p" }
 -- 128GB→8TB (6 ระดับ)
 Config.StorageLadderGB = { 128, 256, 512, 1024, 4096, 8192 }
 
--- โมเดล Tool ใน ReplicatedStorage.ToolModels มีถึง Camera_6 = ครบทุกระดับกล้อง (6)
--- กันเหนียว: ถ้าระดับกล้องเกินจำนวนโมเดล ToolService ใช้โมเดลตัวท้ายสุดแทน (ไม่งั้นมือเปล่า)
+-- โมเดลใน ToolModels มีถึง Camera_6 = ครบทุกระดับ · เกินจำนวนโมเดล = ToolService ใช้ตัวท้ายสุดแทน
 Config.CameraModelCount = 6
 
--- ★ ระดับ 6 = Tool "Camera_6" ทำหน้าที่ **รีโมทเรียกรถเข็นกล้อง IMAX** (แก้ดีไซน์ 5 ส.ค.)
---   กล้องอยู่กับ player ตลอด ไม่ได้เอา Tool ออก · กดตอนยืน = เสกรถออกมาใหม่ทุกครั้ง
---   (ดีไซน์เดิม 3 ส.ค. คือเอา Tool ออกแล้วมีรถอยู่ในแมพ — user เปลี่ยนใจ)
---   ตัวคูณ GB/คลิก ยังใช้ footagePerClickGB[6] = 32 เหมือนเดิม ไม่แตะ balance
+-- ระดับ 6 = Tool "Camera_6" ทำหน้าที่รีโมทเรียกรถเข็นกล้อง (กล้องอยู่กับ player ตลอด กดตอนยืน = เสกรถใหม่)
 Config.CameraCartLevel = 6
-Config.CameraCartToolSource = "Camera_6" -- ToolSource ของ Tool ที่เรียกรถ (RecordTool ข้ามตัวนี้ CameraCart คุมเอง)
-Config.CameraCartTemplate = "CameraCart" -- ชื่อ Model ต้นฉบับใน ReplicatedStorage.ToolModels
-Config.CameraCartSpawnStuds = 12 -- เสกห่างหน้าตัวผู้เล่นกี่ studs (กันโผล่ทับตัว)
+Config.CameraCartToolSource = "Camera_6" -- Tool ที่เรียกรถ (RecordTool ข้าม CameraCart คุมเอง)
+Config.CameraCartTemplate = "CameraCart" -- ชื่อ Model ต้นฉบับใน ToolModels
+Config.CameraCartSpawnStuds = 12 -- เสกห่างหน้าผู้เล่นกี่ studs
 
--- ⚠️ ต้องตรงกับ SPRINT_SPEED ใน StarterCharacterScripts.SprintHandler (สำเนา src/studio-only/)
---    สคริปต์นั้น Rojo ไม่ sync เลย require ข้ามมาไม่ได้ — แก้ที่นั่นต้องแก้ตรงนี้ด้วย
-Config.PlayerSprintSpeed = 50 -- เดินปกติ 16 · กด Shift วิ่ง 50
--- รถเร็วกว่าวิ่ง 1.5 เท่า (user lock 3 ส.ค.) — คุ้มค่าที่ไม่มี Tool ถือแล้ว
-Config.CameraCartSpeed = Config.PlayerSprintSpeed * 1.5 -- = 75 studs/วินาที
--- user ปรับเองแล้วบอกว่าโอเค 3 ส.ค. (เดิม 1.6 วงเลี้ยวกว้างไป 47 studs)
-Config.CameraCartTurnRate = 3 -- เรเดียน/วินาที ตอนเคลื่อนที่ (รัศมีวงเลี้ยว ≈ speed/turnRate = 25 studs)
+-- ⚠️ ต้องตรงกับ SPRINT_SPEED ใน studio-only/SprintHandler (Rojo ไม่ sync require ข้ามไม่ได้ — แก้ 2 ที่)
+Config.PlayerSprintSpeed = 50 -- เดินปกติ 16 · Shift วิ่ง 50
+Config.CameraCartSpeed = Config.PlayerSprintSpeed * 1.5 -- รถเร็วกว่าวิ่ง 1.5 เท่า = 75
+Config.CameraCartTurnRate = 3 -- เรเดียน/วินาที (รัศมีวงเลี้ยว ≈ speed/turnRate = 25 studs)
 
--- ร้านค้าในแมพ (Part `Interact_Shop`) — คนละตัวกับแอป Shop บนจอคอม (PDF หน้า 9)
--- names[N] = ของที่ได้เมื่ออยู่ระดับ N แล้วกดซื้อ (→ ระดับ N+1) · ชิ้นสุดท้าย = ระดับ 15
--- ห้ามใส่ราคา/สเปคซ้ำที่นี่ — ราคามาจาก UpgradeCosts, สเปคคำนวณจาก ladder (ShopKiosk.specFor)
+-- ร้านค้าในแมพ (Interact_Shop) — คนละตัวกับแอป Shop บนคอม
+-- names[N] = ของที่ได้ตอนอยู่ระดับ N แล้วกดซื้อ (→ N+1) · ชิ้นสุดท้าย = ระดับ 6
+-- ราคามาจาก UpgradeCosts, สเปคคำนวณจาก ladder (ShopKiosk.specFor)
 Config.ShopCatalog = {
-	-- 💻 คอมพิวเตอร์ ถอดออก 11 ส.ค. 2569 (user) — แถวหาย UI หดเอง (panelH คิดจาก #ShopCatalog)
-	-- names ตัด 7-15 ออก 12 ส.ค. 2569 (user) — เหลือ 5 ชื่อ (ของที่ได้ตอนซื้อขึ้นระดับ 2-6)
 	{ key = "storage", label = "💾 ที่เก็บข้อมูล", icon = "💾", note = "เก็บ footage ได้มากขึ้น", startName = "SSD พกพา",
 		names = {
 			"SSD NVMe เกรดเกมเมอร์", 'External HDD 2.5"', "HDD ตั้งโต๊ะ", "NAS 2 เบย์", "NAS 4 เบย์ RAID",
@@ -273,86 +226,56 @@ Config.ShopCatalog = {
 		} },
 }
 
--- ระบบอัดคลิป (user lock 21 ก.ค. + เลขต่อคลิกเลือกโดย agent — docs/02 §9.5)
--- สูตรต่อคลิก: GB = footagePerClickGB[กล้อง] × (bonus? bonusMult : 1) × (ในโซน? zoneMult : 1)
+-- ระบบอัดคลิป · สูตรต่อคลิก: GB = footagePerClickGB[กล้อง] × (bonus? bonusMult) × (ในโซน? zoneMult)
 Config.Record = {
-	-- GB ต่อคลิก ตามระดับกล้อง — เต็ม storage ระดับเดียวกัน ~128 คลิก (L5-6 ~256 จงใจ บังคับพึ่งโซน/พนักงาน)
+	-- GB ต่อคลิก ตามระดับกล้อง — เต็ม storage ระดับเดียวกัน ~128 คลิก (L6 ~256 บังคับพึ่งโซน/พนักงาน)
 	footagePerClickGB = { 1, 2, 4, 8, 16, 32 },
-	clickCooldownSeconds = 0.6, -- กันสแปมแบบ simulator (user feedback 21 ก.ค.)
-	-- Bonus proc (PDF หน้า 7 "+2.4 Bonus!") — เกิดได้ทุกที่ ซ้อนกับโซนได้
-	bonusChance = 0.1,
+	clickCooldownSeconds = 0.6, -- กันสแปมแบบ simulator
+	bonusChance = 0.1,          -- proc "+Bonus!" เกิดได้ทุกที่ ซ้อนกับโซนได้
 	bonusMult = 2.4,
-	-- โซนถ่าย (จุดแดง PDF หน้า 4): อัดนอกโซนได้ base rate, ในโซน × ตัวคูณตามเฟส
-	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 },
-	zoneDurationSeconds = 120, -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้ายจุด (กัน AFK)
-	-- ตัด 1 คลิป: default 32 GB = baseline ×1.0 ของ ClipSizes (denominator ของ sizeMult ด้วย)
-	-- เดิม lock 27 ก.ค. คงที่ · unlock 8 ส.ค. ให้ผู้เล่นเลือกขนาดได้ (docs/02 §9.5) — 32 ยังเป็น baseline/ค่า default
-	-- กล้อง L1: 32 คลิก/32GB, storage L1 เก็บได้ 4 คลิป | กล้อง L6: 1 คลิก/32GB = เหตุผลที่ต้องอัปกล้อง
-	footagePerClipGB = 32,
-	zoneRadiusStuds = 18, -- รัศมีวงโซน (agent เลือก — ปรับได้ ไม่มีใน PDF)
+	zoneMultByPhase = { [1] = 1.5, [2] = 2, [3] = 2.5 }, -- อัดในโซน × ตัวคูณตามเฟส
+	zoneDurationSeconds = 120,  -- โซนอยู่ 2 นาทีจริง แล้วสุ่มย้าย (กัน AFK)
+	footagePerClipGB = 32,      -- ตัด 1 คลิป default = baseline ×1.0 ของ ClipSizes (denominator ของ sizeMult)
+	zoneRadiusStuds = 18,
 }
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 🎯 RecordQTE — DBD-style skill check ตอนถ่ายคลิป (v3 10 ส.ค. user — แก้จาก "นับ bounce" เป็น "นับครั้งที่กด")
---   คลิกถ่ายสำเร็จ → สุ่ม chance เจอ QTE → เข็มวิ่งกลับไปมา (ping-pong) บนแถบเส้นล่างจอ "อิสระ" ไม่หยุด
---     ชนขอบ = สลับทิศเอง ไม่นับเป็นอะไร (แค่ physics ของเข็ม) — N ครั้งที่ต้องกด Space (PC)/แตะ (มือถือ)
---     ต่างหาก คือตัวตัดสิน ไม่เกี่ยวกับจำนวน bounce เลย (สุ่ม hitsMin-hitsMax ต่อ QTE)
---   กด 1 ครั้ง = เกรดจากตำแหน่งเข็ม ณ ตอนนั้น (ไม่แตะ pos/dir ของเข็ม เข็มเดินหน้าต่อตามเดิม)
---   เล่นจนกดครบ N ครั้งเสมอ — ไม่มี fail-fast, กดพลาดได้ 0 แต่ยังนับเป็น 1 ใน N ครั้งเสมอ
---   reward สะสมทีละครั้งที่กด เพดานรวม rewardMultMax (×10) ไม่ว่า N เท่าไหร่: ต่อครั้ง Perfect = max/N, Good = ×goodRewardRatio ของนั้น
---   ยิ่งกดสำเร็จไปแล้วกี่ครั้ง ยิ่งเร่งไว (sweepSecondsFor ผูกกับจำนวนที่กดไปแล้ว ไม่ใช่เวลาที่ผ่านไปเฉยๆ)
---   ⚠️ timeoutSeconds = safety net ถ้าไม่กดเลย (เผลอ/ค้าง) — เกินนี้ auto-จบให้ ที่เหลือนับ miss กัน lock ตลอดไป
---   reward เป็น footage เพิ่ม (additive, cap ด้วย storage) → ไม่กระทบเพดานเงิน 1.47M โดยตรง (footage cap อยู่แล้ว)
---   ระหว่าง QTE: InteractLock.lock() ปิด E + freeze เดิน/กระโดด · geometry (0..1 ตามความยาวแถบ) tune อิสระ ไม่มีใน PDF
--- ═══════════════════════════════════════════════════════════════════════════
+-- RecordQTE — skill check ตอนถ่ายคลิป: เข็มวิ่ง ping-pong บนแถบ กด Space N ครั้ง (สุ่ม hitsMin-hitsMax)
+--   กด 1 ครั้ง = เกรดจากตำแหน่งเข็มตอนนั้น · เล่นจนครบ N เสมอ ไม่มี fail-fast
+--   reward สะสม เพดานรวม rewardMultMax ไม่ว่า N: Perfect/ครั้ง = max/N, Good = ×goodRewardRatio
+--   reward เป็น footage (cap ด้วย storage) · ระหว่าง QTE freeze เดิน+ปิด E · geometry เป็นสัดส่วน 0..1
 Config.RecordQTE = {
-	chance = 0.1,            -- โอกาสเจอ QTE ต่อคลิกถ่ายสำเร็จ 1 ครั้ง (10%, ปรับจาก 2% โดย user 11 ส.ค.)
-	hitsMin = 1, hitsMax = 5, -- จำนวนครั้งที่ต้องกด Space จริง (ไม่ใช่จำนวน bounce ของเข็ม) สุ่มต่อ QTE
-	rewardMultMax = 10,      -- เพดานรวมทั้ง QTE (Perfect ครบทุกครั้ง = ได้เท่านี้ ไม่ว่า N เท่าไหร่)
-	goodRewardRatio = 0.5,   -- Good ต่อครั้ง = สัดส่วนนี้ของ Perfect ต่อครั้ง (เท่าเดิม: Good ครึ่งนึงของ Perfect)
+	chance = 0.1,            -- โอกาสเจอ QTE ต่อคลิกถ่ายสำเร็จ
+	hitsMin = 1, hitsMax = 5, -- จำนวนครั้งที่ต้องกด (สุ่มต่อ QTE)
+	rewardMultMax = 10,      -- เพดานรวมทั้ง QTE
+	goodRewardRatio = 0.5,   -- Good/ครั้ง = ครึ่งของ Perfect/ครั้ง
 	sweepSecondsStart = 1.2, -- ความเร็วเข็มก่อนกดครั้งแรก (ช้าสุด วิ/เที่ยว)
 	sweepSecondsMin = 0.5,   -- พื้นความเร็ว (เร่งไม่เกินนี้)
-	timeoutSeconds = 15,     -- ไม่กดเลยเกินนี้ = auto-จบ (ที่เหลือ miss) กัน InteractLock ค้างตลอดไป
-	sweepSpeedupPerHit = 0.15, -- ลด sweepSeconds กี่วิ ต่อจำนวนครั้งที่กดสำเร็จไปแล้ว 1 ครั้ง (ไม่ใช่ต่อ bounce)
-	centerMin = 0.30, centerMax = 0.80, -- กึ่งกลางโซนสำเร็จสุ่มครั้งเดียวตอนเริ่ม (คงที่ตลอด — เข็มวิ่งผ่านเป้าเดิมซ้ำๆ)
-	goodHalfWidth = 0.11,      -- โซน Good (กว้าง): |pos-center| ≤ นี่ = อย่างน้อย Good
-	perfectHalfWidth = 0.035,  -- โซน Perfect (แคบ กลางโซน Perfect): ≤ นี่ = Perfect
+	timeoutSeconds = 15,     -- ไม่กดเลยเกินนี้ = auto-จบ กัน InteractLock ค้าง
+	sweepSpeedupPerHit = 0.15, -- ลด sweepSeconds ต่อครั้งที่กดสำเร็จ
+	centerMin = 0.30, centerMax = 0.80, -- กึ่งกลางโซนสำเร็จ สุ่มครั้งเดียวตอนเริ่ม
+	goodHalfWidth = 0.11,      -- |pos-center| ≤ นี่ = อย่างน้อย Good
+	perfectHalfWidth = 0.035,  -- ≤ นี่ = Perfect
 }
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 🥤 ของกินใช้แล้วหมด (เพิ่ม 11 ส.ค. 2569 — user) · ซื้อที่แอป Shop บนคอม
---   ซื้อ = ดื่มทันที ไม่มีคลังของ (ไม่ต้องมี inventory UI + กันตุนแล้วซดรวดเดียว)
---   ⚠️ **จงใจไม่เพิ่มโอกาสเกิด QTE** — QTE คือ lockout (freeze เดิน+ปิด E) คำนวณแล้ว:
---     คลิก cooldown 0.6 วิ · QTE เฉลี่ย ~4.5 วิ → %เวลาที่ติดใน QTE = 4.5/(4.5 + 0.6/chance)
---     chance 2% = 13% ของเวลา · 10% (ปัจจุบัน) = 43% · 30% (ถ้า ×3) = 69% → กลายเป็นเกมกด Space
---   เลยให้ผลเป็น "โซนกว้างขึ้น" แทน = QTE เท่าเดิม แต่กดติดง่ายขึ้น (ได้ footage เยอะขึ้นจริง ไม่โดนขังเพิ่ม)
---   นี่คือไอเดีย "QTE window กว้างขึ้น" ที่สาย pc เคยจะทำแล้วถูกตัด (docs/02 §9.5)
+-- ของกินใช้แล้วหมด · ซื้อ = ดื่มทันที ไม่มีคลังของ
+-- ⚠️ จงใจไม่เพิ่มโอกาสเกิด QTE (QTE = lockout) — ให้ผลเป็น "โซน QTE กว้างขึ้น" แทน
 Config.Consumables = {
 	{
 		key = "energy",
 		label = "🥤 เครื่องดื่มชูกำลัง",
 		icon = "🥤",
-		price = 12_000,          -- money sink ของเฟส 2+ (เฟส 1 ทั้งเฟสได้ ~8,000 = จงใจซื้อไม่ไหว)
-		durationHours = 24,      -- 1 วันในเกม ≈ 3 นาทีจริง (secondsPerGameHour 7.5 × 24)
-		mentalOnExpire = -8,     -- อาการ crash ตอนหมดฤทธิ์ — ทางลัดต้องมีต้นทุน (thesis เดียวกับ Bank §9.7)
-		-- ตัวคูณความกว้างโซน QTE ระหว่างออกฤทธิ์
-		--   perfect ×2 = ตัวรางวัลจริง · good ×1.5 **ไม่ใช่ ×2 จงใจ**:
-		--   center สุ่มได้ถึง 0.80 ถ้า good ×2 (0.22) ขอบขวา 1.0 จะห่างแค่ 0.20 < 0.22 = เข็มชนขอบก็ได้ Good ฟรี
-		--   ที่ ×1.5 (0.165) ขอบขวายังห่าง 0.20 > 0.165 = ยังพลาดได้ ต้องเล็งจริง
+		price = 12_000,          -- money sink เฟส 2+ (เฟส 1 ได้ ~8,000 = ซื้อไม่ไหว)
+		durationHours = 24,
+		mentalOnExpire = -8,     -- crash ตอนหมดฤทธิ์ — ทางลัดต้องมีต้นทุน
+		-- good ×1.5 ไม่ใช่ ×2 จงใจ: center สุ่มถึง 0.80 ถ้า good กว้างไป (0.22) จะชนขอบขวาได้ Good ฟรี
 		qtePerfectMult = 2.0,
 		qteGoodMult = 1.5,
 		desc = "โซน QTE กว้างขึ้น 1 วัน · หมดฤทธิ์ใจ −8",
 	},
 }
 
--- ═══════════════════════════════════════════════════════════════════════════
--- 🎬 ClipSizes — เลือกขนาด footage ก่อนตัด (risk↔reward, user lock 8 ส.ค.)
---   ขนาด↑ = QTE ยากขึ้น (วงบนจอเยอะ + หดเร็ว + วงมาก) แลกกับ reward ×(gb/32)
---   • rewardMult ไม่เก็บที่นี่ — คำนวณ Formulas.clipSizeMult(gb)=gb/footagePerClipGB (proportional lock)
---   • difficulty (hits/maxOnScreen/spawnInterval/approach) tune ได้อิสระตรงนี้
---   • baseline = แถว gb=32 (= preset "duo" เดิม) · เพิ่มแถว 256/512… ได้เลย ("ไปเรื่อยๆ")
---   • ผู้เล่นเลือกได้เฉพาะขนาดที่ footage ปัจจุบัน ≥ gb (EditQTE.clipSizesFor กรองให้)
--- ═══════════════════════════════════════════════════════════════════════════
+-- ClipSizes — เลือกขนาด footage ก่อนตัด (risk↔reward): ขนาด↑ = QTE ยากขึ้น แลก reward ×(gb/32)
+--   rewardMult คำนวณที่ Formulas.clipSizeMult · เลือกได้เฉพาะขนาดที่ footage ปัจจุบัน ≥ gb
 Config.ClipSizes = {
 	{ gb = 8,   hits = 10, maxOnScreen = 1, spawnInterval = 0.55, approach = 1.70 },
 	{ gb = 16,  hits = 14, maxOnScreen = 2, spawnInterval = 0.48, approach = 1.55 },
@@ -362,39 +285,25 @@ Config.ClipSizes = {
 }
 
 Config.SponsorUnlockFollowers = 10_000
-Config.SponsorOfferChance = 0.05 -- PDF หน้า 6: offer เด้งเอง 5%/วัน (เฟส 2-3) ไม่ใช่ปุ่มกดเรียก
+Config.SponsorOfferChance = 0.05 -- offer เด้งเอง 5%/วัน (เฟส 2-3)
 Config.SponsorOfferMinPhase = 2
--- ★ แก้ดีไซน์ 9 ส.ค. (user): sponsor ไม่ต้องเลือกวางวันในปฏิทินแล้ว — offer เด้งเป็น notification
---   กดรับ = ได้ buff "เงินจากคลิป ×Mult" ทันที นาน Days วันในเกม
---   offer ที่ไม่กดรับหมดอายุตอนขึ้นวันใหม่ (ไม่งั้นค้าง = สุ่มใบใหม่ไม่ได้ตลอดกาล เพราะไม่มี UI ปฏิทินให้เปิดดูแล้ว)
-Config.SponsorBuffMult = 2 -- เงินจากคลิปที่อัปโหลดระหว่าง buff ×เท่านี้ (follower ไม่คูณ — คูณเฉพาะเงิน)
-Config.SponsorBuffDays = 1 -- buff อยู่กี่วันในเกมนับจากวันที่กดรับ
+-- กดรับ = buff เงินคลิป ×Mult ทันที · offer ที่ไม่กดหมดอายุตอนขึ้นวันใหม่ (มีแค่ toast พลาดแล้วพลาดเลย)
+Config.SponsorBuffMult = 2 -- เงินจากคลิประหว่าง buff ×เท่านี้ (follower ไม่คูณ)
+Config.SponsorBuffDays = 1
 
--- ★ เงินก้อน sponsor ตาม milestone (12 ส.ค. 2569, user) — รื้อ "จ่ายเป็นเงินก้อน" กลับมา
---   ต่างจาก buff ด้านบน: buff = สุ่มรายวัน ×2 ชั่วคราว · อันนี้ = ก้อนเดียว ครั้งเดียวถาวร ตอนถึง milestone
---   จ่ายตอนผู้เล่นกดปุ่มรับใน DM (แอป Inbox) → SponsorService.claimDM ตัดสินฝั่ง server
---   key ต้องตรงกับ `payoutId` ของก้อน DM ใน Shared/Content/DMs.luau
---
---   ที่มาของตัวเลข — อิงสูตร design doc "คลิปเฉลี่ยของเฟส × 2–4":
---     เฟส 2 = (1,400+2,600)/2 × 1.2 = 2,400 → ช่วง 4,800–9,600
---     เฟส 3 = (9,000+15,000)/2 × 1.5 = 18,000 → ช่วง 36,000–72,000
---
---   ⚠️ รวมทั้งหมด 147,000 → เงินส่วนเกินเหนือราคาของที่ซื้อได้จริง ขยับจาก ~460,000 เป็น ~607,000
---      (docs/02 §9.5 "balance hole ที่ไม่ได้ปิด") — user รับทราบ 12 ส.ค. ตกลง **จูนเพดานทีหลัง**
---      จูนที่ตารางนี้ที่เดียวจบ ไม่ต้องแตะโค้ด
+-- เงินก้อน sponsor ตาม milestone (ก้อนเดียว ครั้งเดียวต่อ payoutId) · key ต้องตรง payoutId ใน DMs.luau
+--   อิงสูตร "คลิปเฉลี่ยของเฟส × 2–4" · รวม 147,000 → ดัน balance hole เป็น ~607K (จูนที่ตารางนี้)
 Config.DMPayouts = {
-	sponsor_shabu  = 5_000,  -- ร้านชาบูป้านิด (14K, เฟส 2) — ล่างสุดของช่วงเฟส 2 ≈ 1.2 สัปดาห์ของรายจ่าย 4,100
-	sponsor_gadget = 12_000, -- GadgetTH       (50K, เฟส 2) — เหนือช่วงเฟส 2 (แบรนด์กลาง) ≈ 3 สัปดาห์
-	sponsor_agency = 40_000, -- VIRALHOUSE     (120K, เฟส 3) — ในช่วงเฟส 3 ≈ 5 สัปดาห์ของรายจ่าย 7,700
-	sponsor_chill  = 90_000, -- CHILL          (400K, เฟส 3) — เหนือช่วงเฟส 3 (ดีลใหญ่สุด) ≈ 12 สัปดาห์
+	sponsor_shabu  = 5_000,  -- ร้านชาบูป้านิด (14K, เฟส 2)
+	sponsor_gadget = 12_000, -- GadgetTH (50K, เฟส 2)
+	sponsor_agency = 40_000, -- VIRALHOUSE (120K, เฟส 3)
+	sponsor_chill  = 90_000, -- CHILL (400K, เฟส 3)
 }
 
--- §5 Ending resolver — priority order สำคัญ เช็คแย่สุด→ดีสุด return ทันทีที่ match
--- ห้ามสลับลำดับ เงื่อนไข overlap กัน
+-- §5 Ending resolver — เช็คแย่สุด→ดีสุด return ทันทีที่ match · ห้ามสลับลำดับ (เงื่อนไข overlap)
 Config.EndingPriority = { "Bad1", "Bad2", "Bad3", "Good1", "Neutral1", "Neutral2" }
 
--- VidQ % = สัดส่วนของคลิปที่ถ่ายจริงทั้งหมด
--- Choice % = สัดส่วนของ choice ที่ตอบทั้งหมด (⊕ + ◎ + ⊖ = 100%) — comment เท่านั้นที่นับ
+-- VidQ % = สัดส่วนคลิปที่ถ่ายทั้งหมด · Choice % = สัดส่วน choice ที่ตอบ (comment เท่านั้นที่นับ)
 Config.EndingThresholds = {
 	Bad3 = { vidq = { cMin = 33, bMax = 33 }, choice = { negMin = 50, neuMax = 25 } },
 	Neutral1 = { vidq = { cMax = 20, bMax = 33, aMin = 13, sMax = 13 }, choice = { spreadMax = 25 } },
@@ -404,44 +313,38 @@ Config.EndingThresholds = {
 		choice = { posMin = 62.5, negMax = 12.5, neuMax = 12.5 },
 	},
 }
--- Bad1 = เงินหมด โดนไล่ที่ 2 รอบ (phase 1–2) | Bad2 = mental ≤ 0 (phase 2–3) — ทั้งคู่ optional
--- Neutral/Good ต้องถึง 1M ก่อน
+-- Bad1 = เงินหมดโดนไล่ 2 รอบ | Bad2 = mental ≤ 0 (ทั้งคู่ optional) · Neutral/Good ต้องถึง 1M ก่อน
 
--- Dialogue: typewriter + กล้องตอนคุย NPC (ปรับค่าที่นี่ที่เดียว)
+-- Dialogue: typewriter + กล้องตอนคุย NPC · กล่องขนาดคงที่เป็น px ข้อความยาว = ตัดบรรทัดใหม่
 Config.Dialogue = {
 	charDelay = { normal = 0.03, slow = 0.08, fast = 0.012 }, -- วิ/ตัวอักษร (น้อย = เร็ว)
-	-- กล่องข้อความสไตล์ Undertale-lite: **ขนาดคงที่เป็น px** ข้อความยาวขึ้น = ตัดบรรทัดใหม่
-	-- (ไม่ใช่ยืดกล่อง/ย่อฟอนต์) · ตัวอักษรขนาดเดียวตลอดเกม · สีคุมให้ contrast น้อยกว่า Undertale จริง
-	-- (ไม่ใช่ดำ/ขาวล้วน กันดูก็อปตรงๆ) อัตราส่วนกว้าง:สูง ~5:1 แบบกล่องหนัง
 	box = {
 		width = 900,     -- กว้างกล่อง (px)
 		height = 176,    -- สูงกล่อง (px) — พอดี 3 บรรทัดที่ textSize 30
-		bottomGap = 30,  -- ห่างจากขอบล่างจอ (px)
-		textSize = 30,   -- ขนาดตัวอักษรคงที่ ไม่ย่อตามความยาว
-		padding = 20,    -- ระยะขอบในกล่อง (px)
-		portrait = 132,  -- ด้านของช่อง viewport หน้าตัวละครฝั่งซ้าย (px) — ไม่มี rig = ซ่อน ข้อความกินเต็มกล่อง
-		border = 3,      -- ความหนาขอบขาว (Frame ทึบวางนอกกล่อง ไม่ใช่ UIStroke — ดู DialogueUI.show)
-		bgColor = Color3.fromRGB(28, 27, 34),     -- พื้นกล่อง (เทาเข้มอมม่วง ไม่ใช่ดำสนิท)
+		bottomGap = 30,  -- ห่างจากขอบล่างจอ
+		textSize = 30,
+		padding = 20,
+		portrait = 132,  -- ช่อง viewport หน้าตัวละครฝั่งซ้าย · ไม่มี rig = ซ่อน
+		border = 3,      -- ความหนาขอบขาว (Frame ทึบวางนอกกล่อง — ดู DialogueUI.show)
+		bgColor = Color3.fromRGB(28, 27, 34),     -- พื้นกล่อง (เทาเข้มอมม่วง)
 		textColor = Color3.fromRGB(236, 233, 240),   -- ตัวอักษร (ขาวหม่น)
 	},
-	zoomLevels = { 6, 10, 16 }, -- ระยะกล้อง ใกล้/ปกติ/ไกล (studs, น้อย = ซูมเข้า)
-	zoomDefault = 2, -- เริ่มที่ระดับไหน (index ใน zoomLevels)
-	camHeight = 1.5, -- ความสูงกล้องเหนือจุดหัว NPC
-	camTweenTime = 0.45, -- ความลื่นตอนเปลี่ยนซูม (วิ)
+	zoomLevels = { 6, 10, 16 }, -- ระยะกล้อง ใกล้/ปกติ/ไกล (studs)
+	zoomDefault = 2, -- index ใน zoomLevels
+	camHeight = 1.5, -- ความสูงกล้องเหนือหัว NPC
+	camTweenTime = 0.45,
 }
 
--- ระบบเสียง (docs/02 §9.9) — ความดังปรับที่ Sound object ใน Studio ไม่ใช่ที่นี่
+-- ระบบเสียง — ความดังปรับที่ Sound object ใน Studio ไม่ใช่ที่นี่
 Config.Audio = {
-	bgmFade = 1.2,            -- วินาที crossfade ตอนเปลี่ยนเพลง/บรรยากาศ
-	defaultBGM = "",          -- เพลงตอนไม่อยู่ในโซนไหน ("" = เงียบ)
-	zoneCheckInterval = 0.35, -- เช็คว่าอยู่โซนไหนทุกกี่วินาที
-	voiceMinGap = 0.045,      -- blip ตอนพิมพ์ห่างกันอย่างน้อยกี่วิ (กันถี่จนหูแตก)
-	voicePitchVary = 0.12,    -- สุ่ม pitch ±เท่าไหร่ ให้เสียงพูดไม่ซ้ำเป๊ะ
-	-- เสียงเดิน = footstep script แบบ material-based (ServerScriptService) ไม่ผ่าน AudioService แล้ว
+	bgmFade = 1.2,            -- วินาที crossfade ตอนเปลี่ยนเพลง
+	defaultBGM = "",          -- เพลงตอนไม่อยู่โซนไหน ("" = เงียบ)
+	zoneCheckInterval = 0.35,
+	voiceMinGap = 0.045,      -- blip ตอนพิมพ์ห่างกันอย่างน้อยกี่วิ
+	voicePitchVary = 0.12,    -- สุ่ม pitch ±เท่าไหร่ ให้เสียงไม่ซ้ำเป๊ะ
 }
 
--- Comment ต่อคลิป (PDF หน้า 8 — user lock 21 ก.ค.): slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป
--- แต้มไม่รวม 100 จงใจ — แต่ละช่องคือโอกาสของ slot ตัวเอง ไม่ออก = เงียบ (สูงสุด 3 ใบ/คลิป)
+-- Comment ต่อคลิป: slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรด · แต้มไม่รวม 100 จงใจ (สูงสุด 3 ใบ/คลิป)
 Config.Comments = {
 	chanceByTier = {
 		C = { neg = 0.40, neu = 0.25, pos = 0.10 },
@@ -449,14 +352,13 @@ Config.Comments = {
 		A = { neg = 0.20, neu = 0.30, pos = 0.40 },
 		S = { neg = 0.05, neu = 0.40, pos = 0.50 },
 	},
-	-- การนับ % เข้า ending (agent เสนอ — ยังไม่ lock): heart⊕/ยอมรับ→pos, ประชด→neu, heart⊖/ด่า→neg, ปล่อยผ่าน→ไม่นับ
+	-- heart⊕/ยอมรับ→pos, ประชด→neu, heart⊖/ด่า→neg, ปล่อยผ่าน→ไม่นับ
 	countAs = {
 		heartPos = "pos", heartNeg = "neg",
 		accept = "pos", sarcasm = "neu", insult = "neg",
 	},
 }
 
--- เงินตั้งต้น + เวลา — ที่มา: PDF ต้นฉบับหน้า 9, 6 (design doc ไม่ระบุ — flag ไว้แล้วใน docs/08)
 Config.StartMoney = 2_500
 
 Config.Time = {

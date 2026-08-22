@@ -1,7 +1,5 @@
--- InteractLock.luau — ระหว่างคุย NPC / ใช้คอม: ปิด ProximityPrompt ทั้งหมด + ล็อกไม่ให้เดิน
--- แก้บัคกด E/WASD ทะลุไปโดน prompt หรือเดินตัวขณะเปิด UI เต็มจอ (เช่น EditQTE ใช้ E เป็นปุ่มเกม)
--- ref-count กันปลดเร็วตอนซ้อน (canon-event dialogue อาจซ้อนบทคุย) — ปลดจริงตอน depth กลับเป็น 0
--- ล็อกเดินใช้ convention MoveLocked เดียวกับ CutscenePlayer (SprintHandler เห็นแล้วหยุดแตะ WalkSpeed)
+-- InteractLock — ระหว่างคุย NPC / ใช้คอม: ปิด ProximityPrompt + ล็อกเดิน (กัน E/WASD ทะลุ UI)
+-- ref-count กันปลดเร็วตอนบทซ้อน — ปลดจริงตอน depth = 0 · ล็อกเดินใช้ MoveLocked เดียวกับ CutscenePlayer
 local Players = game:GetService("Players")
 local PPS = game:GetService("ProximityPromptService")
 

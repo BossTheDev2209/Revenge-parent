@@ -1,6 +1,5 @@
--- CameraFocus — โฟกัสกล้องไปที่ NPC ตอนคุย + zoom 3 ระดับ (ใกล้/ปกติ/ไกล)
--- ใช้คู่กับ DialogueUI: startDialogue เรียก focus(head) ตอนเริ่ม, release() ตอนจบ
--- zoom: scroll wheel เปลี่ยนระดับ (หรือเรียก setLevel เอง) tween ลื่นระหว่างระดับ
+-- CameraFocus — โฟกัสกล้องไปที่ NPC ตอนคุย + zoom 3 ระดับ (scroll wheel เปลี่ยน)
+-- ใช้คู่ DialogueUI: focus(head) ตอนเริ่ม, release() ตอนจบ · ค่าปรับที่ Config.Dialogue
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
@@ -8,8 +7,7 @@ local Config = require(game:GetService("ReplicatedStorage").Shared.Config)
 
 local CameraFocus = {}
 
--- ค่าปรับได้ที่ Config.Dialogue (ที่เดียว)
-local LEVELS = Config.Dialogue.zoomLevels -- ระยะจากหน้า NPC ใกล้/ปกติ/ไกล
+local LEVELS = Config.Dialogue.zoomLevels
 local NORMAL = Config.Dialogue.zoomDefault
 local EYE_HEIGHT = Config.Dialogue.camHeight
 local TWEEN = TweenInfo.new(Config.Dialogue.camTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -20,7 +18,7 @@ local saved = nil
 local moveTween = nil
 local scrollConn = nil
 
--- pure: CFrame กล้องที่ทำให้ NPC อยู่กลางจอ หันเห็นหน้า (targetCF = CFrame หัว NPC)
+-- pure: CFrame กล้องที่ทำให้ NPC อยู่กลางจอ หันเห็นหน้า
 function CameraFocus.frameCFrame(targetCF: CFrame, distance: number): CFrame
 	local head = targetCF.Position
 	local camPos = head + targetCF.LookVector * distance + Vector3.new(0, EYE_HEIGHT, 0)
@@ -54,7 +52,7 @@ function CameraFocus.focus(head: BasePart)
 	levelIndex = NORMAL
 	saved = { type = cam.CameraType, subject = cam.CameraSubject }
 	cam.CameraType = Enum.CameraType.Scriptable
-	apply(false) -- tween จากมุมเดิมเข้าหา NPC
+	apply(false)
 	scrollConn = UserInputService.InputChanged:Connect(function(input, processed)
 		if processed then return end
 		if input.UserInputType == Enum.UserInputType.MouseWheel then

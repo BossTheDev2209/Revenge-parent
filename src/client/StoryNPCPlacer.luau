@@ -11,31 +11,24 @@ local AnimPlayer = if isStudio
 
 local StoryNPCPlacer = {}
 
--- ชื่อ anchor สำหรับ actor+loc (pure — เทสได้)
+-- ชื่อ anchor สำหรับ actor+loc (pure)
 function StoryNPCPlacer.anchorName(actor: string, loc: string): string
 	return ("NPCHome_%s_%s"):format(actor, loc)
 end
 
--- loc ล่าสุดที่วางไปแล้ว [actor] = loc — กัน PivotTo/idle ซ้ำทุก state push
-local applied = {}
+local applied = {} -- [actor] = loc ล่าสุด — กัน PivotTo/idle ซ้ำทุก push
 
--- loc ที่เป็นท่านั่ง/นอน (ไม่ใช่ยืน) — เรียก animation ชื่อ "Idle" + ตัวพิมพ์ใหญ่ตัวแรกของ loc
--- (bed→IdleBed, couch→IdleCouch, chair→IdleChair) ต้องมี Animation ชื่อนั้นในโฟลเดอร์ actor เอง
--- ไม่งั้นเงียบๆไม่ขยับ (AnimPlayer.play warn ให้)
+-- loc ท่านั่ง/นอน → เรียก anim "Idle<Loc>" (bed→IdleBed) · ต้องมี Animation ชื่อนั้นในโฟลเดอร์ actor
 local SEATED_LOC = { bed = true, couch = true, chair = true, park = true }
 
--- loc ที่ไม่เชื่อ raycast หาพื้นเลย (ก้ม/นั่งโซฟา/นั่งเก้าอี้ ฯลฯ) — เชื่อ anchor.Position ตรงๆ
--- (user วางเทียบท่า/เบาะเก้าอี้จริงด้วยตาเอง) ⚠️ เจอ raycast ทะลุพื้น/เพดานชั้นอื่นของบ้าน (บ้านหลายชั้น
--- ray เจอพื้น/พรมชั้นบนก่อนของจริง) ในบ้านเฟส 3 มาแล้ว — SEATED_LOC ทุกตัวเลยตัดมาเชื่อ anchor ตรงด้วย ไม่ raycast อีก
+-- loc ที่เชื่อ anchor.Position ตรงๆ ไม่ raycast (user วางเทียบเบาะจริงด้วยตา)
+-- ⚠️ บ้านหลายชั้น ray เจอพื้น/พรมชั้นบนก่อนของจริง — ท่านั่งทุกตัวเลยตัดมาไม่ raycast
 local NO_RAYCAST_LOC = { jiajiajoin = true, bed = true, couch = true, chair = true, park = true, faasai_betray = true }
 
--- prop ที่ actor ถืออยู่ตอนอยู่ loc นั้น (จำกัดแค่เคสนี้พอ — ยังไม่คุ้มทำเป็น table ทั่วไปถ้ามีแค่ตัวเดียว)
--- ⚠️ offset เดิมวัดจาก Torso ของ Faasai_bed_idle (rig อ้างอิงที่ "วาง" เฉยๆ ไม่ได้เล่น animation จริง — Torso เลย
--- อยู่ท่า rest ปกติ ไม่ใช่ท่านั่งจริงที่ IdleBed เล่น) หันผิดเพราะงี้ — ตัดส่วนหมุนทิ้ง เหลือแค่ตำแหน่ง รอ user
--- ปรับผ่าน Properties (weld C0 บน Torso.PropHold_NotebookBed) ตอน playtest แล้วเอาค่าสุดท้ายมาใส่ตรงนี้
+-- ⚠️ offset จูนด้วยมือ (weld C0 บน Torso.PropHold_NotebookBed) ตอน playtest แล้วเอาค่าสุดท้ายมาใส่
 local BED_NOTEBOOK_OFFSET = CFrame.new(0.02288818359375, -1, -1.293975830078125)
 
--- วางทุก NPC ตาม state.npcLoc — idempotent เรียกทุก push ได้ (ทำจริงเฉพาะตัวที่ loc เปลี่ยน)
+-- วางทุก NPC ตาม state.npcLoc — idempotent (ทำจริงเฉพาะตัวที่ loc เปลี่ยน)
 function StoryNPCPlacer.apply(state)
 	if not state or type(state.npcLoc) ~= "table" then return end
 	for actor, loc in state.npcLoc do
@@ -50,13 +43,12 @@ function StoryNPCPlacer.apply(state)
 			elseif rig then -- rig ยังไม่ spawn/stream = ข้ามไว้ก่อน ไม่ mark → push หน้าลองใหม่
 				local anchor = workspace:FindFirstChild(StoryNPCPlacer.anchorName(actor, loc), true)
 				if anchor and anchor:IsA("BasePart") then
-					local facing = anchor.CFrame - anchor.CFrame.Position -- ทิศหันอย่างเดียว ตัดตำแหน่งทิ้ง
+					local facing = anchor.CFrame - anchor.CFrame.Position -- ทิศหันอย่างเดียว
 					if NO_RAYCAST_LOC[loc] then
 						rig:PivotTo(CFrame.new(anchor.Position) * facing)
 					else
-						-- raycast หาพื้นผิวจริงใต้ anchor (เชื่อ X/Z + การหันของ anchor แต่ไม่เชื่อ Y — anchor อาจวางแบบก้นแนบพื้น
-						-- จุดศูนย์กลางเลยลอยสูงกว่าพื้นผิวจริง) แล้วยืนเหนือพื้นผิวจริง 3 stud (ท่ายืนเท่านั้น — ท่านั่งอยู่ใน NO_RAYCAST_LOC หมดแล้ว)
-						-- ข้าม Interact_* (hitbox ของ ProximityPrompt ตามธรรมเนียม docs/05 — ไม่ใช่ geometry จริง มักลอยเหนือของจริง)
+						-- หาพื้นจริงใต้ anchor (เชื่อ X/Z ไม่เชื่อ Y) แล้วยืนเหนือพื้น 3 stud
+						-- ข้าม Interact_* (hitbox ของ prompt ไม่ใช่ geometry จริง มักลอยเหนือของจริง)
 						local params = RaycastParams.new()
 						params.FilterType = Enum.RaycastFilterType.Exclude
 						local ignore = { rig, anchor }
@@ -71,13 +63,12 @@ function StoryNPCPlacer.apply(state)
 							end
 							table.insert(ignore, hit.Instance)
 						end
-						surfaceY = surfaceY or anchor.Position.Y -- ไม่เจอพื้น (ลอยกลางอากาศจริง) = ใช้ตำแหน่ง anchor เดิม
+						surfaceY = surfaceY or anchor.Position.Y -- ไม่เจอพื้น = ใช้ตำแหน่ง anchor เดิม
 						rig:PivotTo(CFrame.new(anchor.Position.X, surfaceY + 3, anchor.Position.Z) * facing)
 					end
-					-- loc นั่ง (SEATED_LOC) = ท่า "Idle<Loc>" เฉพาะตัว (ตัวแรกพิมพ์ใหญ่) · loc อื่น = ยืน idle ปกติ
 					local seatedAnim = SEATED_LOC[loc] and ("Idle" .. loc:sub(1, 1):upper() .. loc:sub(2))
 					AnimPlayer.play(actor, seatedAnim or "Idle", true)
-					-- notebook ติดมากับ animation ไม่ได้ (Moon Animator export ได้แค่ joint ไม่ใช่ prop แยก) — ต้อง weld เองตอน bed
+					-- notebook weld เองตอน bed (Moon Animator export ได้แค่ joint ไม่ใช่ prop แยก)
 					if actor == "ฟ้าใส" then
 						local torso = rig:FindFirstChild("Torso")
 						if loc == "bed" and torso then

@@ -1,9 +1,5 @@
--- StoryBeat.luau — orchestrator ของ 1 story beat: ล็อก player → (cutscene) → จอดำ+จัดฉาก → (dialogue) → จอดำ+เก็บฉาก → คืนคุม
--- ยิงตอน player เสียการควบคุมตามธรรมชาติ (ลุกจากเตียง/ลุกจากคอม) — ไม่เล่นกลางที่เดินอยู่
--- reuse engine เดิมทั้งหมด: CutscenePlayer(mode1) + ScreenTransition(จอดำ+hook) + DialogueUI(mode2) + InteractLock
---
--- ล็อกต่อเนื่องทั้ง beat ผ่าน InteractLock (ref-count) — DialogueUI ล็อก/ปลดข้างในเองก็ depth ไม่ตกถึง 0
--- gotcha: CutscenePlayer คุม WalkSpeed เอง + เคลียร์ MoveLocked ตอนจบ → relock() ย้ำหลัง cutscene ก่อนจอดำ
+-- StoryBeat — orchestrator ของ 1 beat: ล็อก player → (cutscene) → จอดำ+จัดฉาก → (dialogue) → จอดำ+เก็บฉาก → คืนคุม
+-- reuse: CutscenePlayer + ScreenTransition + DialogueUI + InteractLock · ล็อกต่อเนื่องทั้ง beat (ref-count)
 local isStudio = script ~= nil
 local CutscenePlayer = if isStudio then require(script.Parent.UI.CutscenePlayer) else require("./UI/CutscenePlayer")
 local ScreenTransition = if isStudio then require(script.Parent.ScreenTransition) else require("./ScreenTransition")
@@ -28,18 +24,10 @@ local function relock()
 	end
 end
 
--- เล่น 1 beat แบบ non-blocking (chain ผ่าน callback) — เรียกซ้ำระหว่างเล่นไม่ได้ (กันซ้อน)
--- opts = {
---   preStage = fn()?,    -- ทำใต้จอดำ "ก่อน" cutscene: จัดตำแหน่ง/ทิศตัวละครให้ตรงกับจุดเริ่ม root motion (ยิง server ผ่าน caller)
---   cutscene = steps?,   -- CutscenePlayer step list (ไม่ใส่ = ข้ามช่วงหนัง)
---   stage    = fn()?,    -- ทำใต้จอดำ "หลัง" cutscene "ก่อน" dialogue: จัดฉากรอบสอง (ยิง server ผ่าน caller)
---   dialogue = lines?,   -- DialogueUI lines (ไม่ใส่ = ข้ามช่วงคุย)
---   runDialogue = fn(lines, onDone)?, -- ตัวเล่นบท (ไม่ใส่ = DialogueUI.show เปล่าๆ ไม่มีกล้อง/เอฟเฟกต์)
---     ส่ง runDialogue ของ Main.client มาถ้าอยากได้ชุดเดียวกับคุย NPC ปกติ (กล้องโฟกัส + player จางหาย)
---   settle   = fn()?,    -- ทำใต้จอดำ "หลัง" dialogue: ตั้ง npcLoc/เก็บฉากท่าสุดท้าย
---   preStageLines/stageLines/settleLines = {..}?, -- ข้อความบนจอดำแต่ละช่วง (ว่าง = ดำเฉยๆ)
---   onDone = fn()?,      -- จบ beat คืนคุมแล้ว
--- }
+-- เล่น 1 beat non-blocking (chain ผ่าน callback) — เรียกซ้ำระหว่างเล่นไม่ได้
+-- opts: preStage/stage/settle = fn() ทำใต้จอดำแต่ละช่วง · cutscene = steps · dialogue = lines
+--   runDialogue = fn(lines, onDone) ตัวเล่นบท (ไม่ใส่ = DialogueUI.show เปล่าๆ)
+--   preStageLines/stageLines/settleLines = ข้อความบนจอดำ · onDone = จบ beat
 function StoryBeat.play(playerGui, opts)
 	if StoryBeat.running then return end
 	StoryBeat.running = true
@@ -57,7 +45,7 @@ function StoryBeat.play(playerGui, opts)
 	end
 
 	local function afterCutscene()
-		relock() -- cutscene เคลียร์ MoveLocked ไป — ย้ำก่อนจอดำ
+		relock()
 		ScreenTransition.play({
 			lines = opts.stageLines,
 			onBlack = opts.stage,

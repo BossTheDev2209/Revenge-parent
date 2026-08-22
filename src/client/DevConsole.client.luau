@@ -1,24 +1,6 @@
--- DevConsole — พิมพ์ในแชท `/dev <cmd> <ค่า>` ตั้งค่า state ระหว่าง dev
--- ยิง action DevCmd ให้ server เปลี่ยน state จริง แล้ว push (server คือเจ้าของ state)
--- เปิดใน Studio เสมอ + นอก Studio (published จริง) เฉพาะ UserId ใน Config.DevUserIds (docs/15)
--- ★ gate ที่นี่แค่ซ่อนปุ่มจากคนอื่น — จุดบังคับสิทธิ์จริงคือ server (Main.server DevCmd handler)
---   ยกเว้น tp/preview ที่เป็น client-side ล้วน (ไม่ผ่าน DevCmd) เลยต้องกัน register ตั้งแต่ตรงนี้ด้วย
---
--- คำสั่ง (พิมพ์ /dev help ในเกมก็เห็น):
---   /dev follower <n>    ตั้ง follower (+ อัปเฟส/เพื่อน/milestone event ตามยอด)
---   /dev phase <1-3>     กระโดดเฟส (ตั้ง follower = gate ของเฟสนั้น)
---   /dev money <n>       ตั้งเงิน
---   /dev time <0-23>     ตั้งเวลาในเกม (ฟ้าเปลี่ยนตาม)
---   /dev mental <0-100>  ตั้งใจ
---   /dev day <n>         ตั้งวันในเกม
---   /dev flag <ชื่อ> [true|false]   ตั้ง state.flags[ชื่อ] (ไม่ใส่ค่า = true)
---   /dev ending <id>     ตั้ง ending (Good1/Neutral1/.. เล่น cutscene จบ)
---   /dev npcloc <actor> <loc>       ตั้งที่อยู่ StoryNPC (StoryNPCPlacer ย้ายตาม)
---   /dev staffsplit      ยิง event พนักงานตีกัน
---   /dev preview <2|3|4|...>   เล่น Content.Cutscenes.PhaseTransitions[key] ตรงๆ ฝั่ง client
---                              (ไม่ผ่าน server/phase จริง — ทดสอบ [3]/[4] ได้ทันทีไม่ต้องไล่ follower)
---   /dev tp <1|2|3|baseplate>   วาปไป Spawn_Phase<n> หรือ Baseplate ตรงๆ (ยิง TeleportTo — ไม่แตะ follower/phase)
---   /dev qte [n]          force-trigger RecordQTE ทันที · n = บังคับจำนวนครั้งที่ต้องกด (ไม่ใส่ = สุ่ม 1-5 เหมือน proc จริง)
+-- DevConsole — พิมพ์ `/dev <cmd> <ค่า>` ในแชท ตั้ง state ระหว่าง dev (ยิง action DevCmd ให้ server)
+-- เปิดใน Studio เสมอ + นอก Studio เฉพาะ UserId ใน Config.DevUserIds · gate นี้แค่ซ่อนปุ่ม จุดบังคับสิทธิ์จริงคือ server
+-- (ยกเว้น tp/preview ที่เป็น client-side ล้วน ไม่ผ่าน DevCmd — ต้องกัน register ตั้งแต่ตรงนี้ด้วย)
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -37,7 +19,7 @@ local HELP = [[[DevConsole] /dev <cmd> <ค่า>
   tp <1-3|baseplate>  -- วาปไป Spawn_Phase<n> หรือ Baseplate ตรงๆ (ไม่แตะ follower/phase)
   qte [n]        -- force-trigger RecordQTE · n = บังคับจำนวนครั้งที่ต้องกด (ไม่ใส่ = สุ่ม 1-5)]]
 
--- เก็บ day ล่าสุดไว้แทน [date] ตอน preview (ไม่พึ่ง Main.client) — เบาสุด ฟังรีโมทเดียวกัน
+-- เก็บ day ล่าสุดไว้แทน [date] ตอน preview (ไม่พึ่ง Main.client)
 local lastDay = 1
 RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function(s)
 	if s and s.day then lastDay = s.day end
@@ -70,7 +52,6 @@ cmd.SecondaryAlias = "/d"
 cmd.Parent = TextChatService
 
 cmd.Triggered:Connect(function(_, text)
-	-- text = "/dev money 50000" — ตัด token
 	local parts = string.split(text, " ")
 	local sub = parts[2]
 	if not sub or sub:lower() == "help" then

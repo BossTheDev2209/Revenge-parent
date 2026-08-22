@@ -1,22 +1,9 @@
--- DialogueUI.luau — **cutscene โหมด 2 "ฉากคุย"** (Genshin ref: กล้องนิ่ง + กล่องข้อความ + ช้อย)
--- ต่างจากโหมด 1 (CutscenePlayer) ที่เป็นหนัง ซับไม่มีกรอบ กดอะไรไม่ได้ — เทียบตาราง docs/engines/README.md
---
--- 1 บรรทัดในลิสต์เป็นได้ 3 แบบ:
---   "ข้อความ"                                    — ไม่มีชื่อคนพูด
---   { speaker = "แม่", text = "ข้อความ" }         — มีชื่อคนพูดข้างบนกล่อง
---   { choices = { {text=, tone=, reply={...}}, ... } } — ให้ player เลือก
---
--- ท่าทาง/อารมณ์ (Genshin ref) — ใส่เพิ่มในบรรทัดไหนก็ได้ ไม่ใส่ = ตัวละครไม่ขยับ:
---   anim  = "HeadScratch"  เล่นครั้งเดียวตอนบรรทัดนี้ขึ้น
---   pose  = "Angry"        ท่ายืนค้าง (loop) จนกว่าจะสั่ง pose ใหม่
---   face  = "Angry"        สีหน้า (ค้างจนสั่งหน้าใหม่ · จบบทคืนหน้าเดิมอัตโนมัติ)
---   actor = "CC1"          ให้ตัวอื่นขยับแทนคนพูด (ไม่ใส่ = ตัวที่กำลังคุยด้วย)
---   ท่าอยู่ ReplicatedStorage.Animations · สีหน้าอยู่ ReplicatedStorage.Faces (ดู AnimPlayer.luau)
--- tone = "plus" | "neutral" | "minus" (⊕/◎/⊖) — ป้ายกำกับเฉยๆ ส่งกลับทาง onDone(picks)
---        ✅ ล็อก 28 ก.ค. 2569: **ไม่ผูก mental ถาวร** ทุกช้อยผลเท่ากันหมด — input ที่มีผลจริงอยู่ที่ comment เท่านั้น (docs/02 §9.6)
--- reply = บทตอบกลับหลังเลือก แล้ว**บรรจบกลับเส้นเดิม** (ไม่ branching — design doc §7)
---
--- tag [slow] [fast] [normal] คุมความเร็วกลางบรรทัด — pure: parseTags/lineOf/validate | glue: show()
+-- DialogueUI — cutscene โหมด 2 "ฉากคุย": กล้องนิ่ง + กล่องข้อความ (Undertale-lite) + ช้อย
+-- 1 บรรทัด: "ข้อความ" | { speaker, text } | { choices = { {text, tone, reply, teleport}, ... } }
+-- เพิ่ม field ในบรรทัดไหนก็ได้: anim (ครั้งเดียว) · pose (ค้าง) · face (สีหน้า) · actor (ตัวอื่นขยับ) · cam · lock · time
+-- tone = plus/neutral/minus (⊕/◎/⊖) — ป้ายกำกับ ส่งกลับทาง onDone(picks) · ไม่ผูก mental (input จริงอยู่ที่ comment)
+-- reply = บทตอบกลับหลังเลือก แล้วบรรจบเส้นเดิม (ไม่ branching) · tag [slow]/[fast]/[normal]/[b]/[i] กลางประโยค
+-- pure: parseTags/tokenize/lineOf/validate/bullet/layout | glue: show()
 local isStudio = script ~= nil
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -39,7 +26,7 @@ local InteractLock = if isStudio
 local DialogueUI = {}
 DialogueUI.running = false
 
--- easing สำหรับ item.cam (นอกเหนือ zoom-หน้าอัตโนมัติของ CameraFocus) — ตรงกับ CutscenePlayer.EASE เป๊ะ
+-- easing สำหรับ item.cam — ตรงกับ CutscenePlayer.EASE
 local EASE = {
 	In = { Enum.EasingStyle.Quad, Enum.EasingDirection.In },
 	Out = { Enum.EasingStyle.Quad, Enum.EasingDirection.Out },
@@ -47,10 +34,9 @@ local EASE = {
 	Linear = { Enum.EasingStyle.Linear, Enum.EasingDirection.InOut },
 }
 
--- กล่องออกแบบไว้ที่ 900x176px (Config.Dialogue.box) — จอแคบ/เตี้ยกว่านี้ต้องหด ไม่งั้นล้นขอบจอ/ทะลุแถบดำ
--- pure: รับ viewport {X,Y} คืน scale (≤1) ให้ UIScale ตัวเดียวหดทั้งกล่อง+ขอบ+ข้อความไปด้วยกัน
-local BOX_MARGIN_SCALE = 0.06 -- เว้นขอบซ้ายขวาข้างละ 6% ของจอกันกล่องชิดขอบเป๊ะ
-local BOX_VISIBLE_HEIGHT_SCALE = 0.76 -- พื้นที่ระหว่างแถบดำบน (12%) - ล่าง (12%)
+-- กล่องออกแบบที่ 900x176px — จอแคบ/เตี้ยกว่านี้ต้องหด (UIScale ตัวเดียวหดทั้งกล่อง+ขอบ+ข้อความ) · pure
+local BOX_MARGIN_SCALE = 0.06 -- เว้นขอบซ้ายขวาข้างละ 6%
+local BOX_VISIBLE_HEIGHT_SCALE = 0.76 -- พื้นที่ระหว่างแถบดำบน-ล่าง
 local BOX_MIN_SCALE = 0.5
 function DialogueUI.layout(viewport)
 	local B = Config.Dialogue.box
@@ -64,12 +50,9 @@ end
 
 local TONES = { plus = true, neutral = true, minus = true }
 
--- ฟอนต์เดียวกับเมนู — isStudio guard เพราะ lune ไม่มี Font
--- ⚠️ เคยใช้ Font.fromName("Mali",...) แต่ "Temp read failed" ทุก session (เช็คแล้ว ไม่ใช่ cache กระตุกครั้งเดียว
--- พังจริงในเครื่องนี้) → เปลี่ยนมาใช้ Enum.Font (ของ client จริง ไม่ต้องโหลดแยก) Roblox fallback glyph ไทยเองอยู่แล้ว
+-- ⚠️ Enum.Font ไม่ใช่ Font.fromName("Mali") — fromName "Temp read failed" ทุก session ในเครื่องนี้ (Roblox fallback glyph ไทยเอง)
 local DIALOGUE_FONT = if isStudio then Font.fromEnum(Enum.Font.Gotham) else nil
 
--- tag กลางประโยค: [slow]/[fast]/[normal] คุมความเร็ว · [b]…[/b] ตัวหนา · [i]…[/i] ตัวเอียง (ผ่าน RichText)
 local FMT_OPEN = { b = "<b>", i = "<i>" }
 local FMT_CLOSE = { ["/b"] = "</b>", ["/i"] = "</i>" }
 local SPEED_TAG = { slow = true, fast = true, normal = true }
@@ -80,17 +63,13 @@ local function escapeRich(ch: string): string
 	return ch
 end
 
--- ===== pure =====
-
--- ใส่ดอกจันนำหน้าประโยคแบบ Undertale — ต้นข้อความ 1 ตัว และหลังขึ้นบรรทัดใหม่ทุกครั้ง
--- (`\n` ที่คนเขียนบทใส่เอง = ประโยคใหม่ · การตัดบรรทัดอัตโนมัติเพราะยาวเกิน ไม่นับ ไม่ได้ดอกจัน)
+-- ดอกจันนำหน้าประโยคแบบ Undertale — ต้นข้อความ + หลัง \n ที่คนเขียนใส่เอง (ตัดบรรทัดอัตโนมัติไม่นับ)
 function DialogueUI.bullet(text: string): string
 	if text == "" then return text end
 	return "* " .. (text:gsub("\n", "\n* "))
 end
 
-
--- "[slow]ก[fast]ข" → { {speed="slow",text="ก"}, {speed="fast",text="ข"} } — เริ่มต้น normal
+-- "[slow]ก[fast]ข" → { {speed,text}, ... } เริ่ม normal
 function DialogueUI.parseTags(line: string)
 	local segs = {}
 	local speed = "normal"
@@ -110,17 +89,15 @@ function DialogueUI.parseTags(line: string)
 	return segs
 end
 
--- แปลงข้อความ+tag → token list สำหรับ typewriter RichText
---   { m = "<b>" }              markup (ใส่ทันที ไม่หน่วง ไม่มีเสียง)
---   { c = "ก", speed="slow" }  ตัวอักษร 1 ตัว (พิมพ์ทีละตัวตามความเร็ว)
--- ดอกจัน "* " นำหน้าประโยค (ต้นข้อความ + หลัง \n) แบบ Undertale · รองรับ [b]/[i]/[/b]/[/i] inline
+-- ข้อความ+tag → token list · { m = markup } (ใส่ทันที) | { c = ตัวอักษร, speed } (พิมพ์ทีละตัว)
+-- ดอกจัน "* " นำหน้าประโยค · รองรับ [b]/[i]/[/b]/[/i] inline
 function DialogueUI.tokenize(text: string)
 	local toks = {}
 	local speed = "normal"
 	local pos, n = 1, #text
 	local atLineStart = true
 	while pos <= n do
-		-- ดอกจันนำหน้าประโยค ใส่ก่อน markup/ตัวอักษรตัวแรกของบรรทัด (ไม่งั้นโดนครอบ <b> ทับ)
+		-- ดอกจันใส่ก่อน markup/ตัวแรกของบรรทัด (ไม่งั้นโดนครอบ <b> ทับ)
 		if atLineStart and text:sub(pos, pos) ~= "\n" then
 			table.insert(toks, { c = "*", speed = speed })
 			table.insert(toks, { c = " ", speed = speed })
@@ -138,7 +115,7 @@ function DialogueUI.tokenize(text: string)
 			pos = e + 1
 		else
 			local b = text:byte(pos)
-			local len = if b >= 0xF0 then 4 elseif b >= 0xE0 then 3 elseif b >= 0xC0 then 2 else 1
+			local len = if b >= 0xF0 then 4 elseif b >= 0xE0 then 3 elseif b >= 0xC0 then 2 else 1 -- UTF-8 width
 			local ch = text:sub(pos, pos + len - 1)
 			if ch == "\n" then
 				table.insert(toks, { c = "\n", speed = speed })
@@ -152,14 +129,14 @@ function DialogueUI.tokenize(text: string)
 	return toks
 end
 
--- แปลง 1 บรรทัดให้เป็นรูปเดียวกันหมด → { speaker=string?, text=string?, choices=table? }
+-- แปลง 1 บรรทัดให้เป็นรูปเดียว → { speaker?, text?, choices? }
 function DialogueUI.lineOf(item)
 	if type(item) == "string" then return { text = item } end
 	if type(item) == "table" then return item end
 	return { text = tostring(item) }
 end
 
--- เช็คบทก่อนเล่น — คืน (ผ่านไหม, ข้อความ error)
+-- เช็คบทก่อนเล่น — คืน (ผ่านไหม, error)
 function DialogueUI.validate(lines)
 	if type(lines) ~= "table" then return false, "ไม่ใช่ตาราง" end
 	for i, item in lines do
@@ -201,7 +178,7 @@ function DialogueUI.validate(lines)
 				end
 			end
 		elseif item.anim or item.pose or item.face then
-			-- บรรทัดสั่งท่า/สีหน้าล้วน (ไม่มี text) = stage direction ไม่ขึ้นกล่องข้อความ ผ่านได้
+			-- บรรทัดสั่งท่า/สีหน้าล้วน (stage direction ไม่ขึ้นกล่อง) ผ่านได้
 			if item.text ~= nil and type(item.text) ~= "string" then
 				return false, ("บรรทัด %d: text ต้องเป็นข้อความ"):format(i)
 			end
@@ -212,11 +189,8 @@ function DialogueUI.validate(lines)
 	return true
 end
 
--- ===== UI glue (Studio เท่านั้น) =====
--- แสดง lines ทีละบรรทัด typewriter — คลิกระหว่างพิมพ์ = โชว์ทั้งบรรทัด, คลิกอีกที = บรรทัดถัดไป
--- voiceName = ชื่อ Sound ใน SoundService.Voice (blip ตอนพิมพ์) — ไม่ส่ง = ใช้ Default
---             ใช้เป็น **actor เริ่มต้น** ของท่าทางด้วย (ชื่อไฟล์บท = ชื่อ NPC ที่คุยอยู่)
--- onDone(picks) — picks = ลิสต์ tone ที่ player เลือกตามลำดับ (ว่างถ้าบทไม่มีช้อย)
+-- แสดง lines typewriter — คลิกระหว่างพิมพ์ = โชว์ทั้งบรรทัด, คลิกอีกที = บรรทัดถัดไป
+-- voiceName = ชื่อ Sound ใน SoundService.Voice (blip) + actor เริ่มต้นของท่าทาง · onDone(picks, quit, teleportTarget)
 function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	if DialogueUI.running then return end
 	local ok, err = DialogueUI.validate(lines)
@@ -224,24 +198,23 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		warn("[DialogueUI] บทพัง:", err)
 		return
 	end
-	-- item.lock (บรรทัดไหนก็ได้) = บทบังคับเล่นจนจบ ปิดปุ่ม "เลิกคุย" ทั้งบท
-	-- สแกนก่อนสร้าง UI (หลักการเดียวกับ usesCustomCam ใน Main.client — เจอที่ไหนในบท มีผลทั้งบท)
+	-- item.lock (บรรทัดไหนก็ได้) = บังคับเล่นจนจบ ปิดปุ่มเลิกคุย — สแกนก่อนสร้าง UI (มีผลทั้งบท)
 	local locked = false
 	for _, item in lines do
 		if type(item) == "table" and item.lock then locked = true break end
 	end
 	DialogueUI.running = true
-	if InteractLock then InteractLock.lock() end -- ปิด prompt + ล็อกเดินตลอดบท
+	if InteractLock then InteractLock.lock() end
 	Audio.duckBGM(true) -- หรี่เพลงตอนคุย ได้ยิน blip ชัด
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_Dialogue"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true -- แถบหนังคลุมเต็มจอ (เหมือน CutscenePlayer)
+	gui.IgnoreGuiInset = true
 
 	local B = Config.Dialogue.box
 
-	-- แถบหนังบน-ล่าง (ขนาด/สีเดียวกับ cutscene mode 1) — คุยกับ NPC = โหมดหนังเหมือนกัน
+	-- แถบหนังบน-ล่าง (เหมือน cutscene mode 1)
 	local barTop = Instance.new("Frame")
 	barTop.Name = "BarTop"
 	barTop.Size = UDim2.new(1, 0, 0.12, 0)
@@ -253,8 +226,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	barBottom.Position = UDim2.new(0, 0, 0.88, 0)
 	barBottom.Parent = gui
 
-	-- container ครอบ boxBorder+box ไว้ด้วยกัน — UIScale ตัวเดียวหดทั้งคู่พร้อมกันไม่ให้เพี้ยนสัมพัทธ์กัน
-	-- (จอแคบกว่า 900px = กล่องล้นขอบ/ทะลุแถบดำ ถ้าไม่หด — ดู DialogueUI.layout ด้านบน)
+	-- container ครอบ boxBorder+box — UIScale ตัวเดียวหดทั้งคู่พร้อมกัน (ดู DialogueUI.layout)
 	local boxContainer = Instance.new("Frame")
 	boxContainer.Name = "BoxContainer"
 	boxContainer.Size = UDim2.fromScale(1, 1)
@@ -263,19 +235,18 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	local boxScale = Instance.new("UIScale")
 	boxScale.Parent = boxContainer
 
-	-- ขอบขาวแบบ Undertale — Frame สีขาวทึบหนึ่งชั้น "หลัง" กล่อง ใหญ่กว่ากล่องรอบด้านละ border px
-	-- (ไม่ใช้ UIStroke เพราะ UIStroke คร่อมกึ่งกลางขอบ ครึ่งในครึ่งนอก — ต้องการขอบที่อยู่ "นอก" กล่องล้วนๆ)
+	-- ขอบขาว: Frame ทึบชั้นหลังกล่อง ใหญ่กว่าด้านละ border px (UIStroke คร่อมกึ่งกลางขอบ ไม่ได้อยู่นอกล้วน)
 	local boxBorder = Instance.new("Frame")
 	boxBorder.Name = "BoxBorder"
 	boxBorder.AnchorPoint = Vector2.new(0.5, 1)
 	boxBorder.Position = UDim2.new(0.5, 0, 1, -B.bottomGap + B.border)
 	boxBorder.Size = UDim2.fromOffset(B.width + B.border * 2, B.height + B.border * 2)
-	boxBorder.BackgroundColor3 = Color3.new(1, 1, 1) -- ขาวโพลน
+	boxBorder.BackgroundColor3 = Color3.new(1, 1, 1)
 	boxBorder.BorderSizePixel = 0
 	boxBorder.Parent = boxContainer
 
-	-- กล่องขนาดคงที่ ยึดกลางล่างจอ (Undertale ref) — ข้อความยาวขึ้นตัดบรรทัด ไม่ยืดกล่อง ไม่ย่อฟอนต์
-	local box = Instance.new("TextButton") -- ทั้งกล่องคือปุ่ม continue
+	-- กล่องขนาดคงที่ ยึดกลางล่างจอ (ทั้งกล่องคือปุ่ม continue) — ยาวขึ้นตัดบรรทัด ไม่ยืด ไม่ย่อฟอนต์
+	local box = Instance.new("TextButton")
 	box.Name = "Box"
 	box.AnchorPoint = Vector2.new(0.5, 1)
 	box.Position = UDim2.new(0.5, 0, 1, -B.bottomGap)
@@ -284,12 +255,11 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	box.BackgroundTransparency = 0
 	box.BorderSizePixel = 0
 	box.AutoButtonColor = false
-	box.Text = "" -- ข้อความจริงอยู่ TextLabel ข้างใน (กล่องเป็นแค่ปุ่มกดไปต่อ)
-	box:SetAttribute("Sfx", "dialogue_advance") -- เสียงคลิกไปบรรทัดถัดไป (คนละเสียงกับปุ่ม UI ทั่วไป)
+	box.Text = "" -- ข้อความจริงอยู่ TextLabel ข้างใน
+	box:SetAttribute("Sfx", "dialogue_advance")
 	box.Parent = boxContainer
 
-	-- หน้าตัวละครฝั่งซ้าย = เรนเดอร์โมเดล 3 มิติจริงของ NPC ที่คุยด้วย (ไม่ใช่รูปภาพ) — ดู ModelViewport.luau
-	-- ไม่เจอ rig ของตัวนั้นในแมพตอนนี้ (เช่น actor พิมพ์ผิด) = ซ่อนช่อง ข้อความเลื่อนไปกินที่แทน ไม่พัง
+	-- หน้าตัวละครฝั่งซ้าย = โมเดล 3 มิติจริงของ NPC (ModelViewport) · หา rig ไม่เจอ = ซ่อนช่อง ข้อความกินที่แทน
 	local portraitVP = ModelViewport and ModelViewport.new(box)
 	if portraitVP then
 		portraitVP.instance.Size = UDim2.fromOffset(B.portrait, B.portrait)
@@ -300,9 +270,9 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	textLabel.Name = "Text"
 	textLabel.BackgroundTransparency = 1
 	textLabel.FontFace = DIALOGUE_FONT
-	textLabel.RichText = true -- รองรับ <b>/<i> จาก tag [b]/[i] กลางประโยค
-	textLabel.TextSize = B.textSize -- คงที่ ไม่ใช้ TextScaled (ไม่งั้นยาวขึ้นตัวเล็กลง)
-	textLabel.TextWrapped = true -- ยาวเกิน = ขึ้นบรรทัดใหม่
+	textLabel.RichText = true
+	textLabel.TextSize = B.textSize -- คงที่ ไม่ TextScaled
+	textLabel.TextWrapped = true
 	textLabel.TextColor3 = B.textColor
 	textLabel.TextXAlignment = Enum.TextXAlignment.Left
 	textLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -318,7 +288,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	end
 	layoutText()
 
-	local nameLabel = Instance.new("TextLabel") -- ชื่อคนพูด เกาะมุมซ้ายบนของกล่อง — พื้นขาวโพลน ไม่มีขอบ
+	local nameLabel = Instance.new("TextLabel") -- ชื่อคนพูด มุมซ้ายบนกล่อง
 	nameLabel.AnchorPoint = Vector2.new(0, 1)
 	nameLabel.Position = UDim2.new(0, 0, 0, -4)
 	nameLabel.Size = UDim2.fromOffset(240, 30)
@@ -327,7 +297,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	nameLabel.BorderSizePixel = 0
 	nameLabel.FontFace = DIALOGUE_FONT
 	nameLabel.TextSize = B.textSize - 4
-	nameLabel.TextColor3 = Color3.fromRGB(20, 20, 24) -- เข้มเกือบดำ อ่านออกบนพื้นขาว
+	nameLabel.TextColor3 = Color3.fromRGB(20, 20, 24)
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.Text = ""
 	nameLabel.Visible = false
@@ -336,7 +306,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	namePad.PaddingLeft = UDim.new(0, 8)
 	namePad.Parent = nameLabel
 
-	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ยึดขวากลางจอ (Genshin ref)
+	local choiceFrame = Instance.new("Frame") -- ลิสต์ช้อย ยึดขวากลางจอ
 	choiceFrame.AnchorPoint = Vector2.new(1, 0.5)
 	choiceFrame.Position = UDim2.new(1, -60, 0.45, 0)
 	choiceFrame.Size = UDim2.fromOffset(360, 300)
@@ -349,8 +319,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = choiceFrame
 
-	-- ปุ่มเลิกคุย มุมซ้ายบนใต้แถบหนัง — กดแล้วออกจากบทเลย **ไม่นับว่าคุยจบ** (ไม่ยิง DialogueSeen)
-	-- locked = true (item.lock) → ไม่สร้างปุ่มเลย (quit ค้าง false ตลอด บทเดินต่อจนจบทางเดียว)
+	-- ปุ่มเลิกคุย — กดแล้วออกจากบท ไม่นับว่าคุยจบ (ไม่ยิง DialogueSeen) · locked = ไม่สร้างปุ่ม
 	local quit = false
 	if not locked then
 		local quitBtn = Instance.new("TextButton")
@@ -371,7 +340,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		quitBtn.Activated:Connect(function() quit = true end)
 	end
 
-	-- ซ่อน GUI อื่นที่เปิดอยู่ระหว่างคุย (HUD/ปุ่มเซฟ/Tool ฯลฯ บังการมองเห็น) — จำไว้คืนตอนจบ
+	-- ซ่อน GUI อื่นที่เปิดอยู่ (HUD/ปุ่มเซฟ/Tool บังการมองเห็น) — จำไว้คืนตอนจบ
 	local hiddenGuis = {}
 	for _, g in playerGui:GetChildren() do
 		if g:IsA("ScreenGui") and g.Enabled then
@@ -382,7 +351,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 
 	gui.Parent = playerGui
 
-	-- หดกล่องให้พอดีจอ (มือถือ/จอเตี้ย) — refit ตอนหมุนจอ, disconnect ตอนจบบท
+	-- หดกล่องให้พอดีจอ (refit ตอนหมุนจอ)
 	local camera = workspace.CurrentCamera
 	local function fitBox()
 		boxScale.Scale = DialogueUI.layout(camera.ViewportSize).scale
@@ -392,10 +361,9 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 
 	local picks = {}
 	local teleportTarget = nil
-	-- item.cam (นอกเหนือ zoom-หน้าอัตโนมัติของ CameraFocus) — วางมุมด้วย CutsceneCamTool เหมือน cutscene mode 1
-	-- ตัดกล้องตอนบรรทัดนั้นขึ้น (ไม่ใช่ timer) — caller ต้องไม่ส่ง head ให้ CameraFocus.focus (เดี๋ยวชนกัน) ดู docs/engines/dialogue.md
-	local camSaved = nil -- เก็บ CameraType/Subject เดิมไว้คืนตอนจบ — เซ็ตครั้งแรกที่เจอ item.cam เท่านั้น (ไม่ยุ่งบทที่ไม่ใช้)
-	local timeSet = false -- บทตั้ง item.time (ล็อกดวงอาทิตย์) ไหม — จบบทเคลียร์ SceneClock คืนเวลาจริง (เฉพาะบทที่ตั้ง)
+	-- item.cam = วางมุมด้วย CutsceneCamTool · ตัดกล้องตอนบรรทัดนั้นขึ้น · caller ต้องไม่ส่ง head ให้ CameraFocus (ชนกัน)
+	local camSaved = nil -- เก็บ CameraType/Subject/FOV เดิม เซ็ตครั้งแรกที่เจอ item.cam
+	local timeSet = false
 	local function cutTo(camName: string)
 		local folder = workspace:FindFirstChild("CutsceneCams")
 		local part = folder and folder:FindFirstChild(camName, true) or workspace:FindFirstChild(camName, true)
@@ -404,7 +372,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			return
 		end
 		if not camSaved then
-			-- ⚠️ ต้องเก็บ FieldOfView ด้วย ไม่ใช่แค่ CameraType/Subject — เคยพลาดจน FOV ค้างค่า item.cam ทั้งเกมหลังเลิกคุย (12 ส.ค.)
+			-- ⚠️ ต้องเก็บ FieldOfView ด้วย ไม่งั้น FOV ค้างค่า item.cam ทั้งเกมหลังเลิกคุย
 			camSaved = { type = camera.CameraType, subject = camera.CameraSubject, fov = camera.FieldOfView }
 		end
 		camera.CameraType = Enum.CameraType.Scriptable
@@ -420,17 +388,15 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			camera.CFrame = part.CFrame
 			if fov then camera.FieldOfView = fov end
 		end
-	end -- ช้อยไหนมี .teleport = จำชื่อ Part ปลายทางไว้ ยิงตอนบทจบจริง (ไม่ใช่ branching — เนื้อเรื่องเดินเส้นเดิม แค่จบแล้วไปคนละที่)
+	end
 
-	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิกไปต่อ
-	-- actor = ใช้หา rig สำหรับ portrait viewport (ไม่ส่ง = คนที่คุยอยู่)
+	-- พิมพ์ข้อความ 1 บรรทัด แล้วรอคลิก · actor = หา rig สำหรับ portrait (ไม่ส่ง = คนที่คุยอยู่)
 	local function speak(item, actor: string?)
 		local speaker, text = item.speaker, item.text
 		nameLabel.Visible = speaker ~= nil
 		nameLabel.Text = speaker or ""
 
-		-- ไม่มีชื่อคนพูด = ไม่โชว์หน้าตัวละคร (bullet เฉยๆ) · มีชื่อ = เรนเดอร์ rig สดจากแมพ ณ ตอนนี้
-		-- speaker = "คุณ" (พูดคนเดียว ไม่ใช่คิดในใจแบบวงเล็บ) = โชว์หน้า player เอง ไม่ใช่ NPC ที่คุยด้วย
+		-- ไม่มีชื่อ = ไม่โชว์หน้า · speaker="คุณ" = โชว์หน้า player เอง (ไม่ใช่ NPC)
 		if portraitVP then
 			if speaker then
 				portraitVP.showBust(AnimPlayer.findRig(speaker == "คุณ" and "player" or (actor or voiceName)))
@@ -440,7 +406,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		end
 		layoutText()
 
-		-- typewriter บน RichText: พิมพ์ทีละตัว แต่ปิด tag <b>/<i> ที่เปิดค้างทุกเฟรมให้ markup valid เสมอ
+		-- typewriter บน RichText: พิมพ์ทีละตัว ปิด tag <b>/<i> ที่เปิดค้างทุกเฟรมให้ markup valid
 		local toks = DialogueUI.tokenize(text)
 		local shown, openStack = {}, {}
 		local function closers()
@@ -493,14 +459,12 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			end
 		end
 		textLabel.Text = full
-		-- กล่องขนาดคงที่ = บทยาวเกินจะโดนตัดหาย เตือนคนเขียนบทให้ซอยประโยค (อย่าย่อฟอนต์)
-		if not textLabel.TextFits then
+		if not textLabel.TextFits then -- กล่องคงที่ = บทยาวเกินตัดหาย เตือนให้ซอยประโยค
 			warn(("[DialogueUI] บทยาวเกินกล่อง ตัดเป็นหลายบรรทัดในลิสต์: %q"):format(text:sub(1, 40)))
 		end
 		conn:Disconnect()
-		-- รอคลิกไปบรรทัดถัดไป (หรือกดเลิกคุย)
+		-- รอคลิกไปบรรทัดถัดไป · เสียงคลิกมาจากตัวผูกกลางใน Main.client (ไม่เรียก Audio.sfx เองกันดัง 2 ที)
 		local go = false
-		-- เสียงคลิกมาจากตัวผูกกลางใน Main.client (อ่าน attribute Sfx) — ไม่เรียก Audio.sfx เองกันดัง 2 ที
 		local conn2 = box.Activated:Connect(function()
 			go = true
 		end)
@@ -508,7 +472,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		conn2:Disconnect()
 	end
 
-	-- โชว์ช้อย รอ player เลือก คืนช้อยที่เลือก
+	-- โชว์ช้อย รอเลือก คืนช้อยที่เลือก (nil = กดเลิกคุยระหว่างเลือก)
 	local function ask(choices)
 		local picked = nil
 		for i, c in choices do
@@ -521,7 +485,7 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 			btn.TextScaled = true
 			btn.Text = c.text
 			btn.LayoutOrder = i
-			btn:SetAttribute("Sfx", "dialogue_choice") -- เสียงเลือกช้อย (ตัวผูกกลางใน Main.client เล่นให้)
+			btn:SetAttribute("Sfx", "dialogue_choice")
 			btn.Parent = choiceFrame
 			btn.Activated:Connect(function()
 				if picked then return end
@@ -534,29 +498,27 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		for _, b in choiceFrame:GetChildren() do
 			if b:IsA("TextButton") then b:Destroy() end
 		end
-		return picked -- nil = กดเลิกคุยระหว่างเลือก
+		return picked
 	end
 
 	task.spawn(function()
-		local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบบทแล้วหยุดให้หมด กันค้างท่าเดิม
-		-- pcall ครอบ playback: บทพังกลางคัน (anim/face หาย ฯลฯ) ก็ยังวิ่ง cleanup ข้างล่างเสมอ
-		-- ไม่งั้น InteractLock ค้าง = prompt ปิด + กระโดด/เดินไม่ได้หลังคุย (bug "บางครั้งกระโดดไม่ได้")
+		local movedActors = {} -- ตัวที่ถูกสั่งท่า — จบบทหยุดให้หมด
+		-- pcall ครอบ playback: บทพังกลางคันก็ยังวิ่ง cleanup (ไม่งั้น InteractLock ค้าง = เดิน/กระโดดไม่ได้หลังคุย)
 		local ok, err = pcall(function()
 			local queue = table.clone(lines)
 			local i = 1
 			while i <= #queue and not quit do
 				local item = DialogueUI.lineOf(queue[i])
-				if item.cam then cutTo(item.cam) end -- ตัดกล้องตามบรรทัด ไม่ใช่ timer (ต่างจาก CutscenePlayer)
-				if item.time then game:GetService("Lighting"):SetAttribute("SceneClock", item.time); timeSet = true end -- ล็อกดวงอาทิตย์ให้ฉาก (เช่น park=17) คืนตอนจบบท
-				-- ท่าทาง/อารมณ์ เล่นก่อนข้อความขึ้น (Genshin: ขยับพร้อมเริ่มพูด)
-				local moved = AnimPlayer.applyLine(item, voiceName)
+				if item.cam then cutTo(item.cam) end -- ตัดกล้องตามบรรทัด ไม่ใช่ timer
+				if item.time then game:GetService("Lighting"):SetAttribute("SceneClock", item.time); timeSet = true end
+				local moved = AnimPlayer.applyLine(item, voiceName) -- ท่าเล่นก่อนข้อความขึ้น
 				if moved then movedActors[moved] = true end
 				if item.choices then
 					local c = ask(item.choices)
-					if c then -- nil = กดเลิกคุยระหว่างเลือก (quit)
+					if c then
 						table.insert(picks, c.tone or "neutral")
-						if c.teleport then teleportTarget = c.teleport end -- จำไว้ ยิงตอนจบบท ไม่ใช่ตอนนี้
-						-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิมต่อ (ไม่ branching)
+						if c.teleport then teleportTarget = c.teleport end -- ยิงตอนจบบท
+						-- บทตอบกลับแทรกต่อท้ายทันที แล้วเดินเส้นเดิม (ไม่ branching)
 						if c.reply then
 							for k = #c.reply, 1, -1 do
 								table.insert(queue, i + 1, c.reply[k])
@@ -564,17 +526,16 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 						end
 					end
 				elseif item.text then
-					-- รูปหน้า: ตัวที่บรรทัดนี้ระบุ (actor) ไม่งั้นคนที่คุยอยู่ · face = อารมณ์ (มีรูปตามอารมณ์ก็ใช้)
 					speak(item, item.actor or voiceName)
-				end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้ามไปบรรทัดถัดไปทันที
+				end -- ไม่มี text = บรรทัดสั่งท่าล้วน ข้าม
 				i += 1
 			end
 		end)
 		if not ok then warn("[DialogueUI] บทพังกลางคัน:", err) end
 		-- cleanup เสมอ (แม้บทพัง)
 		for actor in movedActors do AnimPlayer.stop(actor) end
-		if timeSet then game:GetService("Lighting"):SetAttribute("SceneClock", nil) end -- คืนดวงอาทิตย์เวลาจริง (เฉพาะบทที่ตั้ง time)
-		if camSaved then -- คืนกล้องที่ item.cam ยึดไป (CameraFocus ไม่รู้จักตัวนี้ ต้องคืนเอง)
+		if timeSet then game:GetService("Lighting"):SetAttribute("SceneClock", nil) end
+		if camSaved then -- คืนกล้องที่ item.cam ยึด (CameraFocus ไม่รู้จักตัวนี้)
 			camera.CameraType = camSaved.type
 			camera.CameraSubject = camSaved.subject
 				or (Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"))
@@ -582,13 +543,11 @@ function DialogueUI.show(playerGui, lines, onDone, voiceName)
 		end
 		viewportConn:Disconnect()
 		gui:Destroy()
-		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end -- คืน GUI ที่ซ่อนไว้
+		for _, g in hiddenGuis do if g.Parent then g.Enabled = true end end
 		DialogueUI.running = false
 		if InteractLock then InteractLock.unlock() end
-		Audio.duckBGM(false) -- คืนเสียงเพลงเต็ม
-		-- onDone(picks, quit, teleportTarget) เรียกเสมอ — caller ต้องคืนกล้อง/unfreeze ทุกกรณี
-		-- quit=true (กดเลิกคุย) = ไม่นับว่าคุยจบ · caller เช็ค quit เองว่าจะยิง DialogueSeen ไหม
-		-- teleportTarget = ไม่ nil ถ้า player เลือกช้อยที่มี .teleport (เช่น เมนูเลือกแมพปลายทาง) — caller เป็นคนยิง TeleportTo เอง
+		Audio.duckBGM(false)
+		-- onDone(picks, quit, teleportTarget) เรียกเสมอ · quit=true = ไม่นับว่าคุยจบ · teleportTarget = caller ยิง TeleportTo เอง
 		if onDone then onDone(picks, quit, teleportTarget) end
 	end)
 end

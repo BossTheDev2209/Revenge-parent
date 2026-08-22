@@ -1,6 +1,5 @@
--- InteractBinder.luau — หา Interact_* ทุกตัวใน Workspace แล้วแปะ ProximityPrompt (runtime ฝั่ง client)
--- ทีมวางแค่ Part ชื่อถูกตาม docs/05 §3 — prompt กับ logic มาจากไฟล์นี้
--- deps = { fireAction, playerGui, getState, openPC, openShop, startDialogue } ส่งมาจาก Main.client
+-- InteractBinder — หา Interact_* ทุกตัวใน Workspace แล้วแปะ ProximityPrompt + logic (client)
+-- ทีมวางแค่ Part ชื่อถูกตาม docs/05 · deps = { fireAction, playerGui, getState, openPC, openShop, startDialogue }
 local isStudio = script ~= nil
 local ActivityCutscene = if isStudio
 	then require(script.Parent.ActivityCutscene)
@@ -14,16 +13,14 @@ local PROMPT_TEXT = {
 	Interact_Bed = "พักผ่อน",
 	Interact_Kitchen = "กินข้าว",
 	Interact_Exercise = "ออกกำลังกาย",
-	-- NPC ไม่ต้องใส่ที่นี่ — ไม่มี key = ขึ้น "คุย" อัตโนมัติ (ดู fallback ล่างไฟล์)
+	-- NPC ไม่ต้องใส่ — ไม่มี key = ขึ้น "คุย" อัตโนมัติ (fallback ล่างไฟล์)
 	Interact_NotebookPack = "เก็บโน้ตบุ๊ค",
 	Interact_Shop = "เข้าร้านค้า",
 	Interact_Door = "เข้าไป",
 }
 
--- ===== ประตู (docs/02 §9.9) =====
--- Attribute บนบานประตู: `Target` = ชื่อ Part ปลายทาง · `MinFollower` = follower ที่ต้องมี (0/ไม่ใส่ = เข้าได้เลย)
--- ยังไม่ปลด = ขึ้นข้อความบอกว่าต้องมีกี่ follower · ไม่มี Target = เตือนคนวางแมพ
--- pure: ตัดสินว่าเข้าได้ไหม — เทสได้
+-- ประตู: Attribute Target = Part ปลายทาง · MinFollower = follower ที่ต้องมี (0/ไม่ใส่ = เข้าได้เลย)
+-- pure: ตัดสินว่าเข้าได้ไหม
 function InteractBinder.doorCheck(follower: number, minFollower: number?): (boolean, string?)
 	local need = tonumber(minFollower) or 0
 	if follower >= need then return true end
@@ -31,17 +28,14 @@ function InteractBinder.doorCheck(follower: number, minFollower: number?): (bool
 		need >= 1000 and ("%dK"):format(need / 1000) or tostring(need))
 end
 
--- Interact_NPC_<ชื่อ> → ไฟล์บทใน Content/Dialogue (ชื่อ Part = ชื่อโมเดลตัด prefix — docs/05 §4)
---   5 พิเศษ (StoryNPC) → ไฟล์บทเดิมที่มีอยู่แล้ว | 12 ประจำเฟส (WorldNPC) → ไฟล์ชื่อตัวเอง
--- key ต้อง bracket-quote: Luau identifier รับ ASCII เท่านั้น ชื่อ Part ไทยเป็น key เปล่าไม่ได้ (คอมไพล์ไม่ผ่าน)
+-- Interact_NPC_<ชื่อ> → ไฟล์บทใน Content/Dialogue (ชื่อ = ชื่อโมเดลตัด prefix)
+-- key ต้อง bracket-quote: Luau identifier รับ ASCII เท่านั้น ชื่อไทยเป็น key เปล่าไม่ได้
 local NPC_DIALOGUE = {
-	-- ===== 5 พิเศษ (เนื้อเรื่อง) — ตั้งชื่อจริง 5 ส.ค. 2569 =====
 	["Interact_NPC_แม่"] = "แม่",
 	["Interact_NPC_พ่อ"] = "พ่อ",
-	["Interact_NPC_ฟ้าใส"] = "ฟ้าใส", -- เพื่อนร่วมทางคนแรก ทรยศ 500K (เดิม Friend1)
-	["Interact_NPC_เจียเจีย"] = "เจียเจีย", -- เพื่อนร่วมทางคนสอง อยู่จนจบ (เดิม Friend2)
-	["Interact_NPC_พี่เปิ้ล"] = "พี่เปิ้ล", -- CC คู่แข่ง (เดิม CC1)
-	-- ===== 12 ประจำเฟส (คนละคนต่อเฟส 4/เฟส) — ไฟล์บทอยู่ Content/Dialogue ชื่อเดียวกับ NPC =====
+	["Interact_NPC_ฟ้าใส"] = "ฟ้าใส", -- เพื่อนร่วมทางคนแรก ทรยศ 500K
+	["Interact_NPC_เจียเจีย"] = "เจียเจีย", -- เพื่อนร่วมทางคนสอง อยู่จนจบ
+	["Interact_NPC_พี่เปิ้ล"] = "พี่เปิ้ล", -- CC คู่แข่ง
 	["Interact_NPC_ลุงสืบ"] = "ลุงสืบ",
 	["Interact_NPC_พี่แหนม"] = "พี่แหนม",
 	["Interact_NPC_ลุงชัย"] = "ลุงชัย",
@@ -56,21 +50,11 @@ local NPC_DIALOGUE = {
 	["Interact_NPC_ลุงนรินท์"] = "ลุงนรินท์",
 }
 
--- เลือกชุดบทจากไฟล์เดียว: หลังทรยศใช้ after ก่อน ไม่งั้นไล่จากเฟสปัจจุบันลงไปหาชุดที่ใกล้สุด
--- ไฟล์เก่าที่เป็น list ของ string ตรงๆ (ไม่มี key เฟส) ใช้ได้เหมือนเดิม
--- seen = เคยคุยจบบทเต็มในเฟสนี้แล้ว → เล่นบท repeat (ถ้ามี) กันเล่นบทเดิมซ้ำ
--- loc (optional) = state.npcLoc[actor] ตอนคุย — ใช้แยกบทตามที่อยู่ (เช่น คุยที่สวนสาธารณะ ≠ คุยที่ห้อง)
--- locSeen (optional) = เคยคุยจบบทเต็มที่ loc นี้แล้ว → ใช้ again ของ loc นี้ (แยกจาก seen/again เฟสปกติ)
--- afterSeen (optional, เพิ่ม 12 ส.ค.) = เคยคุยจบบทเต็มของ after แล้ว → ใช้ again ของ after (แยกจาก seen/locSeen อีกคีย์)
---   ต้องมีเพราะ after ชนะ byLoc เสมอ (เช็คก่อน) — NPC ที่มีทั้งบทประจำที่อยู่ + บทหลังทรยศ (เช่นเจียเจีย) ต้องแยกครั้งแรก/ซ้ำได้ "ในโหมดหลังทรยศ" ด้วยเหมือนกัน ไม่งั้นคุยซ้ำได้บทเต็ม after ตลอดกาล
---   ⚠️ นอกเหนือ 5-key ที่ล็อกไว้ใน docs/engines/dialogue.md — เพิ่มเพราะ design doc พูดถึง "เดท/คุยกัน" หลายที่
---   แบบไม่ระบุกลไก (docs/16 §L19,72) ตัดสินใจ 12 ส.ค. 2569: เก็บ p1-p3/after/again ไว้เป็นบทเริ่ม/ซ้ำปกติ
---   byLoc[loc] ทับทันทีถ้า npcLoc ตรง key — รับได้ 2 แบบ:
---     byLoc.X = { ... }                      ลิสต์ตรง ไม่แยกซ้ำ/ครั้งแรก (คุยซ้ำที่ loc นี้ได้บทเดิมซ้ำ)
---     byLoc.X = { p = {...}, again = {...} } แยกครั้งแรก/คุยซ้ำในตัว (locSeen เป็นคนเลือก)
---   after เองก็รับได้ 2 แบบเดียวกัน (12 ส.ค.) — ลิสต์ตรง (เดิม) หรือ { p=, again= } (afterSeen เป็นคนเลือก)
+-- เลือกชุดบทจากไฟล์เดียว · ลำดับความสำคัญ: after (หลังทรยศ) > byLoc[loc] > again (เคยคุย) > pN ไล่จากเฟสปัจจุบันลง
+--   after/byLoc รับ 2 แบบ: ลิสต์ตรง (ไม่แยกซ้ำ) หรือ { p =, again = } (seen flag เป็นคนเลือก)
+--   afterSeen/locSeen แยกครั้งแรก/ซ้ำของ after/byLoc ต่างหากจาก seen เฟสปกติ
 local function pickAfter(after, afterSeen)
-	if after[1] ~= nil then return after end -- ลิสต์ตรง (เดิม) — ไม่แยกครั้งแรก/ซ้ำ
+	if after[1] ~= nil then return after end -- ลิสต์ตรง
 	if afterSeen and after.again then return after.again end
 	return after.p or after.again
 end
@@ -107,13 +91,11 @@ function InteractBinder.pickLines(mod, state, seen, loc, locSeen, afterSeen)
 	return mod.p1 or (mod.after and pickAfter(mod.after, afterSeen))
 end
 
--- เตียงมี 2 ทาง (docs/02 §3): พักผ่อน = activity ฟื้นใจ | นอน = ข้ามเวลา 8/12 ชม. + ล้าง NoSleep
--- onRest = ทางพักผ่อน วิ่งผ่าน ActivityCutscene (มีฉากคั่นเมื่อทีมใส่ steps) ไม่ยิง action ตรงๆ
+-- เตียงมี 2 ทาง: พักผ่อน = activity ฟื้นใจ (ผ่าน ActivityCutscene) | นอน = ข้ามเวลา + ล้าง NoSleep
 local function openBedMenu(playerGui, fireAction, onRest)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_BedMenu"
 	gui.ResetOnSpawn = false
-	-- onClick = ฟังก์ชันที่เรียกตอนกด (ปิดเมนูให้ก่อนเสมอ — ฉาก cutscene ต้องไม่มีปุ่มค้างบนจอ)
 	local function btn(text, x, onClick, sfx)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0, 180, 0, 48)
@@ -122,10 +104,10 @@ local function openBedMenu(playerGui, fireAction, onRest)
 		b.TextColor3 = Color3.new(1, 1, 1)
 		b.TextScaled = true
 		b.Text = text
-		if sfx then b:SetAttribute("Sfx", sfx) end -- เสียงเฉพาะปุ่ม (Main.client เป็นคนเล่นให้)
+		if sfx then b:SetAttribute("Sfx", sfx) end
 		b.Parent = gui
 		b.Activated:Connect(function()
-			gui:Destroy()
+			gui:Destroy() -- ปิดเมนูก่อนเสมอ (ฉากต้องไม่มีปุ่มค้างบนจอ)
 			if onClick then onClick() end
 		end)
 	end
@@ -135,7 +117,7 @@ local function openBedMenu(playerGui, fireAction, onRest)
 	gui.Parent = playerGui
 end
 
--- ข้อความกลางจอ 2 วิ (ประตูล็อก / ประตูยังไม่ตั้ง Attribute)
+-- ข้อความกลางจอ 2 วิ (ประตูล็อก / ยังไม่ตั้ง Attribute)
 local function toast(playerGui, text: string)
 	local g = Instance.new("ScreenGui")
 	g.ResetOnSpawn = false
@@ -155,13 +137,11 @@ local function toast(playerGui, text: string)
 	task.delay(2, function() g:Destroy() end)
 end
 
--- ป้ายชื่อเหนือจุด interact (BillboardGui ที่ทีมแปะไว้เอง) — จางตามระยะ
--- ไม่งั้นป้ายลอยเด่นทั้งแมพ เห็นตั้งแต่อีกฝั่งเมือง (user feedback 28 ก.ค.)
--- ระยะอ้างอิง ProximityPrompt.MaxActivationDistance (default 10): ชัดเต็มตอนกดได้พอดี
+-- ป้ายชื่อเหนือจุด interact จางตามระยะ (ไม่งั้นเห็นเด่นทั้งแมพ)
 local LABEL_CLEAR_STUDS = 14 -- ใกล้กว่านี้ = ชัดเต็ม
 local LABEL_GONE_STUDS = 30 -- ไกลกว่านี้ = หายสนิท
 
--- pure: ระยะ → ความโปร่งใส (0 = ชัด, 1 = หาย) — เทสได้
+-- pure: ระยะ → ความโปร่งใส (0 = ชัด, 1 = หาย)
 function InteractBinder.labelAlpha(distance: number): number
 	if distance <= LABEL_CLEAR_STUDS then return 0 end
 	if distance >= LABEL_GONE_STUDS then return 1 end
@@ -169,8 +149,7 @@ function InteractBinder.labelAlpha(distance: number): number
 end
 
 function InteractBinder.init(deps)
-	-- ทำ activity ฟื้นใจ: ผ่าน ActivityCutscene ที่เดียว (เล่นฉากถ้ามี → ยิง DoActivity)
-	-- ทำไม่ได้ (cooldown) = โชว์เหตุผลกลางจอ ไม่ใช่กดแล้วเงียบให้เดาเอง
+	-- ทำ activity ฟื้นใจ · ทำไม่ได้ (cooldown) = โชว์เหตุผลกลางจอ ไม่ใช่กดแล้วเงียบ
 	local function doActivity(activityName: string)
 		local ok, why = ActivityCutscene.play(activityName, deps)
 		if not ok and why then toast(deps.playerGui, why) end
@@ -178,8 +157,7 @@ function InteractBinder.init(deps)
 
 	local function onTriggered(name, part)
 		if name == "Interact_Camera" or name == "Interact_pcMonitor" then
-			-- part = จอจริง: UI แปะบนหน้า part นี้ (SurfaceGui) + กล้อง zoom เข้าหา
-			deps.openPC(part)
+			deps.openPC(part) -- part = จอจริง: UI แปะบน SurfaceGui + กล้อง zoom เข้าหา
 		elseif name == "Interact_NotebookPack" then
 			deps.fireAction({ type = "PickupNotebook" })
 		elseif name == "Interact_Shop" then
@@ -189,7 +167,7 @@ function InteractBinder.init(deps)
 		elseif name == "Interact_Kitchen" or name == "Interact_Exercise" then
 			doActivity(name:gsub("Interact_", ""))
 		elseif name == "Interact_Door" then
-			-- teleport ฝั่ง client พอ (singleplayer) — ปลายทางกับเงื่อนไขอ่านจาก Attribute ของบานประตู
+			-- teleport ฝั่ง client พอ (singleplayer) — ปลายทาง/เงื่อนไขอ่านจาก Attribute ของบานประตู
 			local state = deps.getState and deps.getState() or nil
 			local ok, why = InteractBinder.doorCheck(state and state.follower or 0, part:GetAttribute("MinFollower"))
 			if not ok then
@@ -212,16 +190,15 @@ function InteractBinder.init(deps)
 		end
 	end
 
-	-- ป้ายที่ต้องจางตามระยะ (ผูกกับ Interact_* เท่านั้น) — เก็บไว้ให้ loop เดียวอัปเดตทั้งหมด
+	-- ป้ายที่จางตามระยะ (ผูกกับ Interact_*) — loop เดียวอัปเดตทั้งหมด
 	local labels = {}
 	local function trackLabel(inst)
 		local bb = inst:FindFirstChildOfClass("BillboardGui")
 		if bb then labels[bb] = inst end
 	end
 
-	-- ป้ายลอยอื่นทั้งหมด (ไม่ผูก Interact_* เช่น CartHint/ป้ายบอกวิธีเล่น) — เก็บแยกไว้กด "ปิดป้ายลอย" ตอนอัดคลิป
-	-- ไม่แตะ Enabled ตอนปุ่มปิดอยู่ (off) ปล่อยให้ script เจ้าของคุมเองตามปกติ — บังคับ false ตอนเปิดปุ่มอย่างเดียว
-	local otherBillboards = setmetatable({}, { __mode = "k" }) -- weak: ป้ายโดนลบแล้วปล่อยหลุดเอง
+	-- ป้ายลอยอื่น (CartHint ฯลฯ) — เก็บแยกไว้บังคับปิดตอนกด "ปิดป้ายลอย" (บังคับ false ตอนเปิดปุ่มอย่างเดียว)
+	local otherBillboards = setmetatable({}, { __mode = "k" }) -- weak
 	local function trackOther(bb)
 		if not labels[bb] then otherBillboards[bb] = true end
 	end
@@ -234,7 +211,7 @@ function InteractBinder.init(deps)
 		if not inst:IsA("BasePart") then return end
 		if not inst.Name:match("^Interact_") then return end
 		trackLabel(inst)
-		-- รองรับทั้ง 2 แบบ: วาง ProximityPrompt เองใน Studio ก็ได้ / ไม่มีก็สร้างให้
+		-- รองรับทั้งวาง ProximityPrompt เองใน Studio และไม่มีก็สร้างให้
 		local prompt = inst:FindFirstChildOfClass("ProximityPrompt")
 		if not prompt then
 			prompt = Instance.new("ProximityPrompt")
@@ -243,8 +220,7 @@ function InteractBinder.init(deps)
 				or inst.Name:gsub("Interact_", "")
 			prompt.ObjectText = ""
 			prompt.HoldDuration = 0.3
-			-- part interact มักฝังในตัว NPC — ปิด line of sight ไม่งั้นโดนตัวบัง prompt ไม่ขึ้น
-			prompt.RequiresLineOfSight = false
+			prompt.RequiresLineOfSight = false -- part มักฝังในตัว NPC โดนบัง prompt ไม่ขึ้น
 			prompt.Parent = inst
 		end
 		if not wired[prompt] then
@@ -262,13 +238,12 @@ function InteractBinder.init(deps)
 	workspace.DescendantAdded:Connect(bind)
 	workspace.DescendantAdded:Connect(bindBillboard)
 
-	-- จางป้ายตามระยะ — เดินเข้าใกล้ค่อยโผล่ ไม่ใช่เห็นเด่นทั้งแมพ
+	-- จางป้ายตามระยะ
 	local player = game:GetService("Players").LocalPlayer
 	game:GetService("RunService").Heartbeat:Connect(function()
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		local st = deps.getState and deps.getState()
-		-- ปุ่ม "ปิดป้ายลอย" ใน MenuUI settings (state.settings.hideBillboards) — ใช้ตอนอัดคลิปแนะนำเกม
-		-- บังคับ Enabled=false ข้ามลอจิกระยะ/seenDialogue ทั้งหมด · ป้ายอื่นที่ไม่ใช่ NPC ก็บังคับด้วยเหมือนกัน
+		-- ปุ่ม "ปิดป้ายลอย" (state.settings.hideBillboards) — บังคับ false ข้ามลอจิกระยะทั้งหมด
 		local hideAll = st and st.settings and st.settings.hideBillboards
 		for bb in otherBillboards do
 			if bb.Parent and hideAll then bb.Enabled = false end
@@ -279,19 +254,18 @@ function InteractBinder.init(deps)
 			elseif hideAll then
 				bb.Enabled = false
 			else
-				-- ป้ายหัว NPC โผล่เฉพาะหลัง "คุยจบ" ตัวนั้นแล้ว (seenDialogue มี key = เคยคุยจบในเฟสไหนก็ได้)
-				-- ป้าย interact อื่น (เตียง/คอม/ร้าน) ไม่อยู่ใน NPC_DIALOGUE = โชว์ปกติเสมอ
+				-- ป้ายหัว NPC โผล่เฉพาะหลังคุยจบตัวนั้นแล้ว (seenDialogue มี key) · ป้าย interact อื่นโชว์ปกติ
 				local npcName = NPC_DIALOGUE[part.Name]
 				if npcName and not (st and st.seenDialogue and st.seenDialogue[npcName] ~= nil) then
 					bb.Enabled = false
 					continue
 				end
 				local a = root and InteractBinder.labelAlpha((root.Position - part.Position).Magnitude) or 1
-				bb.Enabled = a < 1 -- ไกลสุด = ปิดไปเลย ไม่ต้องวาด
+				bb.Enabled = a < 1 -- ไกลสุด = ปิดไปเลย
 				for _, g in bb:GetDescendants() do
 					if g:IsA("TextLabel") then
 						g.TextTransparency = a
-						g.TextStrokeTransparency = 1 - (1 - a) * 0.7 -- ขอบจางเร็วกว่าตัวอักษรนิดนึง
+						g.TextStrokeTransparency = 1 - (1 - a) * 0.7 -- ขอบจางเร็วกว่าตัวอักษรนิด
 					elseif g:IsA("ImageLabel") then
 						g.ImageTransparency = a
 					end

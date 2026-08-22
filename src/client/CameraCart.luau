@@ -1,17 +1,6 @@
--- CameraCart.luau — รถเข็นกล้อง IMAX (อุปกรณ์ระดับ 6) เรียกออกมาด้วย Tool + นั่งขับ
---
--- ดีไซน์ (user lock 5 ส.ค.): กล้องอยู่กับ player ตลอด ไม่ได้เอา Tool ออก
---   ถือ Tool `Camera_6` อยู่ → กดตอนยืน = **เสกรถออกมาใหม่หน้าตัว** (คันเก่าถูกลบ)
---   ขึ้นไปนั่ง → WASD ขับ · กดตอนนั่ง = อัดคลิป (ใช้ตัวคูณระดับ 6 ตามปกติ)
---
--- ทำไมไม่ใช้ physics/ล้อ: dolly กล้องต้องเคลื่อนนิ่ง คุมทิศแม่น
--- ล้อ+suspension บนโมเดล ~160 ชิ้นจะเด้ง/พลิกคว่ำ ภาพที่ถ่ายสั่น
--- → root part anchored ตัวเดียว ที่เหลือ weld ติด แล้วขยับ root ด้วย CFrame ทุกเฟรม
---   ตัวละครที่นั่งถูก weld กับ Seat อยู่แล้ว เลยไปด้วยกันเอง ไม่ต้องย้ายเอง
---
--- ทีมแมพ: template อยู่ที่ `ReplicatedStorage.ToolModels.CameraCart`
---   ต้องมี Seat เป็น PrimaryPart + anchored ตัวเดียว · ชิ้นอื่น weld ติด Seat + ไม่ anchored
--- ไม่มี template = warn เฉยๆ ไม่พัง (กดเรียกแล้วไม่มีอะไรโผล่)
+-- CameraCart — รถเข็นกล้อง IMAX (ระดับ 6): ถือ Tool Camera_6 · กดตอนยืน = เสกรถ · นั่งขับ WASD · กดตอนนั่ง = อัดคลิป
+-- ไม่ใช้ physics/ล้อ (ภาพสั่น): root part เดียว anchored ที่เหลือ weld ติด ขยับ root ด้วย CFrame ทุกเฟรม
+-- template อยู่ ReplicatedStorage.ToolModels.CameraCart (Seat = PrimaryPart + anchored ตัวเดียว) · ไม่มี = warn เฉยๆ
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -22,48 +11,36 @@ local Formulas = if isStudio
 
 local CameraCart = {}
 
--- ===== pure (เทสได้) =====
-
--- ปลดล็อกรถเมื่อระดับกล้อง "ที่ถืออยู่จริง" ถึงขั้นที่กำหนด (ย้อนไปใช้ระดับต่ำ = เรียกไม่ได้)
+-- ปลดล็อกรถเมื่อระดับกล้องที่ถืออยู่จริงถึงขั้น (ย้อนไปใช้ระดับต่ำ = เรียกไม่ได้)
 function CameraCart.canDrive(state): boolean
 	if not state then return false end
 	return Formulas.activeLevel(state, "camera") >= Config.CameraCartLevel
 end
 
--- ความเร็ว/การเลี้ยว 1 เฟรม → (ระยะที่เดินหน้า, มุมที่หมุน เรเดียน)
--- throttle/steer = -1..1 · dt = เวลาเฟรมนั้น
--- เลี้ยวได้เฉพาะตอนเคลื่อนที่ (เหมือนรถจริง จอดอยู่หมุนกับที่ไม่ได้)
+-- 1 เฟรม → (ระยะเดินหน้า, มุมหมุน) · throttle/steer = -1..1 · เลี้ยวได้เฉพาะตอนเคลื่อนที่
 function CameraCart.step(throttle: number, steer: number, dt: number): (number, number)
 	local t = math.clamp(throttle, -1, 1)
 	local s = math.clamp(steer, -1, 1)
 	local move = t * Config.CameraCartSpeed * dt
 	local turn = 0
 	if math.abs(move) > 1e-4 then
-		-- ถอยหลังให้เลี้ยวกลับทางเหมือนรถจริง
-		turn = -s * Config.CameraCartTurnRate * dt * (move >= 0 and 1 or -1)
+		turn = -s * Config.CameraCartTurnRate * dt * (move >= 0 and 1 or -1) -- ถอยหลัง = เลี้ยวกลับทาง
 	end
 	return move, turn
 end
 
--- ★ offset ที่เอาไปคูณกับ CFrame ปัจจุบัน — คำนวณแกนไว้ในนี้ให้เทสจับได้
---   Roblox: "หน้า" ของ part = แกน **−Z** (ตรงกับ LookVector) ไม่ใช่ +X
---   เคยพลาดใช้ CFrame.new(move,0,0) = +X → กด W แล้วรถเดินไปทางขวา (3 ส.ค.)
+-- offset คูณกับ CFrame ปัจจุบัน · ⚠️ "หน้า" ของ part = แกน −Z (LookVector) ไม่ใช่ +X
 function CameraCart.stepOffset(throttle: number, steer: number, dt: number): CFrame
 	local move, turn = CameraCart.step(throttle, steer, dt)
 	return CFrame.Angles(0, turn, 0) * CFrame.new(0, 0, -move)
 end
-
--- ===== Roblox glue =====
 
 -- deps = { fireAction, getState }
 function CameraCart.init(player, fireAction, getState)
 	local RunService = game:GetService("RunService")
 	local UIS = game:GetService("UserInputService")
 
-	-- นั่งอยู่บน "รถคันปัจจุบัน" ไหม — เช็ค SeatPart จริง ณ ตอนนั้นเลย ไม่พึ่ง event hum.Seated
-	--   เดิมเก็บ seatedRoot จาก event: ถ้า event มาไม่ทัน/stale ตอนคลิก → เข้าใจว่ายืน → เสกรถใหม่
-	--   ทับคันที่นั่งอยู่ = เด้งตกเก้าอี้ + ไม่ได้อัด (user รายงาน 6 ส.ค. "กดแล้ว storage ไม่เด้ง")
-	--   คืน Seat ของรถถ้านั่งอยู่จริง · nil ถ้าไม่ได้นั่ง
+	-- นั่งบนรถคันปัจจุบันไหม — เช็ค SeatPart จริง ณ ตอนนั้น (event hum.Seated อาจ stale → เสกรถทับคันที่นั่ง)
 	local function seatedOnCart()
 		local char = player.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -72,8 +49,7 @@ function CameraCart.init(player, fireAction, getState)
 		return (hum and root and hum.SeatPart == root) and root or nil
 	end
 
-	-- ★ แรงโน้มถ่วงจำลอง: รถ anchored ไม่ตกเอง → raycast หาพื้นแล้วยกฐานให้แตะพื้นทุกเฟรม
-	--   คืน CFrame ที่ปรับ Y ให้ฐานรถแตะพื้น (คงมุมหัน/X/Z เดิม) · ไม่เจอพื้น = คืน CFrame เดิม (ขับตกขอบไม่เด้ง)
+	-- แรงโน้มถ่วงจำลอง: รถ anchored ไม่ตกเอง → raycast หาพื้นแล้วยกฐานให้แตะพื้น · ไม่เจอพื้น = คืน CFrame เดิม
 	local groundParams = RaycastParams.new()
 	groundParams.FilterType = Enum.RaycastFilterType.Exclude
 	local function restOnGround(model, seat, goalCF)
@@ -90,8 +66,7 @@ function CameraCart.init(player, fireAction, getState)
 	RunService.RenderStepped:Connect(function(dt)
 		local seat = seatedOnCart()
 		if not seat then return end
-		-- โมเดลบนสุด (CartSeat อยู่ใน Model ซ้อนหลายชั้น seat.Parent เลยไม่ใช่ตัวบนสุด — bounding box จะผิด)
-		local model = workspace:FindFirstChild(Config.CameraCartTemplate)
+		local model = workspace:FindFirstChild(Config.CameraCartTemplate) -- ตัวบนสุด (seat.Parent ไม่ใช่ตัวบนสุด)
 		if not model then return end
 		local throttle, steer = 0, 0
 		if UIS:IsKeyDown(Enum.KeyCode.W) then throttle += 1 end
@@ -100,11 +75,10 @@ function CameraCart.init(player, fireAction, getState)
 		if UIS:IsKeyDown(Enum.KeyCode.A) then steer -= 1 end
 		if throttle == 0 and steer == 0 then return end
 		local goal = seat.CFrame * CameraCart.stepOffset(throttle, steer, dt)
-		seat.CFrame = restOnGround(model, seat, goal) -- ขับแล้วยังแตะพื้นตลอด
+		seat.CFrame = restOnGround(model, seat, goal)
 	end)
 
-	-- ★ ผูก Tool กล้องที่เป็นรีโมทเรียกรถ (RecordTool ข้าม ToolSource ตัวนี้ให้แล้ว)
-	--   กดตอนยืน = เสกรถ · กดตอนนั่งบนรถ = อัดคลิป
+	-- Tool กล้องที่เป็นรีโมทเรียกรถ · กดตอนยืน = เสกรถ · กดตอนนั่ง = อัดคลิป
 	local bound = setmetatable({}, { __mode = "k" }) -- weak: Tool โดนลบแล้วปล่อยหลุด
 	local function bindTool(tool)
 		if not tool:IsA("Tool") or bound[tool] then return end
@@ -115,7 +89,7 @@ function CameraCart.init(player, fireAction, getState)
 			if not CameraCart.canDrive(s) then return end
 			local seat = seatedOnCart()
 			if seat then
-				-- นั่งอยู่ = อัดคลิป (เช็คโซนจากตำแหน่งรถ คนนั่งอยู่บนรถ ตำแหน่งเดียวกัน)
+				-- นั่งอยู่ = อัดคลิป (เช็คโซนจากตำแหน่งรถ)
 				local name = s and s.filmZone and s.filmZone.spot
 				local spot = name and workspace:FindFirstChild(name, true)
 				local inside = false
@@ -131,7 +105,6 @@ function CameraCart.init(player, fireAction, getState)
 	end
 
 	-- Backpack ถูกสร้างใหม่ทุกครั้งที่ตัวละครเกิด → ต้องต่อ ChildAdded กับตัวใหม่ทุกรอบ
-	-- (บทเรียนเดียวกับ RecordTool 28 ก.ค.: ต่อครั้งเดียว = Tool ที่มาทีหลังไม่ถูกผูก)
 	local function bindAll()
 		local bp = player:FindFirstChildOfClass("Backpack")
 		if bp then for _, t in bp:GetChildren() do bindTool(t) end end
@@ -148,9 +121,7 @@ function CameraCart.init(player, fireAction, getState)
 	player.ChildAdded:Connect(hookBackpack)
 	player.CharacterAdded:Connect(function() task.delay(1, bindAll) end)
 
-	-- ★ ป้ายบอกวิธีเล่นเหนือรถ (user feedback 8 ส.ค. "กด Camera_6 แล้ว storage ไม่เด้ง")
-	--   ดีไซน์คือ ยืน=เสกรถ / นั่ง=อัด — คนเล่นไม่รู้ว่าต้องขึ้นนั่งก่อน เลยงงว่าทำไมไม่อัด
-	--   มีรถ + ยังไม่นั่ง → "ขึ้นนั่งเพื่ออัด" · นั่งแล้ว → "กดกล้องเพื่ออัด" · ไม่มีรถ → ซ่อน
+	-- ป้ายบอกวิธีเล่นเหนือรถ (ดีไซน์ ยืน=เสก / นั่ง=อัด คนเล่นไม่รู้ว่าต้องขึ้นนั่งก่อน)
 	local hintGui = Instance.new("BillboardGui")
 	hintGui.Name = "CartHint"
 	hintGui.Size = UDim2.new(0, 230, 0, 54)
@@ -175,12 +146,12 @@ function CameraCart.init(player, fireAction, getState)
 			if seat then
 				hintGui.Adornee = seat
 				if seatedOnCart() then
-					if not seatedAt then seatedAt = os.clock() end -- transition ยืน→นั่ง = เริ่มจับเวลา
-					-- โชว์ "กดกล้องเพื่ออัด" แค่ 2 วิแรกหลังนั่ง แล้วซ่อน (รู้แล้วไม่ต้องเตือนค้างบังจอ)
+					if not seatedAt then seatedAt = os.clock() end
+					-- โชว์ป้าย 2 วิแรกหลังนั่ง แล้วซ่อน (รู้แล้วไม่ต้องเตือนค้างบังจอ)
 					hintLabel.Text = "🎬 กดกล้องเพื่ออัดคลิป"
 					hintGui.Enabled = (os.clock() - seatedAt) < 2
 				else
-					seatedAt = nil -- ลุกแล้ว = รีเซ็ต (นั่งใหม่โชว์ป้ายอีก 2 วิ)
+					seatedAt = nil
 					hintLabel.Text = "⬆️ ขึ้นนั่งเพื่ออัดคลิป"
 					hintGui.Enabled = true
 				end

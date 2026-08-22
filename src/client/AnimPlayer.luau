@@ -1,35 +1,15 @@
--- AnimPlayer.luau — คลังท่าทาง/อารมณ์ของตัวละคร เรียกจากบทด้วย "ชื่อท่า" (Genshin ref)
--- ทีมทำแค่: อัปโหลด animation → วาง Animation object ใน `ReplicatedStorage.Animations` → ตั้งชื่อ → เรียกในบท
---
--- โครงโฟลเดอร์ (ชื่อท่าซ้ำได้ ตัวไหนมีของตัวเองใช้ของตัวเองก่อน):
---   ReplicatedStorage.Animations/
---     Idle, Point, HeadScratch, Angry, ...        ← ท่ากลาง ใครก็ใช้ได้
---     Friend1/  Point, Cry, ...                    ← ท่าเฉพาะตัว (ชื่อโฟลเดอร์ = ชื่อไฟล์บท)
---     CC1/      Smug, ...
---
--- สีหน้า = คนละระบบกับ animation (R6 เปลี่ยนอารมณ์ด้วยการสลับรูปหน้า ไม่ใช่ท่า):
---   ReplicatedStorage.Faces/
---     Angry, Sad, Happy, Shock, ...              ← หน้ากลาง
---     Friend1/  Angry, Cry, ...                  ← หน้าเฉพาะตัว
---   ข้างในเป็น **Decal** (ตั้ง Texture) หรือ **StringValue** (ใส่ rbxassetid://... ใน Value) ก็ได้
---
--- เรียกจากบท (docs/engines/dialogue.md §2.5, cutscene.md §2):
---   { speaker = "เจ", text = "...", anim = "HeadScratch" }   -- เล่นครั้งเดียวตอนบรรทัดนี้ขึ้น
---   { speaker = "เจ", text = "...", pose = "Angry" }         -- ท่ายืนค้าง (loop) จนกว่าจะสั่งท่าใหม่
---   { speaker = "เจ", text = "...", face = "Angry" }         -- เปลี่ยนสีหน้า (ค้างจนสั่งหน้าใหม่/จบฉาก)
---   ใส่ actor = "CC1" เพิ่ม ถ้าอยากให้ "ตัวอื่น" ขยับแทนคนพูด
---
--- pure: candidates / modelPrefix (เทสด้วย lune) | glue: play/setFace/stop (ต้องมี Humanoid)
+-- AnimPlayer — คลังท่าทาง/สีหน้าตัวละคร เรียกจากบทด้วย "ชื่อท่า"
+-- Animation object อยู่ ReplicatedStorage.Animations/ · สีหน้าอยู่ ReplicatedStorage.Faces/ (Decal หรือ StringValue)
+--   ท่ากลางอยู่ราก · ท่าเฉพาะตัวอยู่โฟลเดอร์ชื่อ = ชื่อไฟล์บท (ใช้ของตัวเองก่อน แล้วค่อยท่ากลาง)
+-- เรียกจากบท: { anim = เล่นครั้งเดียว } · { pose = ยืนค้าง loop } · { face = เปลี่ยนสีหน้า } · { actor = ตัวอื่นขยับ }
+-- pure: candidates / modelPrefix (เทส lune) | glue: play/setFace/stop
 local AnimPlayer = {}
 
 local FOLDER_NAME = "Animations"
 local FACE_FOLDER_NAME = "Faces"
 local FADE = 0.15
 
--- ชื่อไฟล์บท → prefix ของโมเดลในแมพ (docs/05 §4)
--- ตอนนี้ **ชื่อไฟล์บท = ชื่อในชื่อโมเดล** ทุกตัวแล้ว (ตั้งชื่อจริง 5 ส.ค. 2569) — findRig หาแบบ
--- "โมเดลไหนชื่อขึ้นต้นด้วย prefix" เจอเอง (`NPC_special_แม่` ขึ้นต้นด้วย "แม่" ไม่จริง → ต้อง map)
--- เลยแมปเฉพาะตัวที่ชื่อโมเดลมี prefix นำหน้า
+-- ชื่อ actor → ชื่อโมเดลในแมพ (เฉพาะตัวที่ชื่อโมเดลไม่ได้ขึ้นต้นด้วยชื่อ actor ตรงๆ)
 local ACTOR_MODEL = {
 	["แม่"] = "NPC_special_แม่",
 	["พ่อ"] = "NPC_special_พ่อ",
@@ -50,9 +30,7 @@ local ACTOR_MODEL = {
 	["ลุงนรินท์"] = "NPC_12_ลุงนรินท์",
 }
 
--- ===== pure =====
-
--- ชื่อ actor → prefix โมเดลที่ควรไปหาใน Workspace (ไม่รู้จัก = ใช้ชื่อนั้นตรงๆ)
+-- ชื่อ actor → prefix โมเดลที่ไปหาใน Workspace (ไม่รู้จัก = ใช้ชื่อนั้นตรงๆ)
 function AnimPlayer.modelPrefix(actor: string): string
 	return ACTOR_MODEL[actor] or actor
 end
@@ -65,14 +43,12 @@ function AnimPlayer.candidates(actor: string?, animName: string): { string }
 	return { animName }
 end
 
--- ===== Roblox glue =====
-
 local tracks = {} -- [Animator][ชื่อท่า] = AnimationTrack (โหลดครั้งเดียวต่อตัวละคร)
 local posed = {} -- [Animator] = ท่า loop ที่ค้างอยู่
 local originalFace = {} -- [Decal หน้า] = texture เดิม (คืนตอนจบฉาก)
-local held = {} -- [ชื่อ prop] = Weld ที่ hold() สร้างไว้ (unhold ลบทิ้ง)
+local held = {} -- [ชื่อ prop] = Weld ที่ hold() สร้างไว้
 
--- เดินตาม path "A/B" ในโฟลเดอร์ที่ให้ — คืน instance ที่เจอ
+-- เดินตาม path "A/B" ในโฟลเดอร์ที่ให้
 local function resolve(root: Instance?, path: string): Instance?
 	if not root then return nil end
 	local node = root
@@ -86,7 +62,6 @@ local function folderNamed(name: string): Instance?
 	return game:GetService("ReplicatedStorage"):FindFirstChild(name)
 end
 
--- หา Animation object ตามลำดับ candidates
 function AnimPlayer.findAnimation(actor: string?, animName: string): Animation?
 	local root = folderNamed(FOLDER_NAME)
 	for _, path in AnimPlayer.candidates(actor, animName) do
@@ -96,7 +71,7 @@ function AnimPlayer.findAnimation(actor: string?, animName: string): Animation?
 	return nil
 end
 
--- หา texture ของสีหน้า — รับได้ทั้ง Decal (ใช้ .Texture) และ StringValue (ใช้ .Value)
+-- texture ของสีหน้า — รับได้ทั้ง Decal (.Texture) และ StringValue (.Value)
 function AnimPlayer.findFaceTexture(actor: string?, faceName: string): string?
 	local root = folderNamed(FACE_FOLDER_NAME)
 	for _, path in AnimPlayer.candidates(actor, faceName) do
@@ -109,9 +84,8 @@ function AnimPlayer.findFaceTexture(actor: string?, faceName: string): string?
 	return nil
 end
 
--- หาตัวละครในแมพ: "player" = ตัวผู้เล่น | ชื่ออื่น = โมเดลที่ชื่อขึ้นต้นด้วย prefix
--- ค้นเฉพาะใน Workspace.NPC (StoryNPC/WorldNPC ตัวจริงที่เล่นเกม) — **ห้ามค้นทั้ง workspace**
--- เพราะฉาก cutscene มีโมเดลชื่อซ้ำ (ท่าโพสสำหรับฉาก เช่น Map_Phase0.npc) ถ้าค้นกว้างไปสุ่มไปเจอตัวโพสแทนตัวจริง
+-- หาตัวละครในแมพ: "player" = ผู้เล่น | อื่น = โมเดลชื่อขึ้นต้นด้วย prefix
+-- ⚠️ ค้นเฉพาะใน Workspace.NPC ห้ามค้นทั้ง workspace — ฉาก cutscene มีโมเดลชื่อซ้ำ (ตัวโพส) จะเจอผิดตัว
 function AnimPlayer.findRig(actor: string?): Model?
 	if not actor or actor == "" then return nil end
 	if actor == "player" then
@@ -132,21 +106,19 @@ function AnimPlayer.findRig(actor: string?): Model?
 	return nil
 end
 
--- Humanoid (ตัวละคร) หรือ AnimationController (prop ไม่มีชีวิต) — 2 ทางเดียวที่มี Animator ได้
+-- Humanoid (ตัวละคร) หรือ AnimationController (prop) — 2 ทางที่มี Animator ได้
 local function animatorOf(rig: Instance?): Animator?
 	local controller = rig and (rig:FindFirstChildOfClass("Humanoid") or rig:FindFirstChildOfClass("AnimationController"))
 	if not controller then return nil end
 	return controller:FindFirstChildOfClass("Animator") or Instance.new("Animator", controller)
 end
 
--- หา prop/object เท่าไหร่ก็ได้ในแมพ (ไม่ใช่ตัวละคร) — ต่างจาก findRig ที่จำกัดแค่ Workspace.NPC
--- prop วางกระจายทุกที่ได้ ⚠️ ชื่อต้อง unique ทั้งโปรเจกต์ (ชื่อซ้ำ = เจอตัวแรกที่ค้นทั้ง workspace อาจไม่ใช่ตัวที่ตั้งใจ)
+-- หา prop ใน workspace (ไม่ใช่ตัวละคร) · ⚠️ ชื่อต้อง unique ทั้งโปรเจกต์
 function AnimPlayer.findObject(name: string): Model?
 	return workspace:FindFirstChild(name, true)
 end
 
--- เล่นท่า — loop = true คือท่ายืนค้าง (pose) ท่าเดิมที่ค้างอยู่จะถูกหยุดให้
--- ไม่มีโฟลเดอร์/ไม่มีท่า/ไม่มีโมเดล = warn ครั้งเดียว **บทเล่นต่อปกติ ไม่ค้าง**
+-- เล่นท่า — loop = ท่ายืนค้าง (หยุดท่าค้างเดิมให้) · ไม่เจอ = warn ครั้งเดียว บทเล่นต่อไม่ค้าง
 function AnimPlayer.play(actor: string?, animName: string, loop: boolean?): boolean
 	local rig = AnimPlayer.findRig(actor)
 	local animator = animatorOf(rig)
@@ -179,7 +151,7 @@ function AnimPlayer.play(actor: string?, animName: string, loop: boolean?): bool
 	return true
 end
 
--- Decal หน้าของตัวละคร (R6 = Head.face) — คืน nil ถ้าโมเดลไม่มีหัว/ไม่มีหน้า
+-- Decal หน้า (R6 = Head.face) — nil ถ้าไม่มีหัว/หน้า
 function AnimPlayer.faceDecal(rig: Model?): Decal?
 	local head = rig and rig:FindFirstChild("Head")
 	if not head then return nil end
@@ -188,7 +160,7 @@ function AnimPlayer.faceDecal(rig: Model?): Decal?
 	return head:FindFirstChildOfClass("Decal")
 end
 
--- เปลี่ยนสีหน้า — ค้างจนกว่าจะสั่งหน้าใหม่หรือจบฉาก (stop คืนหน้าเดิมให้)
+-- เปลี่ยนสีหน้า — ค้างจนสั่งหน้าใหม่/จบฉาก (stop คืนหน้าเดิม)
 function AnimPlayer.setFace(actor: string?, faceName: string): boolean
 	local rig = AnimPlayer.findRig(actor)
 	local decal = AnimPlayer.faceDecal(rig)
@@ -206,7 +178,7 @@ function AnimPlayer.setFace(actor: string?, faceName: string): boolean
 	return true
 end
 
--- หยุดทุกท่า + คืนหน้าเดิมของตัวละครนั้น (ใช้ตอนจบ cutscene)
+-- หยุดทุกท่า + คืนหน้าเดิม (ตอนจบ cutscene)
 function AnimPlayer.stop(actor: string?)
 	local rig = AnimPlayer.findRig(actor)
 	local decal = AnimPlayer.faceDecal(rig)
@@ -220,10 +192,7 @@ function AnimPlayer.stop(actor: string?)
 	posed[animator] = nil
 end
 
--- ===== object animation (prop ไม่มีชีวิต — โล่รางวัล/กล่อง/ประตูที่เราสร้างเอง) =====
--- ต้องมี AnimationController ใต้ prop model ก่อน (Instance.new("AnimationController") วางเอง ครั้งเดียว)
--- Moon Animator animate ได้เหมือน Humanoid ทุกอย่าง — โฟลเดอร์ Animations ใช้ระบบ candidates เดียวกัน
--- (ชื่อ prop = "actor" ในการค้นหา — ท่าเฉพาะ prop นั้นอยู่ ReplicatedStorage.Animations.<ชื่อ prop>/<ท่า>)
+-- object animation (prop ไม่มีชีวิต) — ต้องมี AnimationController ใต้ prop · ชื่อ prop = "actor" ในการค้นท่า
 function AnimPlayer.playObject(objectName: string, animName: string, loop: boolean?): boolean
 	local obj = AnimPlayer.findObject(objectName)
 	local animator = animatorOf(obj)
@@ -254,14 +223,12 @@ function AnimPlayer.stopObject(objectName: string)
 	for _, t in tracks[animator] or {} do t:Stop(FADE) end
 end
 
--- ===== ถือ prop ติดมือ (โล่รางวัล ฯลฯ) — ไม่ต้อง animate prop เอง แค่ผูกกับแขนที่ actor ขยับอยู่แล้ว =====
--- จัดตำแหน่ง prop ให้แนบมือ (PrimaryPart) ใน Studio ไว้ก่อนเรียก — Weld เก็บ offset ปัจจุบัน ณ ตอนเรียกไว้เป๊ะ
--- limb ไม่ใส่ = "Right Arm" (R6) · คืน false ถ้าหา actor/prop ไม่เจอ (ไม่พัง เล่นต่อได้)
+-- ถือ prop ติดมือ (ผูก Weld กับแขนที่ actor ขยับอยู่แล้ว) · จัด prop แนบมือใน Studio ก่อนเรียก
+-- limb ไม่ใส่ = "Right Arm" (R6) · คืน false ถ้าหา actor/prop ไม่เจอ (ไม่พัง)
 function AnimPlayer.hold(actor: string?, propName: string, limbName: string?): boolean
 	local rig = AnimPlayer.findRig(actor)
 	local prop = AnimPlayer.findObject(propName)
 	local limb = rig and rig:FindFirstChild(limbName or "Right Arm")
-	-- prop เป็นได้ทั้ง Part เดี่ยว (ใช้ตัวมันเอง) หรือ Model (ใช้ PrimaryPart/BasePart แรกที่เจอ)
 	local primary = prop and (prop:IsA("BasePart") and prop or prop:IsA("Model") and (prop.PrimaryPart or prop:FindFirstChildWhichIsA("BasePart")))
 	if not (limb and limb:IsA("BasePart") and primary) then
 		warn(("[AnimPlayer] hold: หา actor/prop ไม่เจอ (%s / %s)"):format(tostring(actor), tostring(propName)))
@@ -272,13 +239,13 @@ function AnimPlayer.hold(actor: string?, propName: string, limbName: string?): b
 	weld.Name = "PropHold_" .. propName
 	weld.Part0 = limb
 	weld.Part1 = primary
-	weld.C0 = limb.CFrame:ToObjectSpace(primary.CFrame) -- เก็บตำแหน่งสัมพัทธ์ปัจจุบัน (จัด prop แนบมือไว้ก่อนแล้ว)
+	weld.C0 = limb.CFrame:ToObjectSpace(primary.CFrame) -- เก็บตำแหน่งสัมพัทธ์ปัจจุบัน
 	weld.Parent = limb
 	held[propName] = weld
 	return true
 end
 
--- ปลด prop ออกจากมือ (คืนอิสระให้ physics/ตำแหน่งเดิมของมันเอง)
+-- ปลด prop ออกจากมือ
 function AnimPlayer.unhold(propName: string)
 	local w = held[propName]
 	if w then
@@ -287,8 +254,7 @@ function AnimPlayer.unhold(propName: string)
 	end
 end
 
--- เล่นตาม field ในบท 1 บรรทัด/1 step — คืน actor ที่ถูกสั่ง (ให้ผู้เรียกเก็บไว้ stop ทีหลัง)
--- item = { anim = "ชื่อท่า"?, pose = "ชื่อท่า"?, face = "ชื่อหน้า"?, actor = "ชื่อตัวละคร"? }
+-- เล่นตาม field ในบท 1 บรรทัด — คืน actor ที่ถูกสั่ง (ให้ผู้เรียกเก็บไว้ stop ทีหลัง)
 function AnimPlayer.applyLine(item, defaultActor: string?): string?
 	if type(item) ~= "table" then return nil end
 	local actor = item.actor or defaultActor

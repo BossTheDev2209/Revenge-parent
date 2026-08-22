@@ -124,7 +124,7 @@ function NPCIndicator.attach(model: Model, opts: { [string]: any }?)
 	for k, v in opts or {} do o[k] = v end
 
 	if not model.PrimaryPart then
-		warn(("[NPCIndicator] %s ไม่มี PrimaryPart — หมุนแล้วอาจขยับตำแหน่ง"):format(model:GetFullName()))
+		warn(("[NPCIndicator] %s ไม่มี PrimaryPart — pivot อิงกรอบโมเดล หมุนแล้วอาจขยับตำแหน่ง"):format(model:GetFullName()))
 	end
 
 	local basePivot = model:GetPivot()

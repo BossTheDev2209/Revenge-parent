@@ -1,10 +1,5 @@
--- HUD.luau — UI ติดจอตลอดเวลา — **layout ตามภาพร่าง PDF หน้า 5 / `assets/reference/ui screenshot/All ui.png`**
---   บนกลาง : [👤 follower] [💰 money] เรียงข้างกัน + แถบ progress เฟสอยู่ใต้ทั้งคู่
---   บนขวา  : นาฬิกา 15:24 + ป้ายปฏิทินเลขวัน
---   ซ้ายกลาง: storage / กล้อง + ปุ่มกลม setting・เสียง ใต้กล่อง
---   ขวาสุด : mental bar แนวตั้งยาว หัวใจบน–หัวใจแตกล่าง + ป้าย 100/50/0%
---   ล่างกลาง: hotbar 3 ช่อง
--- ทุกกล่องเว้นที่ให้ใส่รูปทีหลัง (คีย์ใน UIAssets — docs/13 §1) ยังไม่มีรูป = กล่องสีทึบ + emoji
+-- HUD — UI ติดจอตลอด: follower/money + progress เฟส · นาฬิกา/ปฏิทิน · storage/กล้อง · mental bar · hotbar
+-- กล่องที่ยังไม่มีรูป (UIAssets คีย์ว่าง) = กล่องสีทึบ + emoji
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -18,12 +13,11 @@ local UIAssets = if isStudio
 
 local HUD = {}
 
--- นาฬิกา + ดวงอาทิตย์เดินลื่น: server tick รายชั่วโมง (timeOfDay) → client interpolate float ต่อเฟรมเอง
--- หยุดเมื่อ state.frozen (cutscene/คุย NPC) · cap ที่ :59 จนกว่า server จะ tick ชั่วโมงถัดไป (กันวิ่งล้ำ)
--- ClockTime (ดวงอาทิตย์) ขับฝั่ง client ให้ smooth — server ยัง set รายชั่วโมงไว้ให้ script ฝั่ง server (autoturnlight) client override ทับให้ลื่น
+-- นาฬิกา + ดวงอาทิตย์เดินลื่น: server tick รายชั่วโมง → client interpolate float ต่อเฟรม
+-- หยุดเมื่อ state.frozen · cap ที่ :59 จนกว่า server จะ tick ชั่วโมงถัดไป (กันวิ่งล้ำ)
 local Lighting = game:GetService("Lighting")
 local SPGH = Config.Time.secondsPerGameHour
-HUD.gameHour = nil -- ชั่วโมงเกมแบบ float (ชั่วโมง+เศษนาที)
+HUD.gameHour = nil -- ชั่วโมงเกมแบบ float
 HUD.serverHour = nil -- ชั่วโมง integer ล่าสุดจาก server
 HUD.frozen = false
 -- หลอดใจ: server ผลัก state.mental มาทุก 1 วิ (MentalService.tickDrain) แต่ยัง "ก้อน" อยู่ดี (network tick)
@@ -38,10 +32,9 @@ game:GetService("RunService").Heartbeat:Connect(function(dt)
 	if not HUD.frozen then
 		HUD.gameHour = math.min(HUD.gameHour + dt / SPGH, HUD.serverHour + 59 / 60)
 	end
-	-- attribute SceneClock (ตั้งโดย cutscene step "time" / dialogue field "time") = ล็อกดวงอาทิตย์ให้ฉากนั้นๆ (BCA=0/park=17/Ending=8)
-	-- nil = เดินตามเวลาเกมปกติ · นาฬิกา HUD (label ล่าง) ยังโชว์เวลาเกมจริงเสมอ ไม่ตาม override
+	-- SceneClock (ตั้งโดย cutscene/dialogue "time") = ล็อกดวงอาทิตย์ให้ฉาก · nil = เดินตามเวลาปกติ
 	local sceneClock = Lighting:GetAttribute("SceneClock")
-	Lighting.ClockTime = (sceneClock or HUD.gameHour) % 24 -- ดวงอาทิตย์เลื่อนต่อเฟรม (frozen = ค้าง · SceneClock = ล็อกฉาก)
+	Lighting.ClockTime = (sceneClock or HUD.gameHour) % 24
 	if HUD.clockLabel then
 		local h = math.floor(HUD.gameHour) % 24
 		local m = math.floor((HUD.gameHour - math.floor(HUD.gameHour)) * 60)
@@ -60,13 +53,13 @@ game:GetService("RunService").Heartbeat:Connect(function(dt)
 	end
 end)
 
--- ===== ขนาด/ตำแหน่งอ้างภาพร่าง (แก้ที่เดียว) =====
+-- ขนาด/ตำแหน่งอ้างภาพร่าง (แก้ที่เดียว)
 local STAT_W, STAT_H = 210, 46 -- กล่อง follower / money
-local BAR_W, BAR_H = 470, 22 -- แถบ progress ใต้กล่อง
-local SIDE_W, SIDE_H = 230, 40 -- กล่อง storage / กล้อง ฝั่งซ้าย
-local SIDE_Y = 0.40 -- ซ้ายกลางค่อนบน ตามภาพร่าง
+local BAR_W, BAR_H = 470, 22 -- แถบ progress
+local SIDE_W, SIDE_H = 230, 40 -- กล่อง storage / กล้อง
+local SIDE_Y = 0.40
 local MENTAL_W = 26
-local MENTAL_TOP, MENTAL_BOT = 0.22, 0.86 -- บาร์ยาวเกือบเต็มความสูงจอ
+local MENTAL_TOP, MENTAL_BOT = 0.22, 0.86
 
 local function corner(inst, r)
 	local c = Instance.new("UICorner")
@@ -86,7 +79,7 @@ local function panel(parent, pos, size, bg)
 	return f
 end
 
--- ไอคอนช่องซ้าย: ใช้รูปจาก UIAssets ถ้ามี ไม่มีก็ใช้ emoji (docs/13 กติกา fallback)
+-- ไอคอนช่องซ้าย: รูปจาก UIAssets ถ้ามี ไม่มีก็ emoji
 local function statLabel(parent, assetKey, fallbackEmoji, text)
 	local iconId = UIAssets[assetKey] or ""
 	local pad = 8
@@ -117,17 +110,14 @@ local function setStat(l: TextLabel?, text: string)
 	l.Text = (l:GetAttribute("prefix") or "") .. text
 end
 
--- ===== pure (เทสด้วย lune) =====
-
--- 1,024 แบบ PDF
+-- 1,024 แบบ PDF (pure)
 function HUD.comma(n: number): string
 	local s = tostring(math.floor(n))
 	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
 	return (out:gsub("^,", ""))
 end
 
--- แถบ progress สู่ 1M — ไม่ linear: แบ่งตามเฟส 10% / 40% / 50% (docs/09 §0 lock 21 ก.ค.)
--- ถ้า linear เฟส 1 (0→10K) จะกินแค่ 1% ของบาร์ ผู้เล่นรู้สึกไม่ขยับเลย
+-- แถบ progress สู่ 1M ไม่ linear: เฟส 10%/40%/50% (linear เฟส 1 จะกินแค่ 1% ผู้เล่นรู้สึกไม่ขยับ)
 function HUD.progressPct(follower: number): number
 	local f = math.max(0, follower)
 	if f < 10_000 then return f / 10_000 * 0.10 end
@@ -135,18 +125,15 @@ function HUD.progressPct(follower: number): number
 	return math.min(1, 0.50 + (f - 100_000) / 900_000 * 0.50)
 end
 
--- ===== UI =====
--- build() = สร้างโครงจากศูนย์ | init() = ถ้ามีของจริงใน StarterGui อยู่แล้วให้ใช้อันนั้น (ทีมแก้หน้าตาใน Studio ได้)
--- ชื่อ instance ที่โค้ดอ้างถึงห้ามเปลี่ยน: FollowerLabel MoneyLabel PhaseLabel ProgressFill
---   ClockLabel DayLabel StorageLabel CameraLabel MentalFill  (ที่เหลือแต่ง/ย้าย/ลบได้ตามใจ)
-
+-- build() = สร้างโครงจากศูนย์ | init() = ใช้ของจริงใน StarterGui ถ้ามี (ทีมแก้หน้าตาใน Studio ได้)
+-- ชื่อ instance ที่โค้ดอ้าง ห้ามเปลี่ยน: FollowerLabel MoneyLabel PhaseLabel ProgressFill ClockLabel DayLabel StorageLabel CameraLabel MentalFill
 function HUD.build(parent): ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Gui_HUD"
 	gui.ResetOnSpawn = false
-	gui.Enabled = false -- เริ่มซ่อน — เกมเปิดที่เมนู เมนูค่อยเปิด HUD ตอนกดเล่น (ไม่งั้นแฟลชทับฉากเมนู)
+	gui.Enabled = false -- เริ่มซ่อน — เมนูค่อยเปิด HUD ตอนกดเล่น (กันแฟลชทับฉากเมนู)
 
-	-- ---------- บนกลาง: follower + money เรียงข้างกัน (ภาพร่าง: กล่องม่วง | กล่องเขียว) ----------
+	-- บนกลาง: follower + money เรียงข้างกัน
 	local half = STAT_W + 5
 	local fBox = panel(gui, UDim2.new(0.5, -half, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
 	local mBox = panel(gui, UDim2.new(0.5, 5, 0, 10), UDim2.new(0, STAT_W, 0, STAT_H))
@@ -156,9 +143,9 @@ function HUD.build(parent): ScreenGui
 	HUD.moneyLabel = statLabel(mBox, "hud_money", "💰", "฿0")
 	HUD.followerLabel.Name = "FollowerLabel"
 	HUD.moneyLabel.Name = "MoneyLabel"
-	HUD.statTopY = 10 + STAT_H -- ให้ popup เกาะขอบล่างกล่อง
+	HUD.statTopY = 10 + STAT_H
 
-	-- แถบ progress อยู่ "ใต้กล่องทั้งสอง" ตามภาพร่าง (ไม่ใช่เหนือ)
+	-- แถบ progress ใต้กล่องทั้งสอง
 	local track = panel(gui, UDim2.new(0.5, -BAR_W / 2, 0, 10 + STAT_H + 6),
 		UDim2.new(0, BAR_W, 0, BAR_H), Color3.fromRGB(15, 15, 20))
 	track.Name = "ProgressTrack"
@@ -169,7 +156,7 @@ function HUD.build(parent): ScreenGui
 	pfill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
 	pfill.Parent = track
 	corner(pfill, 6)
-	for _, m in { 10_000, 100_000 } do -- ขีดรอยต่อเฟส (ภาพร่างมีขีดแบ่งช่วง)
+	for _, m in { 10_000, 100_000 } do -- ขีดรอยต่อเฟส
 		local tick = Instance.new("Frame")
 		tick.Size = UDim2.new(0, 2, 1, 0)
 		tick.Position = UDim2.new(HUD.progressPct(m), 0, 0, 0)
@@ -177,7 +164,7 @@ function HUD.build(parent): ScreenGui
 		tick.BorderSizePixel = 0
 		tick.Parent = track
 	end
-	HUD.phaseLabel = Instance.new("TextLabel") -- ป้ายเฟสซ้อนบนบาร์ (ภาพร่างเขียนชื่อช่วงในบาร์)
+	HUD.phaseLabel = Instance.new("TextLabel")
 	HUD.phaseLabel.Name = "PhaseLabel"
 	HUD.phaseLabel.Size = UDim2.new(1, -8, 1, 0)
 	HUD.phaseLabel.Position = UDim2.new(0, 4, 0, 0)
@@ -199,7 +186,7 @@ function HUD.build(parent): ScreenGui
 	goal.Parent = gui
 	HUD.progressFill = pfill
 
-	-- ---------- บนขวา: นาฬิกา + ป้ายปฏิทิน (ภาพร่าง: "15:24" ตัวเปล่า + ปฏิทินฉีกเลข 24) ----------
+	-- บนขวา: นาฬิกา + ป้ายปฏิทิน
 	HUD.clockLabel = Instance.new("TextLabel")
 	HUD.clockLabel.Name = "ClockLabel"
 	HUD.clockLabel.Size = UDim2.new(0, 110, 0, 40)
@@ -228,7 +215,7 @@ function HUD.build(parent): ScreenGui
 	calBox.Size = UDim2.new(0, 62, 0, 62)
 	calBox.Position = UDim2.new(1, -70, 0, 8)
 	calBox.Parent = gui
-	HUD.dayLabel = Instance.new("TextLabel") -- เลขวันพิมพ์ทับกลางรูปปฏิทิน (docs/13 กติกา 5)
+	HUD.dayLabel = Instance.new("TextLabel") -- เลขวันพิมพ์ทับกลางรูปปฏิทิน
 	HUD.dayLabel.Name = "DayLabel"
 	HUD.dayLabel.Size = UDim2.new(1, 0, 0.55, 0)
 	HUD.dayLabel.Position = UDim2.new(0, 0, 0.38, 0)
@@ -238,7 +225,7 @@ function HUD.build(parent): ScreenGui
 	HUD.dayLabel.Text = "1"
 	HUD.dayLabel.Parent = calBox
 
-	-- ---------- ซ้ายกลาง: storage / กล้อง + ปุ่มกลม ----------
+	-- ซ้ายกลาง: storage / กล้อง + ปุ่มกลม
 	local stBox = panel(gui, UDim2.new(0, 16, SIDE_Y, 0), UDim2.new(0, SIDE_W, 0, SIDE_H))
 	local camBox = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H + 8), UDim2.new(0, SIDE_W, 0, SIDE_H))
 	stBox.Name = "StorageBox"
@@ -273,11 +260,10 @@ function HUD.build(parent): ScreenGui
 	local setBtn = roundBtn("btn_setting", "⚙️", 16)
 	local soundBtn = roundBtn("btn_sound", "🔊", 64)
 
-	-- แผงเสียง (ตัวเต็มอยู่หน้า Setting ของ Main Menu — นี่คือทางลัดระหว่างเล่น)
+	-- แผงเสียง (ทางลัดระหว่างเล่น · ตัวเต็มอยู่หน้า Setting ของ Main Menu)
 	local vpanel = panel(gui, UDim2.new(0, 16, SIDE_Y, SIDE_H * 2 + 66), UDim2.new(0, 230, 0, 88))
 	vpanel.Visible = false
-	-- HUD ย้ายไปอยู่ StarterGui.UI (9 ส.ค.) — AudioService ยังอยู่ StarterPlayerScripts เดิม
-	-- ใช้ absolute path ผ่าน PlayerScripts แทน script.Parent.Parent (ความลึกเดิมใช้ไม่ได้แล้ว)
+	-- AudioService อยู่ StarterPlayerScripts — absolute path (script.Parent.Parent ใช้ไม่ได้หลังย้าย HUD ไป StarterGui)
 	local Audio = require(game:GetService("Players").LocalPlayer.PlayerScripts:WaitForChild("AudioService"))
 	local volLabel = Instance.new("TextLabel")
 	volLabel.Size = UDim2.new(1, -12, 0, 34)
@@ -325,7 +311,7 @@ function HUD.build(parent): ScreenGui
 		UDim2.new(0, MENTAL_W, MENTAL_BOT - MENTAL_TOP, 0), Color3.fromRGB(15, 15, 20))
 	barBack.Name = "MentalTrack"
 	barBack.BackgroundTransparency = 0.1
-	barBack.ClipsDescendants = true -- แถบในไม่โผล่พ้นขอบมนของราง (มุมมนของ fill กับของรางไม่ตรงกันเป๊ะ)
+	barBack.ClipsDescendants = true -- แถบในไม่โผล่พ้นขอบมนของราง
 	local fill = Instance.new("Frame")
 	fill.Name = "MentalFill"
 	fill.AnchorPoint = Vector2.new(0, 1)
@@ -361,9 +347,7 @@ function HUD.build(parent): ScreenGui
 		t.Parent = mentalGroup
 	end
 
-	-- ---------- ล่างกลาง: hotbar ----------
-	-- ★ ไม่วาดเอง — ใช้ backpack ของ Roblox (ล่างกลาง 3 ช่องพอดีภาพร่างอยู่แล้ว)
-	-- อยากได้ช่องตามรูปที่วาด (`hud_hotbar_slot`) ต้องปิด CoreGui backpack แล้วทำเอง = งานแยก (docs/14 §4)
+	-- hotbar: ไม่วาดเอง ใช้ backpack ของ Roblox (ล่างกลาง 3 ช่องพอดีภาพร่าง)
 
 	HUD.gui = gui
 	HUD.prev = nil
@@ -371,9 +355,7 @@ function HUD.build(parent): ScreenGui
 	return gui
 end
 
--- ★ ผูกโค้ดเข้ากับ instance ที่มีอยู่ใน StarterGui — **ระบุ path ตรงๆ ไม่มีการค้นหา ไม่มีการเดาชื่อ**
--- ย้ายของใน Studio แล้ว path เปลี่ยน = มาแก้ตารางนี้ให้ตรง (พังดังๆ ดีกว่าไปหยิบชิ้นผิดมาใช้)
--- path = ลำดับชื่อจาก Gui_HUD ลงไป เช่น { "FollowerBox", "FollowerLabel" } = Gui_HUD.FollowerBox.FollowerLabel
+-- ผูกโค้ดเข้ากับ instance ใน StarterGui — path ตรงๆ ไม่เดาชื่อ (ย้ายใน Studio แล้วมาแก้ตารางนี้ · พังดังๆ ดีกว่าหยิบผิด)
 local BINDINGS = {
 	{ field = "followerLabel", path = { "FollowerBox", "FollowerLabel" } },
 	{ field = "moneyLabel", path = { "MoneyBox", "MoneyLabel" } },
@@ -383,8 +365,7 @@ local BINDINGS = {
 	{ field = "dayLabel", path = { "Calendar", "DayLabel" } },
 	{ field = "storageLabel", path = { "StorageBox", "StorageLabel" } },
 	{ field = "cameraLabel", path = { "CameraBox", "CameraLabel" } },
-	-- บาร์ใจ + หัวใจบน/ล่าง + ป้าย % อยู่ในกรอบ MentalGroup เดียวกัน (10 ส.ค.)
-	-- เพื่อให้ระยะห่างหัวใจกับบาร์คงที่ทุกขนาดจอ — หัวใจคือ indicator ของบาร์ ห่างออกไป = สื่อไม่ได้
+	-- บาร์ใจ + หัวใจ + ป้าย % อยู่ใน MentalGroup เดียวกัน (ระยะห่างคงที่ทุกขนาดจอ)
 	{ field = "mentalFill", path = { "MentalGroup", "MentalTrack", "MentalFill" } },
 	-- ตัวกลุ่มทั้งก้อน (บาร์+หัวใจ+ป้าย%) เอาไว้ซ่อนทั้งชุดก่อน phase 2 (แก้ 10 ส.ค. — user: bar ยังไม่ควร
 	-- โผล่ก่อนระบบ introduce ตาม docs/02 §3 "ระบบ introduce ตอน: phase 2")
@@ -394,8 +375,7 @@ local BINDINGS = {
 function HUD.bind(gui)
 	HUD.gui = gui
 	HUD.prev = nil
-	-- ทุกชิ้นอยู่ใต้ Root (Frame เต็มจอ ไว้จัดกลุ่ม/ซ่อนโชว์ทั้งชุด — **ห้ามใส่ ARC ที่ Root**
-	-- ขนาดที่ย่อพร้อมกันมาจาก ARC รายชิ้น ดู docs/05 §5.5) · build() จากโค้ดไม่มี Root → ใช้ gui ตรงๆ
+	-- ทุกชิ้นอยู่ใต้ Root (Frame เต็มจอไว้จัดกลุ่ม/ซ่อนทั้งชุด) · build() จากโค้ดไม่มี Root → ใช้ gui ตรงๆ
 	local base = gui:FindFirstChild("Root") or gui
 	local missing = {}
 	for _, b in BINDINGS do
@@ -419,9 +399,7 @@ function HUD.bind(gui)
 	end
 end
 
--- ใช้ของจริงใน StarterGui ถ้ามี (ทีมแก้หน้าตาใน Studio ได้เลย) ไม่มีค่อยสร้างจากโค้ด
--- StarterGui → PlayerGui ก๊อปแบบ async: init อาจรันก่อนของจริงมาถึง → WaitForChild ก่อน (มีของจริงค่อย bind)
--- timeout แล้วยังไม่มา = ไม่มี instance จริง → build() จากโค้ด (fallback)
+-- ใช้ของจริงใน StarterGui ถ้ามี · StarterGui→PlayerGui ก๊อป async: WaitForChild ก่อน · timeout = build() fallback
 function HUD.init(playerGui)
 	local gui = playerGui:FindFirstChild("Gui_HUD") or playerGui:WaitForChild("Gui_HUD", 5)
 	if gui then
@@ -431,13 +409,11 @@ function HUD.init(playerGui)
 	end
 end
 
--- ตัวเลขเด้งจางหาย 1.5 วิ เหนือกล่องที่เปลี่ยน (PDF หน้า 5 "1,024 +300")
--- เกาะกล่องจริง (parent = hostBox) → responsive ตามจอเอง · font/stroke ตรงชุด HUD (FredokaOne)
+-- ตัวเลขเด้งจางหาย 1.5 วิ เหนือกล่องที่เปลี่ยน · เกาะกล่องจริง (responsive ตามจอ)
 function HUD.popup(hostBox, text: string, color: Color3)
 	if not hostBox then return end
 	local l = Instance.new("TextLabel")
-	-- ลอยลงล่างกล่อง (กล่อง HUD อยู่ขอบบนจอ ลอยขึ้นจะหลุดจอ)
-	l.AnchorPoint = Vector2.new(0.5, 0)
+	l.AnchorPoint = Vector2.new(0.5, 0) -- ลอยลงล่าง (กล่องอยู่ขอบบนจอ ลอยขึ้นจะหลุด)
 	l.Position = UDim2.fromScale(0.5, 1.05)
 	l.Size = UDim2.fromScale(0.7, 0.7)
 	l.BackgroundTransparency = 1
@@ -458,8 +434,7 @@ function HUD.popup(hostBox, text: string, color: Color3)
 	st.Completed:Connect(function() l:Destroy() end)
 end
 
--- ช่อง storage = footage ที่อัดมา (GB) ไม่ใช่จำนวนคลิป — PDF หน้า 5 "790 GB / 1T", เต็ม = FULL
--- pure: เทสได้ด้วย lune
+-- ช่อง storage = footage ที่อัดมา (GB) ไม่ใช่จำนวนคลิป · เต็ม = FULL (pure)
 function HUD.storageText(state): string
 	local cap = Config.StorageLadderGB[Formulas.activeLevel(state, "storage")]
 		or Config.StorageLadderGB[1]
@@ -472,7 +447,7 @@ function HUD.storageText(state): string
 end
 
 function HUD.update(state)
-	-- delta popup เกาะมุมขวาบนของกล่องที่เปลี่ยน (ภาพร่าง: "+300" ลอยมุมขวาบนกล่อง follower)
+	-- delta popup เกาะกล่องที่เปลี่ยน
 	local p = HUD.prev
 	if p then
 		local dF, dM = state.follower - p.follower, state.money - p.money
@@ -487,12 +462,11 @@ function HUD.update(state)
 			HUD.popup(mBox, ("%+d"):format(dM),
 				dM > 0 and Color3.fromRGB(240, 220, 80) or Color3.fromRGB(240, 90, 90))
 		end
-		-- +GB ไม่ขึ้นตรงนี้แล้ว — ภาพร่างให้ลอยรอบตัวผู้เล่นตอนกดอัด (RecordTool.floatGain)
-		local _ = dG
+		local _ = dG -- +GB ลอยรอบตัวผู้เล่นตอนกดอัดแทน (RecordTool.floatGain)
 	end
 	HUD.prev = { follower = state.follower, money = state.money, footageGB = state.footageGB or 0 }
 
-	-- ทุกช่องเช็ค nil — ทีมลบ/เปลี่ยนชื่อชิ้นไหนใน StarterGui เกมต้องไม่พัง แค่ช่องนั้นไม่อัปเดต
+	-- ทุกช่องเช็ค nil — ทีมลบ/เปลี่ยนชื่อชิ้นไหน เกมต้องไม่พัง แค่ช่องนั้นไม่อัปเดต
 	setStat(HUD.followerLabel, HUD.comma(state.follower))
 	setStat(HUD.moneyLabel, ("฿%s"):format(HUD.comma(state.money)))
 	if HUD.progressFill then
@@ -505,7 +479,7 @@ function HUD.update(state)
 		HUD.progressFill.Position = UDim2.new(0, 0, posY.Scale, posY.Offset)
 		HUD.progressFill.Size = UDim2.new(HUD.progressPct(state.follower), -6, 1, -6)
 	end
-	-- นาฬิกา: sync ชั่วโมงกับ server (snap เมื่อ tick ชั่วโมงใหม่) แล้วปล่อย Heartbeat เดินนาทีเอง
+	-- นาฬิกา: sync ชั่วโมงกับ server (snap เมื่อ tick ใหม่) แล้วปล่อย Heartbeat เดินนาทีเอง
 	if HUD.gameHour == nil or state.timeOfDay ~= HUD.serverHour then
 		HUD.gameHour = state.timeOfDay
 	end

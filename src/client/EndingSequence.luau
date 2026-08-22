@@ -1,21 +1,15 @@
--- EndingSequence.luau — True Ending (Good1) orchestration: BCA award cutscene → เดินเข้าโพเดียมเอง (คุมตัวเอง)
--- → self-talk ในชุดสูท → phase-transition fade → cutscene เจอพ่อแม่ → "จบ" → กลับ main menu
--- เรียกจาก Main.client.luau ตอนดัก pendingEvent BCA (task แยก — ไฟล์นี้แค่ประกอบ engine เดิม ไม่สร้างใหม่)
+-- EndingSequence — True Ending (Good1): BCA cutscene → เดินเข้าโพเดียมเอง → self-talk ในชุดสูท
+-- → phase-transition → cutscene เจอพ่อแม่ → "จบ" → กลับ main menu · ประกอบ engine เดิม ไม่สร้างใหม่
 local isStudio = script ~= nil
 
 local EndingSequence = {}
--- .running เหมือน DialogueUI/CutscenePlayer/ScreenTransition/MenuUI — ให้ trigger site เช็คกันยิงซ้ำระหว่าง
--- ฉากยาวช่วง waitReachPoint (ตอนนั้น sub-engine ทุกตัวว่าง .running=false พร้อมกันหมด ต้องมี flag ระดับนี้เอง)
+-- flag กันยิงซ้ำระหว่างช่วง waitReachPoint (ตอนนั้น sub-engine ทุกตัว .running=false พร้อมกัน)
 EndingSequence.running = false
 
--- ===== pure (เทสด้วย lune) =====
-
--- ผู้เล่นเดินถึง walkTarget รึยัง — เทียบระยะตรงๆ ไม่ต้อง raycast (พื้นราบตรงทางเดินพรมแดง)
+-- ผู้เล่นเดินถึง walkTarget รึยัง — เทียบระยะตรงๆ (พื้นราบตรงทางพรมแดง)
 function EndingSequence.reachedTarget(playerPos: Vector3, targetPos: Vector3, threshold: number): boolean
 	return (playerPos - targetPos).Magnitude <= threshold
 end
-
--- ===== Roblox glue =====
 
 if not isStudio then return EndingSequence end
 
@@ -29,11 +23,10 @@ local ScreenTransition = require(script.Parent.ScreenTransition)
 local DialogueUI = require(script.Parent.UI.DialogueUI)
 local MenuUI = require(script.Parent.UI.MenuUI)
 
-local WALK_REACH_THRESHOLD = 5 -- studs — ระยะถือว่า "เดินถึง" walkTarget แล้ว
+local WALK_REACH_THRESHOLD = 5 -- studs — ระยะถือว่า "เดินถึง" walkTarget
 
--- ใส่ชุดสูทก่อน cutscene BCA เริ่ม — ใส่ค้างตลอด BCA cutscene + เดิน + self-talk จนกว่า restoreSuit()
--- Shirt/Pants ไม่มีอยู่แล้ว (rig บางตัวไม่ใส่ default) = สร้างให้ (มาตรฐาน R6/R15 accessory)
--- คืนค่าเดิมกลับ (ไม่เก็บลง module state) กัน playTrueEnding สองรอบซ้อนแล้ว capture ชุดสูทเป็น "ของเดิม" ผิด
+-- ใส่ชุดสูทก่อน BCA cutscene · Shirt/Pants ไม่มี = สร้างให้ · คืนค่าเดิม (per-call ไม่เก็บ module state
+-- กัน playTrueEnding สองรอบซ้อนแล้ว capture ชุดสูทเป็น "ของเดิม" ผิด)
 local function applySuit(): (string?, string?)
 	local char = Players.LocalPlayer.Character
 	if not char then return nil, nil end
@@ -48,13 +41,12 @@ local function applySuit(): (string?, string?)
 		pants.Parent = char
 	end
 	local savedShirt, savedPants = shirt.ShirtTemplate, pants.PantsTemplate
-	-- ⏳ suitShirtId/suitPantsId ยังว่างใน Config (รอ user ให้ rbxassetid) — assign ตรงๆ ไม่ guard เคสว่าง
+	-- ⏳ suitShirtId/suitPantsId ยังว่างใน Config (รอ user ให้ rbxassetid)
 	shirt.ShirtTemplate = Config.TrueEnding.suitShirtId
 	pants.PantsTemplate = Config.TrueEnding.suitPantsId
 	return savedShirt, savedPants
 end
 
--- คืนชุดเดิมหลัง cutscene เจอพ่อแม่จบ — savedShirt/savedPants มาจาก applySuit() ตรงๆ (per-call ไม่แชร์ state)
 local function restoreSuit(savedShirt: string?, savedPants: string?)
 	local char = Players.LocalPlayer.Character
 	if not char then return end
@@ -64,9 +56,7 @@ local function restoreSuit(savedShirt: string?, savedPants: string?)
 	if pants then pants.PantsTemplate = savedPants or "" end
 end
 
--- รอผู้เล่นเดิน (คุมเองหลังปลด FreezeTime) ไปถึง Part ชื่อ targetName ใน Workspace
--- ไม่ anchor HumanoidRootPart (ต่างจาก waitStreamedAround) — ต้องเดินได้ระหว่างรอ
--- หา target ใหม่ทุกรอบ (ไม่ cache ก่อน loop) กัน Part สตรีมเข้าช้ากว่า loop เริ่ม
+-- รอผู้เล่นเดิน (คุมเองหลังปลด FreezeTime) ไปถึง Part targetName · หา target ใหม่ทุกรอบ (เผื่อ stream ช้า)
 local function waitReachPoint(targetName: string, timeout: number?): boolean
 	local limit = timeout or Config.TrueEnding.walkTimeout
 	local t0 = os.clock()
@@ -84,7 +74,7 @@ local function waitReachPoint(targetName: string, timeout: number?): boolean
 	return false
 end
 
--- ลำดับเต็ม True Ending (Good1) — deps = { fireAction, getState, menuDeps } จาก Main.client.luau
+-- ลำดับเต็ม True Ending · deps = { fireAction, getState, menuDeps } จาก Main.client
 function EndingSequence.playTrueEnding(playerGui, deps)
 	if EndingSequence.running then return end
 	EndingSequence.running = true
@@ -93,7 +83,7 @@ function EndingSequence.playTrueEnding(playerGui, deps)
 
 	deps.fireAction({ type = "FreezeTime", on = true })
 	CutscenePlayer.play(playerGui, require(Content.Cutscenes.BCAWalk), function()
-		-- ปลดล็อกให้ผู้เล่นเดินพรมแดงเอง (ยังใส่สูทอยู่) จนถึง walkTarget
+		-- ปลดล็อกให้เดินพรมแดงเอง (ยังใส่สูท) จนถึง walkTarget
 		deps.fireAction({ type = "FreezeTime", on = false })
 		waitReachPoint(Config.TrueEnding.walkTarget)
 

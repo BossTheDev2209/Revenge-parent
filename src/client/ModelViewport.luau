@@ -1,13 +1,7 @@
--- ModelViewport.luau — render โมเดล 3 มิติจริงลง ViewportFrame (แทนรูปภาพแบน)
--- ใช้ 2 ที่: DialogueUI (หน้าตัวละครที่คุยด้วย) และในอนาคต ShopKiosk (ตัวสินค้าจริงแทนไอคอน)
---
--- showBust(rig)   — clone ตัวละครเต็มตัว (ครบเสื้อผ้า/ทรงผม/accessory) ซูมกล้องที่หัว+บ่า
--- showModel(model) — clone โมเดลอะไรก็ได้ ซูมกล้องให้พอดีกรอบอัตโนมัติ (สำหรับของ/ไอเทม)
--- clear()         — เอาโมเดลออก ซ่อน viewport
--- destroy()       — ทำลายทิ้งถาวร (ตอนปิด UI)
---
--- ทำไม clone ไม่ mirror ของจริงสด: ViewportFrame render ได้แค่ลูกของตัวเอง ไม่ใช่ Workspace ตรงๆ
--- เรียก showBust ใหม่ทุกครั้งที่จะโชว์ (เช่นทุกบรรทัดบท) = ได้ท่า/สีหน้าล่าสุดของตัวจริง ณ วินาทีนั้น
+-- ModelViewport — render โมเดล 3 มิติจริงลง ViewportFrame (แทนรูปภาพแบน)
+-- showBust(rig) = ตัวละครเต็มตัว ซูมหัว+บ่า · showModel(model) = โมเดลอะไรก็ได้ ซูมพอดีกรอบ
+-- clear() = ซ่อน · destroy() = ทำลายถาวร
+-- clone ไม่ mirror ของจริง: ViewportFrame render ได้แค่ลูกของตัวเอง · เรียกใหม่ทุกครั้ง = ได้ท่าล่าสุด
 local ModelViewport = {}
 
 local STRIP_CLASSES = { Script = true, LocalScript = true, Sound = true }
@@ -20,7 +14,7 @@ local function stripUnsafe(model: Model)
 	end
 end
 
--- parent = GuiObject ที่จะใส่ viewport ลงไป (เต็มพื้นที่ของ parent เสมอ — ไปคุม Size/Position ที่ parent เอา)
+-- parent = GuiObject ที่ใส่ viewport (เต็มพื้นที่ parent เสมอ — คุม Size/Position ที่ parent)
 function ModelViewport.new(parent: Instance)
 	local vp = Instance.new("ViewportFrame")
 	vp.Name = "ModelViewport"
@@ -47,8 +41,7 @@ function ModelViewport.new(parent: Instance)
 		end
 	end
 
-	-- ตัวละครเต็มตัว (R6) วางไว้กลาง WorldModel ตำแหน่งคงที่ (0,3,0) — ไม่ขึ้นกับพิกัดจริงในแมพ
-	-- กล้องซูมจาก Head.CFrame.LookVector หลัง pivot รีเซ็ตแล้ว = หันทิศเดียวกันเสมอไม่ว่า rig ต้นทางหันไปทางไหน
+	-- ตัวละครเต็มตัว วางกลาง WorldModel ตำแหน่งคงที่ (0,3,0) · กล้องซูมจาก Head.LookVector หลัง pivot รีเซ็ต
 	function handle.showBust(rig: Model?, opts: { distance: number?, yOffset: number?, fov: number? }?)
 		clearClone()
 		if not rig then
@@ -66,8 +59,7 @@ function ModelViewport.new(parent: Instance)
 			vp.Visible = false
 			return false
 		end
-		-- ซูมแบบ bust จริง (หัว+บ่า ไม่เอาครึ่งตัว) — คำนวณจาก FOV แนวตั้ง: d = span / (2*tan(fov/2))
-		-- span ~2.6 studs (หัว+บ่านิดๆ) ที่ FOV เริ่มต้น 25° ได้ dist ~5.9 studs
+		-- ซูม bust: d = span / (2*tan(fov/2)) · span ~2.6 (หัว+บ่า) ที่ FOV 25° ได้ dist ~5.9
 		local fov = (opts and opts.fov) or 25
 		local span = (opts and opts.span) or 2.6
 		local dist = (opts and opts.distance) or (span / (2 * math.tan(math.rad(fov) / 2)))
@@ -80,9 +72,7 @@ function ModelViewport.new(parent: Instance)
 		return true
 	end
 
-	-- โมเดลอะไรก็ได้ (ของ/ไอเทม) — คำนวณ bounding box เอง ซูมให้พอดีกรอบเสมอไม่ว่าโมเดลใหญ่เล็กแค่ไหน
-	-- รับ Tool ได้ด้วย (กล้องใน ToolModels เป็น Tool ไม่ใช่ Model) — GetBoundingBox เป็นเมธอดของ Model เท่านั้น
-	-- เลยห่อ Tool/Folder ใน Model ชั่วคราวก่อน · ของที่เป็น Model อยู่แล้วไม่โดนแตะ (DialogueUI ใช้เหมือนเดิม)
+	-- โมเดลอะไรก็ได้ — คำนวณ bounding box ซูมพอดีกรอบ · Tool ไม่มี GetBoundingBox → ห่อใน Model ก่อน
 	function handle.showModel(model: Instance?, opts: { zoom: number?, fov: number? }?)
 		clearClone()
 		if not model then

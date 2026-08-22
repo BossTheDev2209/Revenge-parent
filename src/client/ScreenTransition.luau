@@ -1,16 +1,8 @@
 -- ScreenTransition — จอดำ fade → (เล่าเรื่องบนจอดำ) → onBlack (teleport/สลับของ) → fade กลับ
--- ของกลาง reuse ได้: intro, เปลี่ยนเฟส, ending, ฉากรับรางวัล ฯลฯ
--- opts = {
---   steps = {..}?,   -- timed narration บนจอดำ (Genshin/HSR: text ขึ้นกลางจอ auto-advance ไม่ต้องคลิก) — ดู VALID_STEP
---   lines = {"..."}?, -- (เดิม) DialogueUI คลิกต่อ — steps ทับ lines ถ้าใส่ทั้งคู่
---   onBlack = fn?,    -- ทำตอนจอดำสนิท (หลังเล่าเรื่องจบ) — teleport/สลับแมพ
---   fadeTime = 0.6?, onDone = fn?,
--- }
--- step (ยึด field ไม่ใช่ type):
---   { text="...", t=วินาที? }   narration ขึ้นกลางจอ (ไม่ใส่ t = ค้างจนมี step ถัดไป)
---   { dialogue={..lines..}, voice=? }  กล่องข้อความ DialogueUI แทรก (reuse — คลิกต่อ) เช่น เจียเจียพูดกลางฉากดำ
---   { t=วินาที }                หน่วงเวลาเปล่า
---   [date] ฯลฯ ต้อง substitute ก่อนส่งเข้ามา (ที่นี่ไม่รู้ state)
+-- ใช้ซ้ำ: intro, เปลี่ยนเฟส, ending, ฉากรับรางวัล
+-- opts: steps = timed narration (auto-advance) · lines = DialogueUI คลิกต่อ (steps ทับ lines)
+--   onBlack = fn ตอนจอดำสนิท · fadeTime = 0.6 · onDone = fn
+-- step (ยึด field): { text, t? } narration · { dialogue, voice? } กล่อง DialogueUI แทรก · { t } หน่วงเวลา
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local DialogueUI = require(script.Parent.UI.DialogueUI)
@@ -20,9 +12,7 @@ local InteractLock = require(script.Parent.InteractLock)
 local ScreenTransition = {}
 ScreenTransition.running = false
 
--- เช็ค steps ก่อนเล่น (คล้าย engine อื่น) — คืน (ผ่านไหม, error)
--- ยึด field ไม่ใช่ type:
---   text(string) = narration ขึ้นกลางจอ · dialogue(table) = กล่องข้อความ DialogueUI แทรก (reuse engine) · t(number) = หน่วงเวลา
+-- เช็ค steps ก่อนเล่น — คืน (ผ่านไหม, error) · ยึด field: text/dialogue/t
 function ScreenTransition.validateSteps(steps)
 	if type(steps) ~= "table" then return false, "ไม่ใช่ตาราง" end
 	for i, s in steps do
@@ -61,17 +51,17 @@ function ScreenTransition.play(opts)
 	gui.Parent = playerGui
 
 	task.spawn(function()
-		InteractLock.lock() -- ล็อกเดิน + ปิด prompt ตลอด transition (เหมือน cutscene อื่น) · ref-count ซ้อน DialogueUI ได้
-		Audio.lockBGM(true) -- ห้ามโซนสั่งเพลงระหว่าง transition (วาปเข้าโซนใหม่ = เพลงจะเด้งกลางฉาก)
+		InteractLock.lock() -- ล็อกเดิน + ปิด prompt ตลอด transition (ref-count ซ้อน DialogueUI ได้)
+		Audio.lockBGM(true) -- ห้ามโซนสั่งเพลงระหว่าง transition (วาปเข้าโซนใหม่ = เพลงเด้งกลางฉาก)
 		Audio.bgm(nil)      -- ดับเพลงที่ค้างมาก่อนหน้า
 
 		local tin = TweenService:Create(black, TweenInfo.new(fadeTime), { BackgroundTransparency = 0 })
 		tin:Play()
 		tin.Completed:Wait()
 
-		if opts.onBlack then opts.onBlack() end -- ก่อนเล่าเรื่อง: teleport/สลับแมพ (แมพใหม่ stream ระหว่างเล่า)
+		if opts.onBlack then opts.onBlack() end -- teleport/สลับแมพ (แมพใหม่ stream ระหว่างเล่า)
 
-		-- เล่าเรื่องบนจอดำ (auto-timed ไม่ต้องคลิก) — text ขึ้นกลางจอ ขอบดำรอบตัวอักษร
+		-- เล่าเรื่องบนจอดำ (auto-timed) — text ขึ้นกลางจอ ขอบดำรอบตัวอักษร
 		if opts.steps and #opts.steps > 0 then
 			local ok, err = ScreenTransition.validateSteps(opts.steps)
 			if not ok then
@@ -94,7 +84,7 @@ function ScreenTransition.play(opts)
 				stroke.Transparency = 1
 				stroke.Parent = label
 
-				-- fade ตัวอักษร (to=0 โผล่ / to=1 หาย) — รอจบก่อนไปต่อ ให้แต่ละข้อความสลับกันนุ่มๆ
+				-- fade ตัวอักษร (to=0 โผล่ / to=1 หาย) — รอจบก่อนไปต่อ ให้แต่ละข้อความสลับกันนุ่ม
 				local TEXT_FADE = 0.35
 				local function fadeText(to: number)
 					local strokeTo = to < 0.5 and 0.4 or 1
@@ -108,7 +98,7 @@ function ScreenTransition.play(opts)
 				local hasText = false
 				for _, s in opts.steps do
 					if type(s.dialogue) == "table" then
-						-- กล่องข้อความแทรก (reuse DialogueUI) — ซ่อน narration ก่อน, คุยจบ (คลิกต่อ) แล้วเล่าต่อ
+						-- กล่องข้อความแทรก (reuse DialogueUI) — ซ่อน narration ก่อน คุยจบแล้วเล่าต่อ
 						if hasText then fadeText(1) hasText = false end
 						local done = false
 						DialogueUI.show(playerGui, s.dialogue, function() done = true end, s.voice)
@@ -125,9 +115,8 @@ function ScreenTransition.play(opts)
 						task.wait(s.t)
 					end
 				end
-				if hasText then fadeText(1) end -- ข้อความสุดท้าย fade หายก่อน bg fade (กันเห็นแมพทั้งที่ text ยังอยู่)
+				if hasText then fadeText(1) end -- ข้อความสุดท้าย fade ก่อน bg (กันเห็นแมพทั้งที่ text ยังอยู่)
 			end
-		-- (เดิม) DialogueUI คลิกต่อ — ใช้เมื่อไม่ใส่ steps
 		elseif opts.lines and #opts.lines > 0 and not DialogueUI.running then
 			local done = false
 			DialogueUI.show(playerGui, opts.lines, function() done = true end)
@@ -140,8 +129,8 @@ function ScreenTransition.play(opts)
 		tout:Play()
 		tout.Completed:Wait()
 		gui:Destroy()
-		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ (โซนใหม่จะเริ่มเพลงหลังฉากจบ)
-		InteractLock.unlock() -- ปลดล็อกเดิน (SprintHandler คืน WalkSpeed ตามปุ่ม)
+		Audio.lockBGM(false) -- คืนสิทธิ์ให้โซนคุมเพลงต่อ
+		InteractLock.unlock()
 		ScreenTransition.running = false
 		if opts.onDone then opts.onDone() end
 	end)

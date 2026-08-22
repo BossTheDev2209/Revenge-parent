@@ -1,13 +1,7 @@
--- Bank.luau — **layout ตามภาพร่าง `ui screenshot/PC-Bank-1 ui.png`** (PDF หน้า 9 — user lock 21 ก.ค.)
---   แถวบน  : 3 ตัวเลขสรุป — ยอดคงเหลือ | income per week | All รายจ่ายต่อ week (แดง)
---   แถวกลาง: การ์ด 3 ใบ — ค่าอาหาร / ค่าพนักงาน / ค่าเช่า · ครึ่งบนเว้นว่างไว้ใส่รูป ครึ่งล่าง ⊖ ตัวเลข ⊕
---   ล่างกลาง: ปุ่ม manage
--- ⊖⊕ ปรับงบ/สัปดาห์เป็น step ต่อการ์ด (Config.Spending) — server ตัดสิน ขอบเขต client แค่ยิง action
---
--- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ทั้งไฟล์ ไม่มีส่วนไหนยาวไม่แน่นอน
---   template จริงอยู่ Gui_PC.Screen.AppTemplates.Bank (แต่งใน Studio ได้เลย) — :Clone() ใส่ AppFrame ตอนเปิด
---   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: Head1-3.{Caption,Value} · CardFood/CardStaff/CardRent.{Name,ArtSlot,Amount,Minus,Plus}
---   CardXHint (ลูกตรงของ frame ไม่ใช่ของการ์ด) · ManageBtn · Footer
+-- Bank — แถวบน: ยอดคงเหลือ | income/week | รายจ่าย/week · การ์ด 3 ใบ (อาหาร/พนักงาน/เช่า) ⊖ ตัวเลข ⊕
+-- ⊖⊕ ปรับงบ/สัปดาห์เป็น step (Config.Spending) — server ตัดสิน · ปรับได้เฉพาะค่าอาหาร (เช่า/พนักงาน fixed)
+-- baked template อยู่ Gui_PC.Screen.AppTemplates.Bank · ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน:
+--   Head1-3.{Caption,Value} · CardFood/CardStaff/CardRent.{Name,ArtSlot,Amount,Minus,Plus} · CardXHint · ManageBtn · Footer
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -15,7 +9,6 @@ local Config = if isStudio
 
 local Bank = {}
 
--- เรียงตามภาพร่าง: อาหาร | พนักงาน | เช่า — ชื่อ instance ต้องตรงกับที่ bake ไว้ใน template
 local CARDS = {
 	{ key = "food", cardName = "CardFood" },
 	{ key = "staff", cardName = "CardStaff" },
@@ -31,7 +24,7 @@ function Bank.create(frame, deps)
 	end
 	local content = template:Clone()
 	content.Name = "BankContent"
-	content.Visible = true -- template ซ่อนไว้ (Visible=false) กัน render ทับกันตอนพักเป็นแม่แบบ — clone ต้องเปิดเอง
+	content.Visible = true -- template ซ่อนไว้ clone ต้องเปิดเอง
 	content.Parent = frame
 
 	local heads = {}
@@ -40,9 +33,7 @@ function Bank.create(frame, deps)
 		heads[i] = col and col:FindFirstChild("Value")
 	end
 
-	-- ★ 12 ส.ค. 2569 (user) "ตัดความไม่ makesense ออก":
-	--   ปรับได้เฉพาะ "ค่าอาหาร" — ค่าเช่า fixed ตามเฟส · ค่าพนักงานเลิกเป็น "งบโบนัส" ที่ไม่เคยมีผลจริง
-	--   การ์ดที่ปรับไม่ได้ = ซ่อนปุ่ม ⊖⊕ ไปเลย (โชว์ปุ่มที่กดแล้วไม่เกิดอะไร = ความไม่ makesense ที่ถูกสั่งให้ตัด)
+	-- ปรับได้เฉพาะค่าอาหาร · เช่า/พนักงาน fixed → ซ่อนปุ่ม ⊖⊕ (โชว์ปุ่มที่กดแล้วไม่เกิดอะไร = ไม่ makesense)
 	local ADJUSTABLE = { food = true }
 	local rows = {}
 	for _, def in CARDS do
@@ -67,8 +58,7 @@ function Bank.create(frame, deps)
 		end
 	end
 
-	-- ★ รวมหน้าจัดการพนักงาน: กด "การ์ดค่าพนักงาน" (ใบใหญ่) = เปิดหน้า Manage ที่เดิมต้องกดปุ่มเล็ก
-	--   ปุ่มเล็ก ManageBtn เลยถูกซ่อน — ทางเข้าเหลือทางเดียว ไม่มีปุ่มซ้ำหน้าที่กัน
+	-- กดการ์ดค่าพนักงาน = เปิดหน้า Manage (ปุ่มเล็ก ManageBtn เลยซ่อน — ทางเข้าเหลือทางเดียว)
 	local function openManage()
 		if deps.openApp then deps.openApp("manage") end
 	end
@@ -85,7 +75,7 @@ function Bank.create(frame, deps)
 	end
 	local manageBtn = content:FindFirstChild("ManageBtn")
 	if manageBtn then
-		manageBtn.Visible = false -- หน้าที่ย้ายไปอยู่บนการ์ดใบใหญ่แล้ว
+		manageBtn.Visible = false
 		manageBtn.Activated:Connect(openManage)
 	end
 	local footer = content:FindFirstChild("Footer")
@@ -95,8 +85,7 @@ function Bank.create(frame, deps)
 		local w = Config.WeeklyExpenses[state.phase]
 		local sp = state.spending or {}
 		local S = Config.Spending
-		-- ค่าพนักงาน = เงินเดือนจริงของคนที่จ้างอยู่ (ตรงกับ StaffService.weeklySalary ที่ server หักจริง)
-		-- ไม่ใช่ "งบโบนัส" แบบเดิมที่ปรับเองแล้วไม่มีผลกับอะไรเลย
+		-- ค่าพนักงาน = เงินเดือนจริงของคนที่จ้าง (ตรงกับ StaffService.weeklySalary ที่ server หัก)
 		local staffSalary = 0
 		for _, s in state.staff or {} do
 			staffSalary += s.salary or 0
@@ -106,13 +95,12 @@ function Bank.create(frame, deps)
 		for _, def in CARDS do
 			local row = rows[def.key]
 			if row then
-				-- เฟส 1 ไม่มีค่าเช่า (Homeless) → ซ่อนการ์ดไปเลย ไม่ใช่โชว์ ฿0 ค้างไว้ให้งง
+				-- เฟส 1 ไม่มีค่าเช่า (Homeless) → ซ่อนการ์ด ไม่โชว์ ฿0 ค้าง
 				if def.key == "rent" and row.card then
 					row.card.Visible = w.rent > 0
 					if row.hint then row.hint.Visible = w.rent > 0 end
 				end
-				local off = sp[def.key] or 0
-				-- ค่าเช่า/ค่าพนักงานปรับไม่ได้แล้ว (Config.Spending min=max=0) → off เป็น 0 เสมอ
+				local off = sp[def.key] or 0 -- เช่า/พนักงาน off = 0 เสมอ (Config.Spending min=max=0)
 				local actual = math.max(0, base[def.key] + off * S[def.key].step)
 				total += actual
 				if row.amount then row.amount.Text = ("฿%d"):format(actual) end

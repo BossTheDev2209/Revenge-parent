@@ -1,18 +1,7 @@
--- SavePanel.luau — ปุ่มเซฟเล็กมุมซ้ายล่าง (Gui_SaveButton) + หน้าต่างเลือกช่องเซฟ 4 ช่อง (Gui_SavePanel)
--- สองอย่างนี้เป็นฟีเจอร์เดียวกัน (กดปุ่ม → เปิดหน้าต่าง) เก็บรวมไฟล์เดียว
---
--- ★ baked เป็น instance จริงใน StarterGui แล้ว (9 ส.ค. — แพทเทิร์นเดียวกับ Gui_PC/Gui_HUD)
---   ทั้งสอง gui ถาวร ไม่ Instance.new()/Destroy() ใหม่ทุกครั้งอีกต่อไป
---   เปิด/ปิด = toggle Gui_SavePanel.Enabled (เหมือน PCScreen) · SavePanel.init() wire event ครั้งเดียว
--- ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน (ที่เหลือแต่ง/ย้ายได้ใน Studio):
---   Gui_HUD.Root.SaveBtn   ← ปุ่มอยู่ในชุด HUD (10 ส.ค.) ไม่ใช่ ScreenGui แยกแล้ว
---   Gui_SavePanel.{Dim, Panel.{Title, Slot1..Slot4}}
--- อยู่ใน Gui_HUD.Root เพราะ: scale ตามชุด HUD ชุดเดียวกัน + ซ่อน/โผล่ตาม Gui_HUD.Enabled เอง
--- (อยู่ในเมนู HUD ปิด = ปุ่มเซฟหายไปด้วย ไม่ลอยทับฉากเมนู)
---
--- กดช่องว่าง = เซฟใหม่ · กดช่องที่มีของ = กดซ้ำอีกทีเพื่อทับ (กันเผลอทับเซฟอื่น)
--- อ่าน slotList จาก state (fireAction RequestSlots) — ต่อ StateChanged อัปเดต label เอง **เฉพาะตอนเปิดอยู่**
--- (connect ครั้งเดียวตลอดอายุเกม เพราะ gui ถาวรแล้ว ไม่ต้อง connect/disconnect ทุกรอบเปิด-ปิด)
+-- SavePanel — ปุ่มเซฟในชุด HUD + หน้าต่างเลือกช่องเซฟ 4 ช่อง (Gui_SavePanel)
+-- baked เป็น instance ถาวรใน StarterGui · เปิด/ปิด = toggle .Enabled · init() wire event ครั้งเดียว
+-- ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: Gui_HUD.Root.SaveBtn · Gui_SavePanel.{Dim, Panel.{Title, Slot1..Slot4}}
+-- กดช่องว่าง = เซฟใหม่ · กดช่องที่มีของ = ทับ · อ่าน slotList จาก state (RequestSlots)
 local isStudio = script ~= nil
 local RS = if isStudio then game:GetService("ReplicatedStorage") else nil
 
@@ -21,14 +10,14 @@ SavePanel.running = false
 
 local SLOTS = 4
 
--- pure: ข้อความสรุปช่องเซฟ (nil = ว่าง) · count = จำนวน snapshot ในช่อง
+-- pure: ข้อความสรุปช่องเซฟ (nil = ว่าง)
 function SavePanel.slotText(i: number, sum): string
 	if not sum then return ("ช่อง %d — [ว่าง] กดเพื่อเซฟ"):format(i) end
 	local snaps = sum.count and sum.count > 0 and ("  · %d จุดเซฟ"):format(sum.count) or ""
 	return ("ช่อง %d — วันที่ %d · %s follower · เฟส %d%s"):format(i, sum.day, tostring(sum.follower), sum.phase, snaps)
 end
 
--- ===== build fallback: สร้างจากโค้ด (ไม่มี instance ให้ใช้) — แพทเทิร์นเดียวกับ HUD.build/PCScreen.build =====
+-- build fallback: สร้างจากโค้ดถ้าไม่มี instance (แพทเทิร์นเดียวกับ HUD.build/PCScreen.build)
 local function corner(o, r)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, r or 8)
@@ -41,7 +30,7 @@ function SavePanel.buildPanel(parent): ScreenGui
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 20
 	gui.Enabled = false
-	gui.IgnoreGuiInset = true -- dim คลุมเต็มจอถึงแถบบนสุด (ไม่เว้นช่อง topbar ~36px)
+	gui.IgnoreGuiInset = true -- dim คลุมเต็มจอ
 
 	local dim = Instance.new("TextButton") -- ฉากหลังมืด กดปิด
 	dim.Name = "Dim"
@@ -116,8 +105,7 @@ function SavePanel.buildPanel(parent): ScreenGui
 	return gui
 end
 
--- ===== glue: หา instance ที่ baked ไว้ (หรือ build fallback) แล้ว wire event ครั้งเดียว =====
--- deps = { fireAction, getState } — เรียกครั้งเดียวตอน Main.client เริ่ม (แพทเทิร์นเดียวกับ HUD.init)
+-- deps = { fireAction, getState } — เรียกครั้งเดียวตอน Main.client เริ่ม
 function SavePanel.init(playerGui, deps)
 	local panelGui = playerGui:FindFirstChild("Gui_SavePanel") or playerGui:WaitForChild("Gui_SavePanel", 5)
 		or SavePanel.buildPanel(playerGui)
@@ -164,18 +152,18 @@ function SavePanel.init(playerGui, deps)
 	for i, b in rows do
 		if b then
 			b.Activated:Connect(function()
-				deps.fireAction({ type = "SaveSlot", slot = i }) -- เพิ่มจุดเซฟใหม่เข้าช่อง (เก็บ 5 ล่าสุด)
+				deps.fireAction({ type = "SaveSlot", slot = i }) -- เพิ่มจุดเซฟใหม่ (เก็บ 5 ล่าสุด)
 				title.Text = ("✅ เพิ่มจุดเซฟช่อง %d แล้ว"):format(i)
 				task.delay(1.2, close)
 			end)
 		end
 	end
-	-- gui ถาวรแล้ว connect ครั้งเดียวพอ — refresh เฉพาะตอนเปิดอยู่ (ไม่งั้นอัปเดตทิ้งเปล่าตลอดเกม)
+	-- gui ถาวร connect ครั้งเดียวพอ — refresh เฉพาะตอนเปิดอยู่
 	RS.Shared.Remotes.StateChanged.OnClientEvent:Connect(function()
 		if panelGui.Enabled then refresh() end
 	end)
 
-	-- ปุ่มเซฟอยู่ในชุด HUD — path ตรงๆ ไม่มีการค้นหา/เดาชื่อ (ย้ายใน Studio แล้วมาแก้ path ตรงนี้)
+	-- ปุ่มเซฟอยู่ในชุด HUD — path ตรงๆ (ย้ายใน Studio แล้วมาแก้ path นี้)
 	local hudRoot = playerGui:FindFirstChild("Gui_HUD") and playerGui.Gui_HUD:FindFirstChild("Root")
 	local btn = hudRoot and hudRoot:FindFirstChild("SaveBtn")
 	if btn then

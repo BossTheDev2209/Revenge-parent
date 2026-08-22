@@ -1,19 +1,13 @@
--- Manage.luau — **layout ตามภาพร่าง `ui screenshot/PC-Bank-2 ui (manage-hire).png`** (PDF หน้า 9 ล่าง, docs/02 §9.8)
---   ซ้าย : "Video per day : x/y" + เส้นคั่น + 3 แถบ speed / Quality / Salary
---   ขวา  : การ์ดพนักงาน 2 คอลัมน์ — ส่วนบน Hirable (แดง) / เส้นคั่นหนา / ส่วนล่าง Active (เขียว)
---   การ์ด: ชื่อ + กรอบรูป (★ เว้นว่างรอรูปวาด) + ปุ่ม hire/fire ซ้าย · speed/Quality/Salary ขวา
+-- Manage — ซ้าย: Video per day + แถบ speed/Quality/Salary · ขวา: การ์ดพนักงาน Hirable/Active (hire/fire)
 -- server ตัดสินเงื่อนไขทั้งหมด — client แค่ยิง action
---
--- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ (แผงซ้าย/แถบ/container ขวา) bake เป็น template
---   การ์ดพนักงานยังสร้างจาก data ตอน refresh (จำนวนเปลี่ยนตาม roster/hire state — ยาวไม่แน่นอนจริง)
---   template จริงอยู่ Gui_PC.Screen.AppTemplates.Manage (แต่งใน Studio ได้)
---   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: Left.PerDayLabel · Left.{Speed,Quality,Salary}{Val,Track.Fill}
---   Right.{HirableList, ActiveList} (ScrollingFrame ว่าง มี UIGridLayout ติดมาแล้ว)
+-- baked template อยู่ Gui_PC.Screen.AppTemplates.Manage · ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน:
+--   Left.PerDayLabel · Left.{Speed,Quality,Salary}{Val,Track.Fill} · Right.{HirableList, ActiveList}
+--   CardTemplate.{NameLabel, Status, ArtSlot, ActionBtn, Stats}
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
 	else require("../../../../shared/Config")
--- โมเดลตัวจริงของพนักงานบนการ์ด (12 ส.ค. 2569, user) — ชื่อโมเดลมาจาก roster[].model (Workspace.NPC.HirableNPC)
+-- โมเดลตัวจริงของพนักงานบนการ์ด (roster[].model ใน Workspace.NPC.HirableNPC)
 local ModelViewport = if isStudio
 	then require(game:GetService("StarterPlayer").StarterPlayerScripts.ModelViewport)
 	else nil
@@ -22,9 +16,7 @@ local Manage = {}
 
 local BLUE = Color3.fromRGB(30, 60, 160)
 
--- ชื่อโมเดลของพนักงาน id นั้น — state.staff เก็บแค่ stat (id/speed/quality/salary) ไม่มี model
--- ต้องย้อนหาใน Config ด้วย id ทั้ง roster และ hire_loyal (ตัว auto ตอน split ไม่อยู่ใน roster)
--- pure: เทสได้ด้วย lune
+-- ชื่อโมเดลของ id นั้น — state.staff เก็บแค่ stat · ย้อนหาใน Config ทั้ง roster และ hire_loyal (pure)
 function Manage.modelNameFor(id: string): string?
 	for _, r in Config.Staff.roster do
 		if r.id == id then return r.model end
@@ -50,7 +42,7 @@ function Manage.create(frame, deps)
 	end
 	local content = template:Clone()
 	content.Name = "ManageContent"
-	content.Visible = true -- template ซ่อนไว้ (Visible=false) กัน render ทับกันตอนพักเป็นแม่แบบ — clone ต้องเปิดเอง
+	content.Visible = true -- template ซ่อนไว้ clone ต้องเปิดเอง
 	content.Parent = frame
 
 	local left = content:FindFirstChild("Left")
@@ -68,21 +60,15 @@ function Manage.create(frame, deps)
 	local right = content:FindFirstChild("Right")
 	local hirableList = right and right:FindFirstChild("HirableList")
 	local activeList = right and right:FindFirstChild("ActiveList")
-	-- โมเดลพนักงานทั้งหมดอยู่โฟลเดอร์เดียว (docs/05) — ไม่มีโฟลเดอร์ = การ์ดใช้ emoji เหมือนเดิม
 	local npcFolder = workspace:FindFirstChild("NPC")
-	local hirableFolder = npcFolder and npcFolder:FindFirstChild("HirableNPC")
+	local hirableFolder = npcFolder and npcFolder:FindFirstChild("HirableNPC") -- ไม่มี = การ์ดใช้ emoji
 
-	-- ★ CardTemplate — การ์ดพนักงานให้ user แต่งใน Studio (12 ส.ค. 2569, user)
-	--   template จริง: Gui_PC.Screen.AppTemplates.Manage.CardTemplate (Visible=false)
-	--   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: NameLabel · Status · ArtSlot · ActionBtn · Stats
-	--   มี CardTemplate = :Clone() ต่อพนักงาน (แต่งหน้าตา/สี/ตำแหน่ง/ขนาดใน Studio ได้เต็มที่)
-	--   ไม่มี = fallback สร้างจากโค้ด (โครงเดิม offset) — ลบ template ทิ้งเกมก็ยังเล่นได้
+	-- CardTemplate (user แต่งใน Studio) : Gui_PC.Screen.AppTemplates.Manage.CardTemplate · ไม่มี = fallback code-build
 	local cardTemplate = template:FindFirstChild("CardTemplate")
 	local dupInClone = content:FindFirstChild("CardTemplate")
-	if dupInClone then dupInClone:Destroy() end -- copy ที่ติดมากับ content (invisible) ไม่ใช้ ลบทิ้ง
+	if dupInClone then dupInClone:Destroy() end -- copy ที่ติดมากับ content ลบทิ้ง
 
-	-- เซ็ตค่า dynamic ลงการ์ด (ข้อความ/สีตามสถานะ/callback) — ใช้ร่วมกันทั้ง 2 ทาง ชื่อลูกเหมือนกัน
-	--   โค้ดแตะแค่ "ข้อมูล" (ชื่อ/stat/hire-fire) ไม่แตะ layout/ฟอนต์/พื้นหลัง — พวกนั้น user คุมใน template
+	-- เซ็ตค่า dynamic ลงการ์ด (แตะแค่ข้อมูล ไม่แตะ layout/ฟอนต์/พื้นหลัง ซึ่ง user คุมใน template)
 	local function populateCard(refs, r, hired)
 		if refs.name then refs.name.Text = tostring(r.id) end
 		if refs.status then
@@ -103,14 +89,14 @@ function Manage.create(frame, deps)
 				deps.fireAction({ type = hired and "FireStaff" or "HireStaff", id = r.id })
 			end)
 		end
-		-- กรอบรูป: render โมเดลตัวจริงลง ViewportFrame · ไม่เจอโมเดล = emoji เหมือนเดิม (ไม่พัง)
+		-- กรอบรูป: render โมเดลจริงลง ViewportFrame · ไม่เจอ = emoji เหมือนเดิม
 		if refs.portrait then
 			refs.portrait.Text = "🧑"
 			local rigName = Manage.modelNameFor(r.id)
 			if ModelViewport and rigName and hirableFolder then
 				local vp = ModelViewport.new(refs.portrait)
 				if vp.showBust(hirableFolder:FindFirstChild(rigName)) then
-					refs.portrait.Text = "" -- โชว์โมเดลแล้ว ไม่ต้องมี emoji ซ้อนหลัง
+					refs.portrait.Text = ""
 				else
 					vp.destroy()
 				end
@@ -118,7 +104,7 @@ function Manage.create(frame, deps)
 		end
 	end
 
-	-- fallback: สร้างการ์ดจากโค้ด (โครงเดิม offset) เมื่อไม่มี CardTemplate ใน Studio
+	-- fallback: สร้างการ์ดจากโค้ด เมื่อไม่มี CardTemplate ใน Studio
 	local function buildCardFromCode(parent, r, hired)
 		local card = Instance.new("Frame")
 		card.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -176,7 +162,7 @@ function Manage.create(frame, deps)
 		return { name = nameLabel, status = status, portrait = portrait, btn = btn, stats = stats }
 	end
 
-	-- การ์ด 1 ใบ — clone CardTemplate (user แต่ง) หรือ fallback code-build · จำนวนเปลี่ยนตาม roster
+	-- การ์ด 1 ใบ — clone CardTemplate หรือ fallback code-build · จำนวนเปลี่ยนตาม roster
 	local function makeCard(parent, r, hired)
 		if not parent then return end
 		if cardTemplate then
@@ -228,7 +214,7 @@ function Manage.create(frame, deps)
 				end
 			end
 		end
-		-- hirable: roster ที่ปลดล็อก (phase+follower+flag ครบ · ตรงกับ StaffService.availableHires) + ยังไม่จ้าง
+		-- hirable: roster ที่ปลดล็อก (ตรงกับ StaffService.availableHires) + ยังไม่จ้าง
 		for _, r in Config.Staff.roster do
 			local hired = false
 			for _, s in staff do
@@ -240,7 +226,7 @@ function Manage.create(frame, deps)
 				makeCard(hirableList, r, false)
 			end
 		end
-		-- active: ทุกตัวใน state.staff (รวม hire_loyal ที่ auto เข้าตอน split ไม่อยู่ roster) — ใช้ stat ที่เก็บใน state
+		-- active: ทุกตัวใน state.staff (รวม hire_loyal ที่ auto เข้าตอน split) — ใช้ stat ที่เก็บใน state
 		for _, s in staff do
 			makeCard(activeList, s, true)
 		end

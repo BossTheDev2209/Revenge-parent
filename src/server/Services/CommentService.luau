@@ -1,6 +1,5 @@
--- CommentService.luau — comment หลังอัปคลิป + การตอบ = **ช่องทางเดียวที่นับ choice %** (design doc §6)
--- PDF หน้า 8 (user lock 21 ก.ค.): slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป, ตอบได้ heart/ช้อย/ปล่อยผ่าน
--- pool ข้อความอยู่ Content/Comments.luau — ทีมเติมได้ไม่แตะไฟล์นี้
+-- CommentService — comment หลังอัปคลิป + การตอบ = ช่องทางเดียวที่นับ choice % (design doc §6)
+-- slot ⊖/◎/⊕ อย่างละใบ ทอยแยกอิสระตามเกรดคลิป · pool ข้อความอยู่ Content/Comments
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -21,8 +20,7 @@ end
 
 local SLOT_ORDER = { "neg", "neu", "pos" } -- ลำดับทอยตายตัว (เทส deterministic)
 
--- เรียกหลัง uploadClip สำเร็จ (wiring ใน Main) — ทอยแยก slot ละ sentiment ตามเกรดคลิป
--- rng ใช้: ทอยโอกาสต่อ slot แล้ว(ถ้าออก)ทอยเลือกใบจาก pool
+-- ทอยแยก slot ละ sentiment ตามเกรดคลิป
 function CommentService.generate(state, tier, rng)
 	rng = rng or math.random
 	local chances = Config.Comments.chanceByTier[tier]
@@ -42,8 +40,7 @@ local ALLOWED = {
 	neu = { accept = "accept", sarcasm = "sarcasm" },
 }
 
--- ตอบใบแรกในคิว: action.response = "heart"|"accept"|"sarcasm"|"insult"|"skip"
--- คืน (handled, countTag|nil, mentalReason|nil) — skip = handled แต่ไม่นับไม่แตะใจ
+-- ตอบใบแรกในคิว · คืน (handled, countTag|nil, mentalReason|nil) — skip = handled แต่ไม่นับ
 function CommentService.answer(state, action)
 	local pending = state.pendingComments[1]
 	if not pending then return false end
@@ -56,8 +53,7 @@ function CommentService.answer(state, action)
 	table.remove(state.pendingComments, 1)
 	local tag = Config.Comments.countAs[kind]
 	if tag then state.choices[tag] += 1 end
-	-- ชื่อ reason ใน Config.Mental.deltas: heartPos → commentHeartPos ฯลฯ
-	local reason = "comment" .. kind:sub(1, 1):upper() .. kind:sub(2)
+	local reason = "comment" .. kind:sub(1, 1):upper() .. kind:sub(2) -- heartPos → commentHeartPos
 	return true, tag, reason
 end
 

@@ -1,6 +1,5 @@
--- ActionRouter.luau — ประตูรับทุกการกระทำจาก client เส้นเดียว
--- service ลงทะเบียน handler ด้วย register(type, fn) ตอน boot (ใน Main)
--- เพิ่มฟีเจอร์ใหม่ = register type ใหม่ — ห้ามสร้าง RemoteEvent เพิ่ม (docs/06 §3)
+-- ActionRouter — client action ทุกอันวิ่งผ่านที่นี่เส้นเดียว
+-- เพิ่มฟีเจอร์ = register(type, fn) ตอน boot ใน Main · ห้ามสร้าง RemoteEvent เพิ่ม
 local ActionRouter = {}
 local handlers = {}
 
@@ -9,8 +8,7 @@ function ActionRouter.register(actionType: string, fn)
 	handlers[actionType] = fn
 end
 
--- คืน true ถ้ามี handler รับ, false ถ้า action เพี้ยน/ไม่รู้จัก (ไม่ crash — client ส่งมั่วได้)
--- player (arg 3) ส่งต่อให้ handler ที่ต้องใช้ (save/load) — handler เดิมไม่สนก็ไม่กระทบ
+-- คืน true ถ้ามี handler รับ · action เพี้ยน/ไม่รู้จัก = false (ไม่ crash — client ส่งมั่วได้)
 function ActionRouter.route(state, action, player): boolean
 	local h = type(action) == "table" and action.type and handlers[action.type]
 	if not h then

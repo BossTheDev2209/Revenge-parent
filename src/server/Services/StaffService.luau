@@ -1,6 +1,5 @@
--- StaffService.luau — พนักงานจ้าง + เพื่อนร่วมทาง (docs/02 §9.8)
--- พนักงานผลิตคลิป auto ครบวงจร: ได้ follower/เงินเลย ไม่กิน footage ไม่มี viral ไม่คูณ mental
--- ไม่เรียก push / ไม่ require service อื่น — Main compose
+-- StaffService — พนักงานจ้าง + เพื่อนร่วมทาง (docs/02 §9.8)
+-- พนักงานผลิตคลิป auto: ได้ follower/เงินเลย ไม่กิน footage ไม่มี viral ไม่คูณ mental
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -11,14 +10,11 @@ local Formulas = if isStudio
 
 local StaffService = {}
 
--- ===== pure =====
-
--- คลิป/วันของ speed หนึ่งค่า
 function StaffService.clipsPerDay(speed: number): number
 	return speed / Config.Staff.clipsPerDayPerSpeed
 end
 
--- quality → tier (สุ่ม) ตามตารางน้ำหนัก docs/02 §9.8
+-- quality → tier (สุ่มตามตารางน้ำหนัก)
 function StaffService.rollTier(quality: number, rng): string
 	rng = rng or math.random
 	local row
@@ -38,7 +34,7 @@ function StaffService.rollTier(quality: number, rng): string
 	return "S"
 end
 
--- roster ที่ปลดล็อกแล้ว: ต้องครบทั้ง phase และ follower (docs/02 §9.8)
+-- roster ที่ปลดล็อกแล้ว: ครบทั้ง phase และ follower (+ flag ถ้ามี)
 function StaffService.availableHires(state)
 	local out = {}
 	for _, r in Config.Staff.roster do
@@ -57,8 +53,6 @@ local function findRoster(id: string)
 	return nil
 end
 
--- ===== จ้าง / ไล่ =====
-
 function StaffService.isHired(state, id: string): boolean
 	for _, s in state.staff do
 		if s.id == id then return true end
@@ -66,7 +60,7 @@ function StaffService.isHired(state, id: string): boolean
 	return false
 end
 
--- คืน true ถ้าจ้างสำเร็จ (ปลดล็อกแล้ว + ยังไม่จ้าง + ไม่เกิน cap)
+-- จ้าง: ปลดล็อกแล้ว + ยังไม่จ้าง + ไม่เกิน cap
 function StaffService.hire(state, id: string): boolean
 	local r = findRoster(id)
 	if not r then return false end
@@ -78,9 +72,8 @@ function StaffService.hire(state, id: string): boolean
 	return true
 end
 
--- event "พนักงานตีกัน" (flags.staffSplit) — hire ที่ tag leavesOnSplit ลาออก + worldNPC ผู้ภักดี auto เข้าแทน
--- ต่างจาก resign (ไล่คนแพงตอนจ่ายไม่ไหว) — อันนี้ scripted ตามเนื้อเรื่อง ไม่สน salary
--- คืน { left = {ids ที่ออก}, joined = id ผู้ภักดี or nil } ให้ Main เอาไปโชว์ DM/cutscene · เรียกซ้ำปลอดภัย
+-- event "พนักงานตีกัน": hire ที่ tag leavesOnSplit ออก + worldNPC ผู้ภักดี auto เข้าแทน
+-- คืน { left = {ids ที่ออก}, joined = id ผู้ภักดี or nil } · เรียกซ้ำปลอดภัย
 function StaffService.splitStaff(state)
 	local left = {}
 	for i = #state.staff, 1, -1 do
@@ -109,9 +102,7 @@ function StaffService.fire(state, id: string): boolean
 	return false
 end
 
--- ===== เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง) =====
-
--- เรียกทุกครั้งที่ follower/เฟสเปลี่ยน — เข้าทีมเอง, โตตามเฟส, ออกตอนทรยศ
+-- เพื่อนร่วมทาง (auto ตามเนื้อเรื่อง): เข้าเอง, โตตามเฟส, ออกตอนทรยศ
 function StaffService.syncCompanions(state)
 	for _, c in Config.Staff.companions do
 		local idx
@@ -135,7 +126,7 @@ function StaffService.syncCompanions(state)
 	end
 end
 
--- ทีมทั้งหมด (จ้าง + เพื่อน) — ใช้คิดกำลังผลิตและสรุปหน้า Manage
+-- ทีมทั้งหมด (จ้าง + เพื่อน)
 function StaffService.team(state)
 	local all = {}
 	for _, s in state.staff do table.insert(all, s) end
@@ -160,11 +151,8 @@ function StaffService.summary(state)
 	}
 end
 
--- ===== ผลิตรายวัน =====
-
--- เรียกจาก TimeService.onDay (wiring ใน Main)
--- เศษคลิปสะสมข้ามวันใน state.staffClipCarry (speed ต่ำกว่า 20 ก็ได้คลิปในที่สุด)
--- คืน list ผลลัพธ์ต่อคลิป { tier=, gained=, money= } ให้ Main เอาไปสร้าง comment ต่อ
+-- ผลิตรายวัน (TimeService.onDay) — เศษคลิปสะสมข้ามวันใน staffClipCarry
+-- คืน list { tier, gained, money } ต่อคลิป ให้ Main สร้าง comment ต่อ
 function StaffService.produceDaily(state, rng)
 	rng = rng or math.random
 	local team = StaffService.team(state)
@@ -181,8 +169,7 @@ function StaffService.produceDaily(state, rng)
 		state.staffClipCarry[m.id] = carry - count
 		for _ = 1, count do
 			local tier = StaffService.rollTier(m.quality, rng)
-			-- ไม่มี viral ไม่คูณ mental (docs/02 §9.8) — อ่อนกว่าคลิป player เสมอ
-			local gained = math.floor(mid * Formulas.vidqMultiplier(tier))
+			local gained = math.floor(mid * Formulas.vidqMultiplier(tier)) -- ไม่มี viral/mental
 			local money = Formulas.moneyGain(gained, phase)
 			state.follower += gained
 			state.money += money
@@ -194,8 +181,6 @@ function StaffService.produceDaily(state, rng)
 	return results
 end
 
--- ===== เงินเดือน =====
-
 function StaffService.weeklySalary(state): number
 	local total = 0
 	for _, s in state.staff do
@@ -204,8 +189,7 @@ function StaffService.weeklySalary(state): number
 	return total
 end
 
--- จ่ายไม่ไหว → ไล่คนแพงสุดออกทีละคนจนจ่ายไหว (docs/02 §9.8)
--- คืน list id ที่ลาออก
+-- จ่ายไม่ไหว → ไล่คนแพงสุดออกทีละคนจนจ่ายไหว · คืน list id ที่ลาออก
 function StaffService.resign(state, affordable: number)
 	local left = {}
 	while StaffService.weeklySalary(state) > affordable and #state.staff > 0 do

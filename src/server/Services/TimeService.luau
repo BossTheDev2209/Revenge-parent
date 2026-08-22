@@ -1,6 +1,5 @@
--- TimeService.luau — นาฬิกากลางของเกม: tick รายชั่วโมงเกม
--- ระบบอื่นห้ามนับเวลาเอง — สมัครฟังผ่าน onHour/onDay (wiring ใน Main ที่เดียว)
--- pure ทั้งไฟล์ยกเว้น start() (Roblox loop)
+-- TimeService — นาฬิกากลาง: tick รายชั่วโมงเกม
+-- ระบบอื่นห้ามนับเวลาเอง — สมัครฟังผ่าน onHour/onDay (wiring ใน Main)
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -28,15 +27,15 @@ function TimeService.tick(state)
 	for _, f in hourFns do f(state) end
 end
 
--- PDF หน้า 6: เริ่มนอนช่วง 18:00–5:59 ข้าม 8 ชม. | นอกช่วงข้าม 12 ชม.
+-- เริ่มนอนช่วง 18:00–5:59 ข้าม 8 ชม. · นอกช่วงข้าม 12 ชม.
 function TimeService.sleepHours(hour: number): number
 	local s = Config.Time.sleep
 	local inWindow = hour >= s.windowStart or hour < s.windowEnd
 	return inWindow and s.normalHours or s.outsideHours
 end
 
--- นอน: เดินเวลาทีละชั่วโมงผ่าน tick ปกติ → onDay/onHour ยิงถูกจังหวะเอง
--- state.sleeping = true ระหว่างนี้ ให้ MentalService รู้ว่าเป็นชั่วโมงหลับ (ไม่ drain — fix 29 ก.ค.)
+-- นอน = เดินเวลาทีละชั่วโมงผ่าน tick (onDay/onHour ยิงถูกจังหวะเอง)
+-- sleeping = true ให้ MentalService รู้ว่าเป็นชั่วโมงหลับ (ไม่ drain)
 function TimeService.sleep(state)
 	state.sleeping = true
 	for _ = 1, TimeService.sleepHours(state.timeOfDay) do
@@ -45,7 +44,6 @@ function TimeService.sleep(state)
 	state.sleeping = false
 end
 
--- ===== Roblox glue (Studio เท่านั้น) =====
 function TimeService.start(state)
 	task.spawn(function()
 		while true do

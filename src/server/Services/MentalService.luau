@@ -1,5 +1,4 @@
--- MentalService.luau — หลอดใจ: drain + delta จาก action (design doc §3)
--- option ข: ยังไม่มี drain modifiers — รอ user ตัดสินอายุ (flag ใน docs/08 §4)
+-- MentalService — หลอดใจ: drain + delta จาก action (design doc §3)
 -- bar เข้าระบบตอน phase 2 (Config.Mental.introducedInPhase) — ก่อนนั้น no-op ทั้งไฟล์
 local isStudio = script ~= nil
 local Config = if isStudio
@@ -34,7 +33,7 @@ end
 function MentalService.applyDelta(state, delta: number)
 	if state.phase < Config.Mental.introducedInPhase then return end
 	if delta > 0 then
-		delta *= MentalService.recoverMultiplier(state) -- ฝั่งดี = ฟื้นแรงขึ้น (docs/02 §3)
+		delta *= MentalService.recoverMultiplier(state) -- ฝั่งดี = ฟื้นแรงขึ้น
 	end
 	state.mental = math.clamp(state.mental + delta, 0, 100)
 	if state.mental <= 0 then
@@ -42,7 +41,7 @@ function MentalService.applyDelta(state, delta: number)
 	end
 end
 
--- reason = key ใน Config.Mental.deltas (clipEdit / viralClip / rentMissed / ...)
+-- reason = key ใน Config.Mental.deltas
 function MentalService.apply(state, reason: string)
 	local d = Config.Mental.deltas[reason]
 	assert(d, "ไม่รู้จัก mental reason: " .. tostring(reason))
@@ -61,13 +60,13 @@ function MentalService.onHour(state)
 	MentalService.onHourAwake(state)
 end
 
--- ===== Drain/Recovery Modifiers (docs/02 §3 lock 19 ก.ค.) =====
+-- ===== Drain/Recovery Modifiers (docs/02 §3) =====
 
 local function totalHours(state): number
 	return state.day * 24 + state.timeOfDay
 end
 
--- เพิ่ม mod ตามชื่อใน Config.Mental.mods — ติดซ้ำ = refresh อายุ ไม่เบิ้ล
+-- ติดซ้ำ = refresh อายุ ไม่เบิ้ล
 function MentalService.addMod(state, id: string)
 	local spec = Config.Mental.mods[id]
 	assert(spec, "ไม่รู้จัก mod: " .. tostring(id))
@@ -89,7 +88,6 @@ local function removeMods(state, predicate)
 	end
 end
 
--- ลบ mod ที่หมดอายุตามชั่วโมงเกม (เรียกทุก onHour)
 function MentalService.expireMods(state)
 	local now = totalHours(state)
 	removeMods(state, function(m) return m.expireHour and now >= m.expireHour end)
@@ -114,7 +112,7 @@ function MentalService.recoverMultiplier(state): number
 	return multiplier(state, "recover")
 end
 
--- ===== Event hooks (Main เรียกจาก handler — logic streak อยู่ที่นี่ทั้งหมด) =====
+-- ===== Event hooks (Main เรียกจาก handler) =====
 
 -- ตัดคลิปโดยไม่ทำ activity คั่น ครบ 5 → EditStreak5
 function MentalService.onEdit(state)
@@ -124,7 +122,7 @@ function MentalService.onEdit(state)
 	end
 end
 
--- activity ล้าง: edit streak + mod ที่หายด้วย activity
+-- activity ล้าง edit streak + mod ที่หายด้วย activity
 function MentalService.onActivityDone(state)
 	state.streaks.edit = 0
 	removeMods(state, function(m)
@@ -133,7 +131,7 @@ function MentalService.onActivityDone(state)
 	end)
 end
 
--- ตอบ comment: นับ streak สองฝั่ง — ตอบดีล้าง CommentBadStreak3 ทันที (ตาม PDF)
+-- ตอบ comment: นับ streak สองฝั่ง — ตอบดีล้าง CommentBadStreak3 ทันที
 function MentalService.onCommentAnswered(state, tag: string)
 	if tag == "neg" then
 		state.streaks.commentBad += 1
@@ -151,7 +149,7 @@ function MentalService.onCommentAnswered(state, tag: string)
 	end
 end
 
--- viral สองวันติดกัน → ViralStreak2
+-- viral สองวันติด → ViralStreak2
 function MentalService.onViral(state)
 	if state.day == state.lastViralDay + 1 then
 		MentalService.addMod(state, "ViralStreak2")
@@ -159,7 +157,7 @@ function MentalService.onViral(state)
 	state.lastViralDay = state.day
 end
 
--- นับชั่วโมงตื่น (เรียกทุก onHour) — ครบ 20 → NoSleep จนกว่าจะนอน
+-- นับชั่วโมงตื่น ครบ 20 → NoSleep จนกว่าจะนอน
 function MentalService.onHourAwake(state)
 	state.awakeHours += 1
 	if state.awakeHours >= Config.Mental.awakeHoursForNoSleep then
@@ -172,15 +170,15 @@ function MentalService.onSleep(state)
 	removeMods(state, function(m) return Config.Mental.mods[m.id].untilEvent == "sleep" end)
 end
 
--- Canon event trigger → drain แรงขึ้น 1 วัน
+-- Canon event → drain แรงขึ้น 1 วัน
 function MentalService.onCanonEvent(state)
 	MentalService.addMod(state, "CanonEvent")
 end
 
--- Activity system (แทน Thai mini-games — design doc §9): Interact_Bed/Kitchen/Exercise
+-- Activity system (design doc §9): Interact_Bed/Kitchen/Exercise
 local ACTIVITY_REASON = { Bed = "activityRest", Kitchen = "activityEat", Exercise = "activityExercise" }
 
--- คืน true ถ้าทำได้ (client ค่อยเล่น cutscene 5-10 วิ) — ติดกันเกิน maxStreak = cooldown ข้ามวัน
+-- คืน true ถ้าทำได้ · ติดกันเกิน maxStreak = cooldown ข้ามวัน
 function MentalService.doActivity(state, name): boolean
 	local reason = ACTIVITY_REASON[name]
 	if not reason then return false end

@@ -1,5 +1,5 @@
--- EndingService.luau — ตัดสิน ending (design doc §5)
--- priority: จบแล้ว → Bad1 (เงิน/ไล่ที่ ×2) → Bad2 (mental 0) → ถึง 1M ค่อยเข้าสูตร % → ยังไม่จบ
+-- EndingService — ตัดสิน ending (design doc §5)
+-- priority: จบแล้ว → Bad1 (เงิน/ไล่ที่) → Bad2 (mental 0) → ถึง 1M เข้าสูตร % → ยังไม่จบ
 local isStudio = script ~= nil
 local Config = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -18,7 +18,7 @@ function EndingService.computeStats(state)
 		counts[clip.tier] += 1
 		n += 1
 	end
-	-- คลิปทีมนับครึ่งเดียว (docs/02 §9.8) — ทีมช่วยดันเกรดได้ แต่ ending ยังสะท้อนฝีมือ player
+	-- คลิปทีมนับครึ่งเดียว — ทีมดันเกรดได้ แต่ ending ยังสะท้อนฝีมือ player
 	local w = Config.Staff.vidqWeight
 	for _, clip in state.staffClips or {} do
 		counts[clip.tier] += w
@@ -38,9 +38,9 @@ function EndingService.computeStats(state)
 	return { vidq = vidq, choice = choice }
 end
 
--- คืนชื่อ ending ("Bad1".."Good1") หรือ nil ถ้าเกมยังไม่จบ — Main เรียกหลังทุก action/วันใหม่
+-- คืนชื่อ ending หรือ nil ถ้ายังไม่จบ — Main เรียกหลังทุก action/วันใหม่
 function EndingService.check(state)
-	if state.flags.ending then return nil end -- จบไปแล้ว ไม่ trigger ซ้ำ
+	if state.flags.ending then return nil end
 	if (state.flags.rentMissed or 0) >= 2 then return "Bad1" end
 	if state.flags.mentalZero then return "Bad2" end
 	local lastGate = Config.PhaseGates[#Config.PhaseGates].max

@@ -1,12 +1,6 @@
--- Feedback.luau — **layout ตาม PDF หน้า 8** (ไม่มีภาพร่างแยกในโฟลเดอร์ ui screenshot)
---   ซ้าย : Latest upload (list คลิป + views) + กราฟ follower 7 วัน (★ แท่งเปล่ารอ history จริง)
---   ขวา  : Comment from [คลิป] + ปุ่มตอบ (ช่องเดียวที่นับ choice — design doc §6)
--- ย้ายการตอบ comment จาก floating CommentUI เข้ามาที่นี่ตาม PDF หน้า 5
---
--- ★ baked เป็น instance จริงแล้ว (9 ส.ค.) — โครงคงที่ (หัวข้อ/กราฟ 7 แท่ง/กรอบ) bake เป็น template
---   ส่วนที่ยาวไม่แน่นอนจริง (list คลิป/ปุ่มตอบ comment) ยังสร้างจาก data ตอน refresh เหมือนเดิม
---   template จริงอยู่ Gui_PC.Screen.AppTemplates.Feedback (แต่งใน Studio ได้)
---   ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: History (ScrollingFrame ว่าง) · Graph.Bar1-7 · CommentLabel · ButtonArea (ว่าง)
+-- Feedback — ซ้าย: list คลิป + กราฟ follower 7 วัน · ขวา: comment + ปุ่มตอบ (ช่องเดียวที่นับ choice)
+-- baked template อยู่ Gui_PC.Screen.AppTemplates.Feedback (แต่งใน Studio ได้)
+-- ชื่อลูกที่โค้ดอ้าง ห้ามเปลี่ยน: History · Graph.Bar1-7 · CommentLabel · ButtonArea
 local isStudio = script ~= nil
 local Comments = if isStudio
 	then require(game:GetService("ReplicatedStorage").Shared.Content.Comments)
@@ -23,7 +17,7 @@ function Feedback.create(frame, deps)
 	end
 	local content = template:Clone()
 	content.Name = "FeedbackContent"
-	content.Visible = true -- template ซ่อนไว้ (Visible=false) กัน render ทับกันตอนพักเป็นแม่แบบ — clone ต้องเปิดเอง
+	content.Visible = true -- template ซ่อนไว้ (Visible=false) clone ต้องเปิดเอง
 	content.Parent = frame
 
 	local history = content:FindFirstChild("History")
@@ -89,7 +83,7 @@ function Feedback.create(frame, deps)
 
 	local app = {}
 	function app.refresh(state)
-		-- list คลิปที่อัปแล้ว (ใหม่สุดบน) — ยาวไม่แน่นอน ยังสร้างจาก data
+		-- list คลิปที่อัปแล้ว (ใหม่สุดบน)
 		if history then
 			for _, ch in history:GetChildren() do
 				if ch:IsA("TextLabel") then ch:Destroy() end
@@ -115,7 +109,7 @@ function Feedback.create(frame, deps)
 			l.Text = "ยังไม่มีคลิปที่อัปแล้ว"
 		end
 
-		-- กราฟ: 7 คลิปล่าสุด สเกลตามค่าสูงสุด (แท่งคงที่ 7 อันจาก template แค่ปรับความสูง)
+		-- กราฟ: 7 คลิปล่าสุด สเกลตามค่าสูงสุด (แท่งคงที่ 7 อันจาก template ปรับความสูง)
 		local maxGain = 1
 		for _, c in recent do maxGain = math.max(maxGain, c.gained or 0) end
 		for i = 1, 7 do
@@ -140,7 +134,7 @@ function Feedback.create(frame, deps)
 				commentLabel.Text = ("💬 %s (%d รอตอบ) %s"):format(mark, #state.pendingComments, c.text)
 			end
 
-			-- ช้อยตอบ (⊖/◎) — สุ่มลำดับกัน player กดบนตลอด (user 21 ก.ค.)
+			-- ช้อยตอบ — สุ่มลำดับกัน player กดบนตลอด
 			local opts = {}
 			if c.replies then
 				for kind, text in c.replies do

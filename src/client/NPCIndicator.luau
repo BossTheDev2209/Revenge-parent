@@ -1,24 +1,8 @@
--- NPCIndicator.luau — วงขาวใต้เท้า NPC + หันตัวมองผู้เล่นเมื่อเข้าใกล้ (จำกัดองศาจากทิศตั้งต้น)
---
--- ★ component ล้วน ไม่ผูกกับระบบไหน — เรียก attach เมื่อไหร่ก็ได้ ไม่แตะ InteractBinder/Dialogue/บทพูด
---   ยังไม่ได้เปิดใช้อัตโนมัติ (ตั้งใจ — กันชนกับงานที่ทำค้างอยู่) เปิดเมื่อพร้อมด้วย:
---     local NPCIndicator = require(script.Parent.NPCIndicator)
---     NPCIndicator.attachAll(workspace.NPC.WorldNPC)       -- ทั้งโฟลเดอร์
---     NPCIndicator.attachAll(workspace.NPC.StoryNPC)       -- StoryNPC ก็ใช้ตัวเดียวกัน
---     local h = NPCIndicator.attach(someModel, { maxAngle = 45 })   -- ทีละตัว + ปรับค่า
---     h:destroy()                                          -- ถอดคืน (ลบวง + คืนท่าหันตั้งต้น)
---
--- วงแหวน = SurfaceGui + UICorner(0.5) + UIStroke — **ไม่ใช้ asset/decal ภายนอกเลย**
---   (หา decal วงกลมฟรีใน Toolbox ได้ แต่ asset ภายนอกโดน moderate/หายได้ ของ built-in คุมเองจบกว่า)
---
--- **หันทั้งตัวแบบ stiff** — `model:PivotTo(basePivot * CFrame.Angles(0, yaw, 0))` หมุนรอบแกน Y ทั้งโมเดล
---   ไม่ยุ่ง Motor6D/ข้อต่อคอ ไม่ต้องมี IKControl · ทำงานได้ทั้ง rig ที่ anchor เฉพาะ HumanoidRootPart
---   และที่ anchor ทุกชิ้น (PivotTo ย้าย CFrame ให้ทุก part ตรงๆ) — ดู docs/05 §3 เรื่อง anchor NPC
---   Dev Forum ที่มีอยู่เป็นสูตรหันเฉพาะหัวด้วย Motor6D ซึ่งซับซ้อนกว่าและยังไม่มี thread ไหนแก้ clamp ได้จบ
---
--- clamp องศา: **wrap เข้าช่วง ±180 ก่อน แล้วค่อย clamp** (ดู clampYawDelta)
---   ไม่ wrap ก่อน = ทิศตั้งต้นใกล้ ±180 ค่าจะเด้งเป็น ±340 แล้ว clamp ผิดข้าง — บั๊กที่คนใน Dev Forum ติดกัน
--- isStudio guard: yawOf/clampYawDelta pure ล้วน เทสได้ด้วย lune (ไม่มี `game` ตอน require)
+-- NPCIndicator — วงขาวใต้เท้า NPC + หันตัวมองผู้เล่นเมื่อเข้าใกล้ (จำกัดองศาจากทิศตั้งต้น)
+-- component ล้วน: attach(model, opts?) / attachAll(container) / handle:destroy()
+-- หันทั้งตัวด้วย PivotTo (ไม่ยุ่ง Motor6D/คอ) — ใช้ได้ทั้ง rig ที่ anchor HRP และ anchor ทุกชิ้น
+-- วงแหวน = SurfaceGui + UICorner + UIStroke ไม่ใช้ asset ภายนอก (กันโดน moderate)
+-- isStudio guard: yawOf/clampYawDelta pure เทสด้วย lune ได้
 local isStudio = script ~= nil
 local RunService = isStudio and game:GetService("RunService")
 local Players = isStudio and game:GetService("Players")
@@ -31,29 +15,24 @@ local DEFAULTS = {
 	thickness = 6, -- ความหนาเส้นวง (px บน SurfaceGui)
 	transparency = 0.15,
 	lookRadius = 14, -- เข้าใกล้กว่านี้ = เริ่มหันมอง (studs)
-	maxAngle = 70, -- หันได้ไม่เกินกี่องศาจากทิศที่วางไว้ตอนแรก (ซ้าย/ขวาข้างละเท่านี้)
-	turnSpeed = 6, -- ความไวในการหัน (ยิ่งมากยิ่งเด้งไว)
+	maxAngle = 70, -- หันได้ไม่เกินกี่องศาจากทิศตั้งต้น (ข้างละเท่านี้)
+	turnSpeed = 6, -- ความไวในการหัน
 	ringVisible = true,
 }
 
--- ===== pure (เทสด้วย lune) =====
-
--- มุมหันของทิศทาง: หน้าโมเดล (0,0,-1) = 0 เรเดียน · หมุนทวนเข็มเมื่อมองจากด้านบนเป็นบวก
--- ใช้คู่กับ CFrame.Angles(0, yaw, 0) ได้ตรงๆ
+-- มุมหันของทิศทาง: หน้าโมเดล (0,0,-1) = 0 · ใช้คู่ CFrame.Angles(0, yaw, 0)
 function NPCIndicator.yawOf(dirX: number, dirZ: number): number
 	return math.atan2(-dirX, -dirZ)
 end
 
--- ส่วนต่างมุมที่หันได้จริง เทียบทิศตั้งต้น — **wrap เข้าช่วง ±180 ก่อน แล้วค่อย clamp**
--- ไม่ wrap ก่อน = ตอนทิศตั้งต้นอยู่ใกล้ ±180 ค่าจะเด้งเป็น ±340 แล้ว clamp ผิดข้าง (บั๊กที่ Dev Forum ติด)
+-- ส่วนต่างมุมที่หันได้ เทียบทิศตั้งต้น — ⚠️ wrap เข้าช่วง ±180 ก่อน แล้วค่อย clamp
+-- (ไม่ wrap = ทิศตั้งต้นใกล้ ±180 ค่าเด้งเป็น ±340 แล้ว clamp ผิดข้าง)
 function NPCIndicator.clampYawDelta(baseYaw: number, targetYaw: number, maxAngleDeg: number): number
 	local d = (targetYaw - baseYaw) % (2 * math.pi)
 	if d > math.pi then d -= 2 * math.pi end
 	local limit = math.rad(math.abs(maxAngleDeg))
 	return math.clamp(d, -limit, limit)
 end
-
--- ===== วงแหวน =====
 
 local function buildRing(model: Model, opts): Part
 	local cf, size = model:GetBoundingBox()
@@ -65,10 +44,9 @@ local function buildRing(model: Model, opts): Part
 	ring.CanCollide = false
 	ring.CanQuery = false
 	ring.CanTouch = false
-	ring.Transparency = 1 -- ตัว Part ไม่โชว์ — เห็นแค่เส้นวงบน SurfaceGui
+	ring.Transparency = 1 -- Part ไม่โชว์ — เห็นแค่เส้นวงบน SurfaceGui
 	ring.Size = Vector3.new(d, 0.05, d)
-	-- วางที่พื้นใต้เท้า ยกขึ้นนิดกัน z-fighting กับพื้น
-	ring.CFrame = CFrame.new(cf.Position.X, cf.Position.Y - size.Y / 2 + 0.05, cf.Position.Z)
+	ring.CFrame = CFrame.new(cf.Position.X, cf.Position.Y - size.Y / 2 + 0.05, cf.Position.Z) -- พื้นใต้เท้า ยกกัน z-fighting
 
 	local sg = Instance.new("SurfaceGui")
 	sg.Name = "Ring"
@@ -84,7 +62,7 @@ local function buildRing(model: Model, opts): Part
 	circle.Parent = sg
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.5, 0) -- 0.5 = กลมพอดี
+	corner.CornerRadius = UDim.new(0.5, 0)
 	corner.Parent = circle
 
 	local stroke = Instance.new("UIStroke")
@@ -95,8 +73,6 @@ local function buildRing(model: Model, opts): Part
 
 	return ring
 end
-
--- ===== registry + loop เดียวคุมทุกตัว =====
 
 local active = {} -- [handle] = true
 local conn = nil
@@ -138,10 +114,8 @@ local function step(dt: number)
 	end
 end
 
---[[ ผูกวง + การหันมองให้ NPC หนึ่งตัว
-	model = Model ของ NPC (ต้องมี PrimaryPart ไม่งั้น pivot เพี้ยนตอนหมุน)
-	opts  = ทับค่าใน DEFAULTS เฉพาะคีย์ที่ใส่มา
-	คืน handle: h:destroy() ถอดคืน · h:setRingVisible(bool) เปิด/ปิดเฉพาะวง ]]
+-- ผูกวง + การหันมองให้ NPC หนึ่งตัว · model ต้องมี PrimaryPart · opts ทับ DEFAULTS
+-- คืน handle: h:destroy() ถอดคืน · h:setRingVisible(bool)
 function NPCIndicator.attach(model: Model, opts: { [string]: any }?)
 	assert(model and model:IsA("Model"), "NPCIndicator.attach ต้องการ Model")
 
@@ -150,8 +124,7 @@ function NPCIndicator.attach(model: Model, opts: { [string]: any }?)
 	for k, v in opts or {} do o[k] = v end
 
 	if not model.PrimaryPart then
-		warn(("[NPCIndicator] %s ไม่มี PrimaryPart — pivot อิงกรอบโมเดล หมุนแล้วอาจขยับตำแหน่ง")
-			:format(model:GetFullName()))
+		warn(("[NPCIndicator] %s ไม่มี PrimaryPart — หมุนแล้วอาจขยับตำแหน่ง"):format(model:GetFullName()))
 	end
 
 	local basePivot = model:GetPivot()
@@ -188,7 +161,7 @@ function NPCIndicator.attach(model: Model, opts: { [string]: any }?)
 	return handle
 end
 
--- ผูกให้ทุก Model ลูกตรงของ container (เช่น workspace.NPC.WorldNPC) — คืน list ของ handle
+-- ผูกทุก Model ลูกตรงของ container — คืน list ของ handle
 function NPCIndicator.attachAll(container: Instance, opts: { [string]: any }?)
 	local handles = {}
 	for _, m in container:GetChildren() do

@@ -1,8 +1,5 @@
--- Notify.luau — toast แจ้งเตือนมุมขวาล่าง สไตล์ Windows 11 (การ์ดโค้งมน เลื่อนเข้าจากขวา ซ้อนขึ้นบน หายเอง)
--- ใช้ 2 ที่ (ดีไซน์เดียวกัน บิดสี/ไอคอนต่างกันนิดเดียว):
---   Notify.gain(follower, money) — ทีม/เพื่อนร่วมทาง auto ลงคลิป (follower/เงินขึ้นเอง ไม่งั้นงงว่ามาจากไหน)
---   Notify.dm(from, preview)      — DM ใหม่เข้า
--- เสียงเบาๆ เล่นเองตอนเด้ง (Audio.sfx + volumeScale) — ทีมวาง Sound "notify"/"dm" ทับได้ ไม่มี = ใช้ที่ reuse
+-- Notify — toast มุมขวาล่างสไตล์ Win11 (เลื่อนเข้าจากขวา ซ้อนขึ้นบน หายเอง)
+-- Notify.gain(follower, money) = ทีม auto ลงคลิป · Notify.sponsor / Notify.dm
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Audio = require(script.Parent.AudioService)
@@ -40,8 +37,7 @@ local function ensureContainer()
 	return frame
 end
 
--- opts = { title, body, icon (emoji), accent (Color3), sound, soundVol,
---          action = { text, onClick } — มีปุ่มให้กดบนการ์ด (เช่นรับงาน sponsor) กดแล้วการ์ดปิดเอง }
+-- opts = { title, body, icon, accent, sound, soundVol, hold, action = { text, onClick } }
 function Notify.push(opts)
 	local stack = ensureContainer()
 
@@ -55,7 +51,7 @@ function Notify.push(opts)
 	local card = Instance.new("Frame")
 	card.Size = UDim2.fromScale(1, 1)
 	card.Position = UDim2.fromScale(0.18, 0) -- เริ่มเยื้องขวา เดี๋ยว tween เข้า 0
-	card.BackgroundColor3 = Color3.fromRGB(32, 32, 38) -- การ์ดเข้มแบบ Win11 dark
+	card.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
 	card.BackgroundTransparency = 1
 	card.BorderSizePixel = 0
 	card.Parent = holder
@@ -68,7 +64,7 @@ function Notify.push(opts)
 	stroke.Transparency = 1
 	stroke.Parent = card
 
-	local accentBar = Instance.new("Frame") -- แถบสีซ้าย = ตัวบิดให้ 2 แบบต่างกัน
+	local accentBar = Instance.new("Frame") -- แถบสีซ้าย
 	accentBar.Size = UDim2.new(0, 4, 1, -16)
 	accentBar.Position = UDim2.fromOffset(8, 8)
 	accentBar.BackgroundColor3 = opts.accent or Color3.fromRGB(90, 170, 90)
@@ -103,8 +99,7 @@ function Notify.push(opts)
 
 	local bodyLabel = Instance.new("TextLabel")
 	bodyLabel.Position = UDim2.fromOffset(58, 36)
-	-- มีปุ่มกด = หลบที่ให้ปุ่มด้านขวา ไม่งั้นข้อความลอดใต้ปุ่ม
-	bodyLabel.Size = UDim2.fromOffset(WIDTH - 70 - (opts.action and 84 or 0), 30)
+	bodyLabel.Size = UDim2.fromOffset(WIDTH - 70 - (opts.action and 84 or 0), 30) -- มีปุ่ม = หลบที่ให้ปุ่ม
 	bodyLabel.BackgroundTransparency = 1
 	bodyLabel.FontFace = Font.fromEnum(Enum.Font.Gotham)
 	bodyLabel.TextSize = 13
@@ -143,8 +138,7 @@ function Notify.push(opts)
 		task.delay(SLIDE, function() holder:Destroy() end)
 	end
 
-	-- คลิกปิดเองได้ + หายเองเมื่อครบเวลา
-	local closeBtn = Instance.new("TextButton")
+	local closeBtn = Instance.new("TextButton") -- คลิกที่ไหนบนการ์ด = ปิด
 	closeBtn.Size = UDim2.fromScale(1, 1)
 	closeBtn.BackgroundTransparency = 1
 	closeBtn.Text = ""
@@ -152,8 +146,7 @@ function Notify.push(opts)
 	closeBtn.Parent = card
 	closeBtn.Activated:Connect(dismiss)
 
-	-- ★ ปุ่มกดบนการ์ด (ถ้ามี) — ต้อง parent **หลัง** closeBtn ตัวที่คลุมเต็มใบ
-	--   ลูกที่มาทีหลัง (ZIndex เท่ากัน) อยู่บนสุด = กินคลิกก่อน ไม่งั้นโดน closeBtn ปิดทิ้งแทน
+	-- ★ ปุ่ม action ต้อง parent หลัง closeBtn — ลูกที่มาทีหลัง (ZIndex เท่ากัน) อยู่บนสุด กินคลิกก่อน
 	if opts.action then
 		local act = Instance.new("TextButton")
 		act.Size = UDim2.fromOffset(74, 30)
@@ -175,7 +168,7 @@ function Notify.push(opts)
 		end)
 	end
 
-	task.delay(opts.hold or HOLD, dismiss) -- การ์ดที่ต้องตัดสินใจ (มีปุ่ม) ส่ง hold ยาวกว่ามาได้
+	task.delay(opts.hold or HOLD, dismiss)
 end
 
 function Notify.gain(followerDelta: number, moneyDelta: number?)
@@ -190,8 +183,7 @@ function Notify.gain(followerDelta: number, moneyDelta: number?)
 	})
 end
 
--- งาน sponsor เข้า (แทนระบบวางลงปฏิทินที่พับไปแล้ว 9 ส.ค.) — กด "รับงาน" = buff เงินเริ่มทันที
--- ค้างนานกว่าการ์ดอื่น (12 วิ) เพราะต้องให้ผู้เล่นทันตัดสินใจ · ปล่อยหาย = สละสิทธิ์ ใบใหม่สุ่มวันถัดไป
+-- งาน sponsor เข้า — กดรับ = buff เงินเริ่มทันที · ค้าง 12 วิ (ให้ทันตัดสินใจ) ปล่อยหาย = สละสิทธิ์
 function Notify.sponsor(multText: string, onAccept)
 	Notify.push({
 		title = "💼 มีงาน sponsor เข้า!",
